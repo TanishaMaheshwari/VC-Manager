@@ -1,16 +1,16 @@
 {% if persons %}
     {% for person in persons %}
-    <tr>
-        <td><strong>{{ person.name }}</strong></td>
-        <td><span class="badge bg-info">{{ person.short_name }}</span></td>
-        <td>{{ person.phone or '-' }}</td>
-        <td>{{ person.phone2 or '-' }}</td>
-        <td>
+    <tr class="responsive-table-row">
+        <td class="responsive-table-cell" data-label="Full Name"><strong>{{ person.name }}</strong></td>
+        <td class="responsive-table-cell" data-label="Short Name"><span class="badge bg-info">{{ person.short_name }}</span></td>
+        <td class="responsive-table-cell" data-label="Primary Phone">{{ person.phone or '-' }}</td>
+        <td class="responsive-table-cell" data-label="Secondary Phone">{{ person.phone2 or '-' }}</td>
+        <td class="responsive-table-cell" data-label="Balance">
             <span class="badge bg-{{ 'success' if person.opening_balance >= 0 else 'danger' }}">
                 ₹{{ "%.0f"|format(person.opening_balance) }}
             </span>
         </td>
-        <td>
+        <td class="responsive-table-cell" data-label="Actions">
             <div class="btn-group btn-group-sm">
                 <a href="{{ url_for('person_ledger', person_id=person.id) }}" 
                    class="btn btn-outline-primary" title="View Ledger">
