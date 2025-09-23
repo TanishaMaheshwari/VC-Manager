@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Create Person{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-plus me-2"></i>Create New Person
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.short_name.label(class="form-label") }}
+                        {{ form.short_name(class="form-control") }}
+                        {% for error in form.short_name.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <small class="text-muted">Used in tables (e.g., NS, HM, DK)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.phone.label(class="form-label") }}
+                        {{ form.phone(class="form-control") }}
+                        {% for error in form.phone.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.phone2.label(class="form-label") }}
+                        {{ form.phone2(class="form-control") }}
+                        {% for error in form.phone2.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <small class="text-muted">Optional</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.opening_balance.label(class="form-label") }}
+                        {{ form.opening_balance(class="form-control") }}
+                        {% for error in form.opening_balance.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <small class="text-muted">Optional</small>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('persons') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

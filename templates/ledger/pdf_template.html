@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ person.name }} - Ledger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #333;
+            margin: 20px;
+        }
+        .header h1 {
+            color: #1e293b;
+            font-size: 24px;
+            text-align: center;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .summary-box {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .summary-item {
+            text-align: center;
+        }
+        .summary-number {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .table-container {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .ledger-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .ledger-table th, .ledger-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+        .ledger-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .ledger-table tr:last-child td {
+            border-bottom: none;
+        }
+        .text-success { color: green; }
+        .text-danger { color: red; }
+        .text-muted { color: #888; }
+        .amount-credit { color: green; }
+        .amount-debit { color: red; }
+        .balance-positive { color: green; }
+        .balance-negative { color: red; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Personal Ledger for {{ person.name }}</h1>
+        <div class="summary-box">
+            <div class="summary-item">
+                <div class="summary-number">{{ entries|length }}</div>
+                <div class="summary-label">Total Entries</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number text-success">${{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
+                <div class="summary-label">Total Credits</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number text-danger">${{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
+                <div class="summary-label">Total Debits</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number {{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}">
+                    ${{ "%.0f"|format(person.total_balance) }}
+                </div>
+                <div class="summary-label">Current Balance</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="ledger-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Narration</th>
+                    <th>Dr</th>
+                    <th>Cr</th>
+                    <th>Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>{{ entry.date.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        <div>{{ entry.narration }}</div>
+                        {% if entry.vc %}
+                            <small class="text-muted">VC {{ entry.vc.vc_number }} - {{ entry.vc.name }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.debit > 0 %}
+                            <span class="amount-debit">${{ "%.0f"|format(entry.debit) }}</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.credit > 0 %}
+                            <span class="amount-credit">${{ "%.0f"|format(entry.credit) }}</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="{{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
+                            ${{ "%.0f"|format(entry.balance) }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not entries %}
+    <p style="text-align: center; margin-top: 50px; color: #888;">No ledger entries found.</p>
+    {% endif %}
+
+</body>
+</html>

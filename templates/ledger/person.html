@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}{{ person.name }} - Personal Ledger{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="display-6 fw-bold" style="background: linear-gradient(135deg, #1e293b, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    <i class="fas fa-book me-3"></i>Personal Ledger
+                </h1>
+                <p class="text-muted fs-5">
+                    <span class="person-badge me-2">{{ person.short_name }}</span>
+                    {{ person.name }}
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('persons') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Persons
+                </a>
+                <a href="{{ url_for('create_ledger_entry') }}?person_id={{ person.id }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add Entry
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Account Summary -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="stat-number text-info">{{ entries|length }}</div>
+                        <div class="stat-label">Total Entries</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-number text-success">${{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
+                        <div class="stat-label">Total Credits</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-number text-danger">${{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
+                        <div class="stat-label">Total Debits</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-number {{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}">
+                            ${{ "%.0f"|format(person.total_balance) }}
+                        </div>
+                        <div class="stat-label">Current Balance</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ledger Book -->
+<div class="row">
+    <div class="col-12">
+        <div class="ledger-container">
+            <div class="ledger-header">
+                <div class="ledger-title">
+                    <i class="fas fa-book-open me-2"></i>Ledger as Khata Book - {{ person.short_name }} Shared
+                </div>
+                <div class="ledger-info">
+                    <div>
+                        <strong>Account Name:</strong><br>
+                        {{ person.name }}
+                    </div>
+                    <div>
+                        <strong>Date of Balance:</strong><br>
+                        {{ entries[0].date.strftime('%d/%m/%Y') if entries else 'N/A' }}
+                    </div>
+                    <div>
+                        <strong>Balance (+/-):</strong><br>
+                        <span class="{{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}">
+                            ${{ "%.0f"|format(person.total_balance) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ledger Header Row -->
+            <div class="ledger-row" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; font-weight: 600;">
+                <div><i class="fas fa-calendar me-1"></i>Date</div>
+                <div><i class="fas fa-comment me-1"></i>Narration</div>
+                <div><i class="fas fa-minus-circle me-1"></i>Dr</div>
+                <div><i class="fas fa-plus-circle me-1"></i>Cr</div>
+                <div><i class="fas fa-balance-scale me-1"></i>Bal</div>
+            </div>
+            
+            <!-- Ledger Entries -->
+            {% for entry in entries %}
+            <div class="ledger-row">
+                <div>
+                    <div class="fw-semibold">{{ entry.date.strftime('%d/%m/%Y') }}</div>
+                    <small class="text-muted">{{ entry.date.strftime('%I:%M %p') }}</small>
+                </div>
+                <div>
+                    <div class="fw-semibold">{{ entry.narration }}</div>
+                    {% if entry.vc %}
+                        <small class="text-muted">
+                            <span class="badge bg-primary">VC {{ entry.vc.vc_number }}</span>
+                            {{ entry.vc.name }}
+                        </small>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if entry.debit > 0 %}
+                        <span class="amount-debit fw-bold">${{ "%.0f"|format(entry.debit) }}</span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if entry.credit > 0 %}
+                        <span class="amount-credit fw-bold">${{ "%.0f"|format(entry.credit) }}</span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <span class="fw-bold {{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
+                        ${{ "%.0f"|format(entry.balance) }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+            
+            {% if not entries %}
+            <div class="text-center py-5">
+                <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No ledger entries found</h5>
+                <p class="text-muted">Start by adding the first entry to this person's ledger.</p>
+                <a href="{{ url_for('create_ledger_entry') }}?person_id={{ person.id }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add First Entry
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Filter Options -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filter Ledger Entries
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Filter by VC</label>
+                        <select name="vc_id" class="form-select">
+                            <option value="">All VCs</option>
+                            {% for vc in person.ledger_entries|map(attribute='vc')|unique|list %}
+                                {% if vc %}
+                                    <option value="{{ vc.id }}" {{ 'selected' if request.args.get('vc_id') == vc.id|string else '' }}>
+                                        VC {{ vc.vc_number }} - {{ vc.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">From Date</label>
+                        <input type="date" name="from_date" class="form-control" value="{{ request.args.get('from_date', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">To Date</label>
+                        <input type="date" name="to_date" class="form-control" value="{{ request.args.get('to_date', '') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>Filter
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-success" onclick="location.href='{{ url_for('create_ledger_entry') }}?person_id={{ person.id }}'">
+                        <i class="fas fa-plus me-2"></i>Add Credit Entry
+                    </button>
+                    <button class="btn btn-warning" onclick="addDebitEntry({{ person.id }})">
+                        <i class="fas fa-minus me-2"></i>Add Debit Entry
+                    </button>
+                    <button class="btn btn-info" onclick="location.href='{{ url_for('edit_person', id=person.id) }}'">
+                        <i class="fas fa-edit me-2"></i>Edit Person Details
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="exportLedger({{ person.id }})">
+                        <i class="fas fa-download me-2"></i>Export Ledger
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="printLedger()">
+                        <i class="fas fa-print me-2"></i>Print Ledger
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addDebitEntry(personId) {
+    location.href = `{{ url_for('create_ledger_entry') }}?person_id=${personId}&type=debit`;
+}
+
+function exportLedger(personId) {
+    window.open(`/ledger/${personId}/pdf`, '_blank');
+}
+
+function printLedger() {
+    window.print();
+}
+
+// Add animations
+document.addEventListener('DOMContentLoaded', function() {
+    const ledgerRows = document.querySelectorAll('.ledger-row');
+    ledgerRows.forEach((row, index) => {
+        if (index > 0) { // Skip header row
+            row.style.animationDelay = `${index * 0.05}s`;
+            row.classList.add('fade-in');
+        }
+    });
+});
+</script>
+{% endblock %}
