@@ -3,6 +3,7 @@
 {% block title %}Create VC{% endblock %}
 
 {% block content %}
+
 <div class="row">
     <div class="col-md-10 mx-auto">
         <div class="card">
@@ -13,16 +14,27 @@
             </div>
             <div class="card-body">
                 <form method="POST">
-                    {{ form.hidden_tag() }}
-                    
+                     {{ form.hidden_tag() }}
+
+                    <!-- Display auto-generated VC Number -->
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            {{ form.vc_number.label(class="form-label") }}
-                            {{ form.vc_number(class="form-control") }}
-                            {% for error in form.vc_number.errors %}
+                            <label class="form-label">VC Number</label>
+                            <input type="text" class="form-control" value="{{ vc_number }}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control") }}
+                            {% for error in form.name.errors %}
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
                         </div>
+                    </div>
+
+
+
+                    <!-- Name -->
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             {{ form.start_date.label(class="form-label") }}
                             {{ form.start_date(class="form-control") }}
@@ -30,16 +42,20 @@
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
                         </div>
+                        <div class="col-md-6">
+                            {{ form.tenure.label(class="form-label") }}
+                            {{ form.tenure(class="form-control", id="tenureInput") }}
+                            {% for error in form.tenure.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                            <!-- <small class="text-muted">Number of hands will be created automatically</small>
+                            <div class="text-warning small mt-1" id="tenureWarning" style="display:none;">
+                                Number of selected members must be equal to the tenure.
+                            </div> -->
+                        </div>
                     </div>
-                    
-                    <div class="mb-3">
-                        {{ form.name.label(class="form-label") }}
-                        {{ form.name(class="form-control") }}
-                        {% for error in form.name.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    
+
+                    <!-- Amount & Min Interest -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             {{ form.amount.label(class="form-label") }}
@@ -52,15 +68,18 @@
                             {% endfor %}
                         </div>
                         <div class="col-md-6">
-                            {{ form.tenure.label(class="form-label") }}
-                            {{ form.tenure(class="form-control") }}
-                            {% for error in form.tenure.errors %}
+                            {{ form.min_interest.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">%</span>
+                                {{ form.min_interest(class="form-control") }}
+                            </div>
+                            {% for error in form.min_interest.errors %}
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
-                            <small class="text-muted">Number of hands will be created automatically</small>
                         </div>
                     </div>
-                    
+
+                    <!-- Narration -->
                     <div class="mb-3">
                         {{ form.narration.label(class="form-label") }}
                         {{ form.narration(class="form-control", rows="3") }}
@@ -69,12 +88,16 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Members Selection -->
+                    <!-- Members Selection with Search and Show/Hide -->
                     <div class="mb-3">
                         {{ form.members.label(class="form-label fw-bold") }}
-                        <div class="row">
+
+                        <!-- Search input -->
+                        <input type="text" class="form-control mb-2" id="memberSearch" placeholder="Search members by name">
+
+                        <div class="row" id="membersContainer">
                             {% for subfield in form.members %}
-                                <div class="col-md-4 col-sm-6 mb-2">
+                                <div class="col-md-4 col-sm-6 mb-2 member-item {% if loop.index > 5 %}d-none extra-member{% endif %}">
                                     <div class="form-check">
                                         {{ subfield(class="form-check-input") }}
                                         <label class="form-check-label">{{ subfield.label.text }}</label>
@@ -82,21 +105,101 @@
                                 </div>
                             {% endfor %}
                         </div>
-                        <small class="text-muted">Select between 10 and 25 members</small>
+
+                        {% if form.members.choices|length > 6 %}
+                        <div class="mb-2">
+                            <button type="button" class="btn btn-link p-0" id="toggleMembers">See All</button>
+                        </div>
+                        {% endif %}
+
+                        <!-- <small class="text-muted">Select between 10 and 25 members</small> -->
                         {% for error in form.members.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
+
+                    <!-- Buttons -->
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('vcs_list') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-1"></i>Back
                         </a>
                         {{ form.submit(class="btn btn-primary") }}
                     </div>
+
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- JS for live search + toggle -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("memberSearch");
+    const members = document.querySelectorAll(".member-item");
+    const toggleBtn = document.getElementById("toggleMembers");
+    const tenureInput = document.getElementById("tenureInput");
+    const memberCheckboxes = document.querySelectorAll(".member-item input[type='checkbox']");
+    const warning = document.getElementById("tenureWarning");
+    const form = document.querySelector("form");
+    let showingAll = false;
+
+    function validateTenure() {
+        const tenure = parseInt(tenureInput.value) || 0;
+        let selectedCount = 0;
+        memberCheckboxes.forEach(cb => { if(cb.checked) selectedCount++; });
+
+        if (selectedCount !== tenure) {
+            warning.style.display = "block";
+            return false;
+        } else {
+            warning.style.display = "none";
+            return true;
+        }
+    }
+
+    // Check on change of tenure or member selection
+    tenureInput.addEventListener("input", validateTenure);
+    memberCheckboxes.forEach(cb => cb.addEventListener("change", validateTenure));
+
+    // Prevent form submission if invalid
+    form.addEventListener("submit", function(e) {
+        if(!validateTenure()) {
+            e.preventDefault();
+            alert("Please make sure the number of selected members equals the tenure.");
+        }
+    });
+
+    // Live search
+    searchInput.addEventListener("input", function() {
+        const filter = searchInput.value.toLowerCase();
+        members.forEach(function(member) {
+            const label = member.querySelector("label").innerText.toLowerCase();
+            if(label.includes(filter)) {
+                member.style.display = "block";
+            } else {
+                member.style.display = "none";
+            }
+        });
+    });
+
+    // Show/Hide extra members
+    if(toggleBtn) {
+        toggleBtn.addEventListener("click", function() {
+            const extraMembers = document.querySelectorAll(".extra-member");
+            showingAll = !showingAll;
+            extraMembers.forEach(function(member) {
+                if(showingAll) {
+                    member.classList.remove("d-none");
+                } else {
+                    member.classList.add("d-none");
+                }
+            });
+            toggleBtn.innerText = showingAll ? "Show Less" : "See All";
+        });
+    }
+});
+</script>
+
+
 {% endblock %}

@@ -1,177 +1,245 @@
 {% extends "base.html" %}
 
-{% block title %}All VCs - VC Manager{% endblock %}
+{% block title %}Dashboard{% endblock %}
+
+{% block head %}
+{{ super() }}
+
+<!-- Swiper CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+
+<style>
+.pending-vc-card {
+    transition: transform 0.3s ease-in-out;
+    cursor: pointer;
+}
+.pending-vc-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h1 class="display-5 fw-bold"
-                style="background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                <i class="fas fa-list me-2"></i>All VCs
-            </h1>
-            <div class="d-flex gap-2">
-                <button class="btn btn-primary" onclick="location.href='{{ url_for('create_vc') }}'">
-                    <i class="fas fa-plus me-2"></i>Create VC
-                </button>
-                <button class="btn btn-outline-primary" onclick="location.href='{{ url_for('persons') }}'">
-                    <i class="fas fa-users me-2"></i>Accounts
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<div class="container mt-5">
 
-<!-- Status Summary Cards -->
-<div class="row mt-5">
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-number text-danger">
-                ${{ "%.0f"|format(total_due) }}
-            </div>
-            <div class="stat-label">
-                <i class="fas fa-wallet me-1"></i>Total Due
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-number text-secondary">
-                {{ vcs|selectattr('status.value', 'equalto', 'paid')|list|length }}
-            </div>
-            <div class="stat-label">
-                <i class="fas fa-check-circle me-1"></i>Completed VCs
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-number text-warning">
-                {{ vcs|selectattr('status.value', 'equalto', 'partial')|list|length }}
-            </div>
-            <div class="stat-label">
-                <i class="fas fa-clock me-1"></i>Partial VCs
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-number text-primary">
-                {{ vcs|selectattr('status.value', 'equalto', 'pending')|list|length }}
-            </div>
-            <div class="stat-label">
-                <i class="fas fa-exclamation-triangle me-1"></i>Pending VCs
-            </div>
-        </div>
-    </div>
-</div>
-
-
-<!-- Pending VCs Section -->
-{% set pending_vcs = vcs|selectattr('status.value', 'equalto', 'pending')|list %}
-{% if pending_vcs %}
-<div class="row mt-5">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-hourglass-half me-2"></i>Pending VCs</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for vc in pending_vcs %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card border-warning">
-                            <div class="card-body text-center">
-                                <h6 class="card-title">
-                                    <span class="badge bg-warning text-dark">{{ vc.vc_number }}</span>
-                                </h6>
-                                <p class="card-text">{{ vc.name }}</p>
-                                <small class="text-muted">{{ vc.start_date.strftime('%d/%m/%Y') }}</small>
-                                <div class="mt-2">
-                                    <button class="btn btn-sm btn-outline-primary"
-                                        onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
-                                        View Details
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h1 class="display-5 fw-bold"
+                    style="background: linear-gradient(135deg, #6366f1, #8b5cf6); 
+                           -webkit-background-clip: text; 
+                           -webkit-text-fill-color: transparent;">
+                    <i class="fas fa-list me-2"></i>All VCs
+                </h1>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" onclick="location.href='{{ url_for('create_vc') }}'">
+                        <i class="fas fa-plus me-2"></i>Create VC
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="location.href='{{ url_for('persons') }}'">
+                        <i class="fas fa-users me-2"></i>Accounts
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Responsive Table -->
-<div class="modern-table table-responsive">
-    <table class="table mb-0">
-        <thead class="table-dark">
-            <tr>
-                <th>VC</th>
-                <th>Date</th>
-                <th>Hand</th>
-                <th>Amount</th>
-                <th>Due Count</th>
-                <th>Total Due</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Total Row
-            <tr style="background: linear-gradient(135deg, var(--dark-color), #334155); color: white;">
-                <td colspan="5" class="fw-bold text-end fs-5">TOTAL DUE:</td>
-                <td class="fw-bold fs-4">${{ "%.0f"|format(total_due) }}</td>
-                <td></td>
-            </tr> -->
-            {% for vc in vcs %}
-            <tr class="clickable" onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
-                <td data-label="VC">
-                    <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
-                </td>
-                <td data-label="Date">
-                    <div class="fw-semibold">{{ vc.start_date.strftime('%d/%m/%y') }}</div>
-                    <small class="text-muted">{{ vc.start_date.strftime('%B %Y') }}</small>
-                </td>
-                <td data-label="Hand">
-                    <div class="d-flex align-items-center">
-                        <div class="progress me-2" style="width: 60px; height: 8px;">
-                            <div class="progress-bar bg-success"
-                                style="width: {{ (vc.current_hand / vc.tenure * 100) }}%"></div>
+    <!-- Dashboard Stats -->
+    <div class="row text-center mb-5">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <h5 class="card-title text-muted">Total VCs</h5>
+                    <p class="display-4 fw-bold text-primary">{{ total_vcs }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <h5 class="card-title text-muted">Total Due</h5>
+                    <p class="display-4 fw-bold text-danger">₹{{ total_due|round(2) }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <h5 class="card-title text-muted">Total Members</h5>
+                    <p class="display-4 fw-bold text-success">{{ total_persons }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending VCs Section -->
+    {% set pending_vcs = vcs|selectattr('status.value', 'equalto', 'pending')|list %}
+    {% if pending_vcs %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-hourglass-half me-2"></i>Pending VCs</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Swiper -->
+                    <div class="swiper mySwiper">
+                        <div class="swiper-wrapper">
+                            {% for vc in pending_vcs %}
+                            <div class="swiper-slide">
+                                <div class="card h-100 border-warning pending-vc-card">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title">
+                                            <span class="badge bg-warning text-dark">{{ vc.vc_number }}</span>
+                                        </h6>
+                                        <p class="card-text">{{ vc.name }}</p>
+                                        <small class="text-muted">{{ vc.start_date.strftime('%d/%m/%Y') }}</small>
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                                                View Details
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
-                        <span class="fw-semibold">{{ vc.current_hand }} / {{ vc.tenure }}</span>
-                    </div>
-                </td>
-                <td data-label="Amount">
-                    <span class="fw-bold fs-5">${{ "%.0f"|format(vc.amount) }}</span>
-                </td>
-                <td data-label="Due Count">
-                    {% if vc.due_count > 0 %}
-                    <span class="badge bg-danger">{{ vc.due_count }}</span>
-                    {% else %}
-                    <span class="badge bg-success">0</span>
-                    {% endif %}
-                </td>
-                <td data-label="Total Due">
-                    <span class="fw-bold">${{ "%.0f"|format(vc.total_due) }}</span>
-                </td>
-                <td data-label="Actions">
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary"
-                            onclick="event.stopPropagation(); location.href='{{ url_for('view_vc', id=vc.id) }}'">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn btn-outline-warning"
-                            onclick="event.stopPropagation(); location.href='{{ url_for('create_vc', id=vc.id) }}'">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
 
-{% endif %}
+                        <!-- Pagination -->
+                        <div class="swiper-pagination"></div>
+
+                        <!-- Navigation Arrows -->
+                        <div class="swiper-button-next"></div>
+                        <div class="swiper-button-prev"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Other Sections ... -->
+
+    <!-- Responsive Table -->
+    <div class="modern-table table-responsive mt-4">
+        <table class="table mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>VC</th>
+                    <th>Date</th>
+                    <th>Hand</th>
+                    <th>Amount</th>
+                    <th>Due Count</th>
+                    <th>Total Due</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vc in vcs %}
+                <tr class="clickable" onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                    <td data-label="VC">
+                        <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
+                    </td>
+                    <td data-label="Date">
+                        <div class="fw-semibold">{{ vc.start_date.strftime('%d/%m/%y') }}</div>
+                        <small class="text-muted">{{ vc.start_date.strftime('%B %Y') }}</small>
+                    </td>
+                    <td data-label="Hand">
+                        <div class="d-flex align-items-center">
+                            <div class="progress me-2" style="width: 60px; height: 8px;">
+                                <div class="progress-bar bg-success"
+                                     style="width: {{ (vc.current_hand / vc.tenure * 100) }}%"></div>
+                            </div>
+                            <span class="fw-semibold">{{ vc.current_hand }} / {{ vc.tenure }}</span>
+                        </div>
+                    </td>
+                    <td data-label="Amount">
+                        <span class="fw-bold fs-5">${{ "%.0f"|format(vc.amount) }}</span>
+                    </td>
+                    <td data-label="Due Count">
+                        {% if vc.due_count > 0 %}
+                        <span class="badge bg-danger">{{ vc.due_count }}</span>
+                        {% else %}
+                        <span class="badge bg-success">0</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Total Due">
+                        <span class="fw-bold">${{ "%.0f"|format(vc.total_due) }}</span>
+                    </td>
+                    <td data-label="Actions">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary"
+                                onclick="event.stopPropagation(); location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-warning"
+                                onclick="event.stopPropagation(); location.href='{{ url_for('create_vc', id=vc.id) }}'">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<!-- Swiper JS -->
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', (event) => {
+  const mySwiper = new Swiper('.mySwiper', {
+    slidesPerView: 1,
+    spaceBetween: 10,
+    pagination: {
+      el: '.swiper-pagination',
+      clickable: true,
+    },
+    navigation: {
+      nextEl: '.swiper-button-next',
+      prevEl: '.swiper-button-prev',
+    },
+    breakpoints: {
+      640: {
+        slidesPerView: 1,
+        spaceBetween: 20,
+      },
+      768: {
+        slidesPerView: 2,
+        spaceBetween: 30,
+      },
+      1024: {
+        slidesPerView: 3,
+        spaceBetween: 40,
+        pagination: false, // ❌ hide dots on desktop
+      },
+    },
+  });
+
+  // Hide arrows on mobile
+  function toggleNav() {
+    if (window.innerWidth < 1024) {
+      document.querySelectorAll('.swiper-button-next, .swiper-button-prev')
+        .forEach(btn => btn.style.display = 'none');
+    } else {
+      document.querySelectorAll('.swiper-button-next, .swiper-button-prev')
+        .forEach(btn => btn.style.display = 'block');
+    }
+  }
+
+  toggleNav();
+  window.addEventListener('resize', toggleNav);
+});
+</script>
+
+
 {% endblock %}

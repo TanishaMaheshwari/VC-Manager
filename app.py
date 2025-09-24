@@ -42,6 +42,7 @@ class VC(db.Model):
     current_hand = db.Column(db.Integer, default=1)  # Which hand is currently active
     narration = db.Column(db.Text)
     status = db.Column(db.Enum(PaymentStatus), default=PaymentStatus.PENDING)
+    min_interest = db.Column(db.Float, nullable=False, default=0.0) # Added new column
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -209,10 +210,11 @@ class MultiCheckboxField(SelectMultipleField):
     option_widget = CheckboxInput()
 
 class VCForm(FlaskForm):
-    vc_number = StringField("VC Number", validators=[DataRequired()])
-    start_date = DateField("Start Date", format='%Y-%m-%d', validators=[DataRequired()], default=datetime.now())
+    # vc_number is now automated
     name = StringField("Name", validators=[DataRequired()])
+    start_date = DateField("Start Date", format='%Y-%m-%d', validators=[DataRequired()], default=datetime.now())
     amount = FloatField("Amount", validators=[DataRequired(), NumberRange(min=1)])
+    min_interest = FloatField("Minimum Interest", validators=[DataRequired(), NumberRange(min=0)])
     tenure = IntegerField("Tenure", validators=[DataRequired()])
     narration = TextAreaField("Narration")
 
@@ -298,13 +300,18 @@ def vcs_list():
 def create_vc():
     form = VCForm()
     form.members.choices = [(p.id, p.name) for p in Person.query.all()]
+    
+    # Determine next VC number for display
+    last_vc = VC.query.order_by(VC.vc_number.desc()).first()
+    next_vc_number = (last_vc.vc_number + 1) if last_vc else 1
 
     if form.validate_on_submit():
         vc = VC(
-            vc_number=form.vc_number.data,
+            vc_number=next_vc_number,
             name=form.name.data,
             start_date=datetime.combine(form.start_date.data, datetime.min.time()),
             amount=form.amount.data,
+            min_interest=form.min_interest.data,
             tenure=form.tenure.data,
             narration=form.narration.data
         )
@@ -320,10 +327,11 @@ def create_vc():
         vc.create_hands()
 
         db.session.commit()
-        flash(f'VC created successfully with {form.tenure.data} hands and {len(vc.members)} members!', 'success')
+        flash(f'VC {next_vc_number} created successfully with {form.tenure.data} hands and {len(vc.members)} members!', 'success')
         return redirect(url_for('vcs_list'))
     
-    return render_template('vc/create.html', form=form)
+    return render_template('vc/create.html', form=form, vc_number=next_vc_number)
+
 
 @app.route('/vc/<int:id>')
 def view_vc(id):
@@ -424,16 +432,21 @@ def edit_vc(id):
     form = VCForm(obj=vc)
 
     if form.validate_on_submit():
-        vc.vc_number = form.vc_number.data
+        # vc_number is not editable
         vc.name = form.name.data
         vc.start_date = form.start_date.data
         vc.amount = form.amount.data
+        vc.min_interest = form.min_interest.data # Added new field
         vc.tenure = form.tenure.data
         vc.narration = form.narration.data
 
         db.session.commit()
         flash('VC updated successfully!', 'success')
         return redirect(url_for('view_vc', id=vc.id))
+    
+    # Pre-populate members for editing
+    form.members.choices = [(p.id, p.name) for p in Person.query.all()]
+    form.members.data = [member.id for member in vc.members]
 
     return render_template('vc/edit.html', form=form, vc=vc)
 
@@ -699,5 +712,9 @@ def export_ledger_pdf(person_id):
     )
 
 if __name__ == "__main__":
+    with app.app_context():
+        # This is the crucial line that creates the database file and all tables.
+        db.create_all()
+        print("Database 'vc_committee.db' and tables created successfully.")
     port = int(os.environ.get("PORT", 5000))  # Render gives PORT dynamically
     app.run(host="0.0.0.0", port=port)
