@@ -96,10 +96,16 @@
                 <div class="fw-bold" style="flex:2">₹{{ "%.0f"|format(hand.balance)|indian_comma }}</div>
                 <div class="fw-bold" style="flex:2">₹{{ "%.0f"|format(hand.contribution_amount)|indian_comma }}</div>
                 <div style="flex:1">
-                    <span class="badge {{ 'bg-success' if hand.self_half_option=='self' else 'bg-warning' }}">
-                        {{ hand.self_half_option|capitalize }}
-                    </span>
-                </div>  
+                    {% if hand.winner_short_name %}
+                        <span class="badge bg-primary fw-bold">
+                            {{ hand.winner_short_name }}
+                        </span>
+                    {% else %}
+                        <span class="badge {{ 'bg-success' if hand.hand_number == vc.current_hand else 'bg-secondary' }}">
+                            {{ 'Open' if hand.hand_number == vc.current_hand else 'Pending' }}
+                        </span>
+                    {% endif %}
+                </div> 
             </div>
             {% endfor %}
         </div>

@@ -175,38 +175,50 @@
       </div>
 
       <form method="POST" action="{{ url_for('distribute_hand', vc_id=vc.id) }}">
+        <input type="hidden" name="hand_id" value="{{ hand.id }}"> <!-- Hidden field for hand_id -->
+
         <div class="modal-body">
-          <!-- Winning Bid Price -->
-          <div class="mb-3">
-            <label for="bid_price" class="form-label">Winning Bid Price (₹)</label>
-            <input type="number" class="form-control" id="bid_price" name="bid_price"
-                   placeholder="Enter final bid amount" required>
-          </div>
+            <!-- Winning Bid Price -->
+            <div class="mb-3">
+                <label for="bid_price" class="form-label">Winning Bid Price (₹)</label>
+                <input type="number" class="form-control" id="bid_price" name="bid_price"
+                    placeholder="Enter final bid amount" required step="0.01">
+            </div>
 
-          <!-- Winners -->
-          <div class="mb-3">
-            <label class="form-label">Select Winner(s)</label>
-            <select class="form-select" name="winners" multiple required>
-              {% for member in members %}
-                <option value="{{ member.id }}">{{ member.name }}</option>
-              {% endfor %}
-            </select>
-            <div class="form-text">Hold CTRL (or tap multiple on mobile) to select more than one winner.</div>
-          </div>
+            <!-- Winners -->
+            <div class="mb-3">
+                <label class="form-label">Select Winner(s)</label>
+                <select class="form-select" name="winners" multiple required id="winnerSelect">
+                    {% for member in members %}
+                    <option value="{{ member.id }}" 
+                            {% if not member_eligibility[member.id]['is_eligible'] %}
+                            disabled 
+                            title="{{ member.name }} has already won a hand."
+                            {% endif %}
+                            >
+                        {{ member.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Hold CTRL (or tap multiple on mobile) to select up to 2 winners.</div>
+            </div>
 
-          <!-- Narration (optional) -->
-          <div class="mb-3">
-            <label for="narration" class="form-label">Narration</label>
-            <input type="text" class="form-control" id="narration" name="narration"
-                   placeholder="e.g. Hand distributed at auction">
-          </div>
+
+            <!-- Narration (optional) -->
+            <div class="mb-3">
+                <label for="narration" class="form-label">Narration</label>
+                <input type="text" class="form-control" id="narration" name="narration"
+                    placeholder="e.g. Hand distributed at auction">
+            </div>
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Confirm Distribution</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Confirm Distribution</button>
         </div>
-      </form>
+    </form>
+
+
     </div>
   </div>
 </div>
@@ -364,6 +376,16 @@ document.addEventListener('DOMContentLoaded', function() {
     row.style.animationDelay = `${index * 0.1}s`;
     row.classList.add('fade-in');
   });
+
+document.getElementById("winnerSelect").addEventListener("change", function () {
+    let selected = Array.from(this.selectedOptions);
+    if (selected.length > 2) {
+      // Deselect the last one
+      selected[selected.length - 1].selected = false;
+      alert("You can select only 2 winners.");
+    }
+  });
+
 });
 </script>
 {% endblock %}

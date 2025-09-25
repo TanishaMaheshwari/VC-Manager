@@ -121,6 +121,22 @@ class VCHand(db.Model):
     @property
     def due_amount_for_month(self):
         return max(self.contribution_amount - self.total_paid, 0)
+    
+    @property
+    def winner_short_name(self):
+        """
+        Returns a comma-separated string of the short names of all winners for this hand.
+        Returns None if the hand has not been distributed.
+        """
+        # Use .all() to get all distribution records for this hand
+        distributions = HandDistribution.query.filter_by(hand_id=self.id).all()
+        
+        if distributions:
+            # Get the short name for each winner and join them into a string
+            winner_names = [d.person.short_name for d in distributions]
+            return ", ".join(winner_names)
+            
+        return None
 
 class HandDistribution(db.Model):
     __tablename__ = 'hand_distributions'
@@ -402,90 +418,129 @@ def view_hand_distribution(vc_id, hand_number):
         distributions=[], # Placeholder for template
         vc_payouts=[] # Placeholder for template
     )
+import traceback
 
 @app.route("/vc/<int:vc_id>/distribute-hand", methods=['POST'])
 def distribute_hand(vc_id):
-    hand_id = request.form.get('hand_id')
-    person_id = request.form.get('person_id')
-    bid_price = request.form.get('bid_price', type=float)
-
-    if not person_id or not bid_price:
-        return jsonify(success=False, message="Winner and bid price are required."), 400
-
-    hand = VCHand.query.get_or_404(hand_id)
-    vc = hand.vc
-    winner = Person.query.get_or_404(person_id)
-
-    # Check if already distributed
-    if HandDistribution.query.filter_by(hand_id=hand.id).first():
-        return jsonify(success=False, message="This hand has already been distributed."), 400
-
-    # Ensure winner hasn't won before
-    winning_member_ids = {
-        d.person_id
-        for h in vc.hands
-        for d in h.hand_distributions
-    }
-    if winner.id in winning_member_ids:
-        return jsonify(success=False, message="This member has already won a previous hand and is ineligible."), 400
-
     try:
-        # 1. Record payout for winner
-        payout = HandDistribution(
-            hand_id=hand.id,
-            person_id=winner.id,
-            amount=bid_price,
-            narration=f"Payout for Hand {hand.hand_number}",
-            is_vc_money_taken=True
-        )
-        db.session.add(payout)
+        print("--- Starting distribute_hand function ---")
+
+        # 1. Fetch form data
+        hand_id = request.form.get("hand_id")
+        winners = request.form.getlist("winners")
+        bid_price = request.form.get("bid_price", type=float)
+        narration = request.form.get("narration")
+
+        print(f"Received data: hand_id={hand_id}, winners={winners}, bid_price={bid_price}, narration={narration}")
+
+        # Basic validation
+        if not winners or bid_price is None or bid_price <= 0:
+            print("Validation failed: winners or bid_price is invalid.")
+            flash("Error: Winner(s) and a valid bid price are required.", 'danger')
+            return redirect(url_for('view_hand_distribution', vc_id=vc_id, hand_number=VCHand.query.get(hand_id).hand_number))
+
+        hand = VCHand.query.get_or_404(hand_id)
+        vc = hand.vc
+        winner_objs = Person.query.filter(Person.id.in_(winners)).all()
+
+        # Check if already distributed
+        if HandDistribution.query.filter_by(hand_id=hand.id).first():
+            print("Hand already distributed.")
+            flash("Error: This hand has already been distributed.", 'danger')
+            return redirect(url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
+
+        # Check if winner has already won
+        winning_member_ids = {d.person_id for h in vc.hands for d in h.hand_distributions}
+        for w in winner_objs:
+            if w.id in winning_member_ids:
+                print(f"Winner {w.name} already won a previous hand.")
+                flash(f"Error: {w.name} has already won a previous hand and is ineligible.", 'danger')
+                return redirect(url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
+
+        print("Validation checks passed. Starting database operations.")
+        # Ledger Fix: Use a dictionary to track real-time balances
+        all_persons = Person.query.all()
+        person_balances = {p.id: p.total_balance for p in all_persons}
+        print(f"Initial person_balances: {person_balances}")
+
+        # 1. Record payouts for winner(s)
+        payout_per_winner = bid_price / len(winner_objs)
+        print(f"Payout per winner: {payout_per_winner}")
+        for winner in winner_objs:
+            print(f"Processing winner: {winner.name}")
+            # Hand Distribution record
+            payout = HandDistribution(
+                hand_id=hand.id,
+                person_id=winner.id,
+                amount=payout_per_winner,
+                narration=narration or f"Payout for Hand {hand.hand_number}",
+                is_vc_money_taken=True
+            )
+            db.session.add(payout)
+            print("Added HandDistribution to session.")
+
+            # Ledger entry for payout (credit)
+            current_balance = person_balances.get(winner.id, 0)
+            new_balance = current_balance + payout_per_winner
+            ledger_entry = LedgerEntry(
+                person_id=winner.id,
+                vc_id=vc.id,
+                date=datetime.utcnow(),
+                narration=f"Payout received for VC {vc.vc_number}, Hand {hand.hand_number}. ({narration or 'No comment'})",
+                credit=payout_per_winner,
+                balance=new_balance
+            )
+            db.session.add(ledger_entry)
+            person_balances[winner.id] = new_balance
+            print(f"Added LedgerEntry (credit). New balance for {winner.name}: {new_balance}")
 
         # 2. Contributions for all members
-        members = vc.members  # assuming relationship VC -> Person
+        members = vc.members
         per_person_contribution = bid_price / len(members)
-
+        print(f"Contribution per member: {per_person_contribution}")
         for member in members:
+            print(f"Processing member: {member.name}")
+            # Contribution record
             contribution = Contribution(
                 hand_id=hand.id,
                 person_id=member.id,
                 amount=per_person_contribution,
-                payment_date=datetime.utcnow()
+                date=datetime.utcnow()
             )
             db.session.add(contribution)
+            print("Added Contribution to session.")
 
             # Ledger entry (debit)
+            current_balance = person_balances.get(member.id, 0)
+            new_balance = current_balance - per_person_contribution
             ledger_entry = LedgerEntry(
                 person_id=member.id,
                 vc_id=vc.id,
                 date=datetime.utcnow(),
-                narration=f"Contribution for VC {vc.vc_number}, Hand {hand.hand_number}",
+                narration=f"Contribution for VC {vc.vc_number}, Hand {hand.hand_number}.",
                 debit=per_person_contribution,
-                balance=member.total_balance - per_person_contribution
+                balance=new_balance
             )
             db.session.add(ledger_entry)
+            person_balances[member.id] = new_balance
+            print(f"Added LedgerEntry (debit). New balance for {member.name}: {new_balance}")
 
-        # 3. Ledger entry for payout (credit)
-        ledger_entry = LedgerEntry(
-            person_id=winner.id,
-            vc_id=vc.id,
-            date=datetime.utcnow(),
-            narration=f"Payout received for VC {vc.vc_number}, Hand {hand.hand_number}",
-            credit=bid_price,
-            balance=winner.total_balance + bid_price
-        )
-        db.session.add(ledger_entry)
-
-        # 4. Advance VC hand
+        # 3. Advance VC hand
         if vc.current_hand == hand.hand_number:
             vc.current_hand += 1
+            print("Advanced VC's current hand number.")
 
         db.session.commit()
-        return jsonify(success=True, message=f"Hand {hand.hand_number} distributed successfully with bid price {bid_price}!")
+        print("db.session.commit() successful. Ending function.")
+        flash(f"Hand {hand.hand_number} distributed successfully with bid price ₹{bid_price}!", 'success')
+        return redirect(url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
 
     except Exception as e:
         db.session.rollback()
-        return jsonify(success=False, message=str(e)), 500
-
+        print("An exception occurred! Rolling back changes.")
+        traceback.print_exc()
+        flash(f"An error occurred during distribution: {str(e)}. Changes have been rolled back.", 'danger')
+        return redirect(url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
 @app.route('/vc/delete/<int:id>')
 def delete_vc(id):
     vc = VC.query.get_or_404(id)
