@@ -361,8 +361,16 @@ def view_vc(id):
 def view_hand_distribution(vc_id, hand_number):
     vc = VC.query.get_or_404(vc_id)
     hand = VCHand.query.filter_by(vc_id=vc.id, hand_number=hand_number).first_or_404()
-    
-    contributions = Contribution.query.filter_by(hand_id=hand.id).all()
+
+    # Get list of member IDs for this VC
+    vc_member_ids = [m.id for m in vc.members]
+
+    # Filter contributions: only for this hand AND only from VC members
+    contributions = Contribution.query.filter(
+        Contribution.hand_id == hand.id,
+        Contribution.person_id.in_(vc_member_ids)
+    ).order_by(Contribution.date.asc()).all()
+
     payout = HandDistribution.query.filter_by(hand_id=hand.id).first()
     payout_recorded = payout is not None
 
