@@ -15,6 +15,8 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import validates
 import io
+from babel.numbers import format_decimal
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -65,6 +67,12 @@ class VC(db.Model):
     @property
     def total_due(self):
         return sum(hand.due_amount for hand in self.hands)
+    
+    @property
+    def completed_hands(self):
+        """Return number of hands fully paid"""
+        return sum(1 for hand in self.hands if hand.due_amount == 0)
+
     
     def create_hands(self):
         """Create hands for each month of tenure"""
@@ -280,6 +288,11 @@ def init_db():
     
     print('Database initialized!')
 
+
+@app.template_filter('indian_comma')
+def indian_comma(value):
+    return format_decimal(value, locale='en_IN')
+
 # Routes
 @app.route('/')
 def dashboard():
@@ -293,8 +306,10 @@ def dashboard():
 @app.route('/vcs')
 def vcs_list():
     vcs = VC.query.order_by(VC.vc_number).all()
-    total_due = sum(vc.total_due for vc in vcs)
-    return render_template('vc/list.html', vcs=vcs, total_due=total_due)
+    total_due = sum(vc.amount * vc.due_count for vc in vcs)
+    total_vcs = len(vcs)
+    total_members = sum(len(vc.members) for vc in vcs)
+    return render_template('vc/list.html', vcs=vcs, total_due=total_due, total_members=total_members, total_vcs=total_vcs)
 
 @app.route('/vc/create', methods=['GET', 'POST'])
 def create_vc():
@@ -381,74 +396,96 @@ def view_hand_distribution(vc_id, hand_number):
     )
 
 @app.route("/vc/<int:vc_id>/distribute-hand", methods=['POST'])
-# @login_required
 def distribute_hand(vc_id):
     hand_id = request.form.get('hand_id')
     person_id = request.form.get('person_id')
+    bid_price = request.form.get('bid_price', type=float)
 
-    if not person_id:
-        return jsonify(success=False, message="Winner is required."), 400
+    if not person_id or not bid_price:
+        return jsonify(success=False, message="Winner and bid price are required."), 400
 
     hand = VCHand.query.get_or_404(hand_id)
     vc = hand.vc
-    person = Person.query.get_or_404(person_id)
-    
-    # Check if a payout has already been recorded for this hand
-    existing_payout = HandDistribution.query.filter_by(hand_id=hand.id).first()
-    if existing_payout:
+    winner = Person.query.get_or_404(person_id)
+
+    # Check if already distributed
+    if HandDistribution.query.filter_by(hand_id=hand.id).first():
         return jsonify(success=False, message="This hand has already been distributed."), 400
 
-    # Check eligibility of the winner
-    winning_member_ids = set()
-    for h in vc.hands:
-        for d in h.hand_distributions:
-            winning_member_ids.add(d.person_id)
-    
-    if person.id in winning_member_ids:
+    # Ensure winner hasn't won before
+    winning_member_ids = {
+        d.person_id
+        for h in vc.hands
+        for d in h.hand_distributions
+    }
+    if winner.id in winning_member_ids:
         return jsonify(success=False, message="This member has already won a previous hand and is ineligible."), 400
-        
+
     try:
-        new_hand_distribution = HandDistribution(
+        # 1. Record payout for winner
+        payout = HandDistribution(
             hand_id=hand.id,
-            person_id=person_id,
-            amount=hand.balance,
-            narration='VC money taken',
+            person_id=winner.id,
+            amount=bid_price,
+            narration=f"Payout for Hand {hand.hand_number}",
             is_vc_money_taken=True
         )
-        db.session.add(new_hand_distribution)
-        
-        # Advance the VC to the next hand
+        db.session.add(payout)
+
+        # 2. Contributions for all members
+        members = vc.members  # assuming relationship VC -> Person
+        per_person_contribution = bid_price / len(members)
+
+        for member in members:
+            contribution = Contribution(
+                hand_id=hand.id,
+                person_id=member.id,
+                amount=per_person_contribution,
+                payment_date=datetime.utcnow()
+            )
+            db.session.add(contribution)
+
+            # Ledger entry (debit)
+            ledger_entry = LedgerEntry(
+                person_id=member.id,
+                vc_id=vc.id,
+                date=datetime.utcnow(),
+                narration=f"Contribution for VC {vc.vc_number}, Hand {hand.hand_number}",
+                debit=per_person_contribution,
+                balance=member.total_balance - per_person_contribution
+            )
+            db.session.add(ledger_entry)
+
+        # 3. Ledger entry for payout (credit)
+        ledger_entry = LedgerEntry(
+            person_id=winner.id,
+            vc_id=vc.id,
+            date=datetime.utcnow(),
+            narration=f"Payout received for VC {vc.vc_number}, Hand {hand.hand_number}",
+            credit=bid_price,
+            balance=winner.total_balance + bid_price
+        )
+        db.session.add(ledger_entry)
+
+        # 4. Advance VC hand
         if vc.current_hand == hand.hand_number:
             vc.current_hand += 1
+
         db.session.commit()
-        return jsonify(success=True, message=f"Hand {hand.hand_number} distributed successfully!")
+        return jsonify(success=True, message=f"Hand {hand.hand_number} distributed successfully with bid price {bid_price}!")
+
     except Exception as e:
         db.session.rollback()
         return jsonify(success=False, message=str(e)), 500
-    
-@app.route('/vc/<int:id>/edit', methods=['GET', 'POST'])
-def edit_vc(id):
+
+@app.route('/vc/delete/<int:id>')
+def delete_vc(id):
     vc = VC.query.get_or_404(id)
-    form = VCForm(obj=vc)
+    db.session.delete(vc)
+    db.session.commit()
+    flash(f'VC {vc.vc_number} deleted successfully!', 'success')
+    return redirect(url_for('vcs_list'))
 
-    if form.validate_on_submit():
-        # vc_number is not editable
-        vc.name = form.name.data
-        vc.start_date = form.start_date.data
-        vc.amount = form.amount.data
-        vc.min_interest = form.min_interest.data # Added new field
-        vc.tenure = form.tenure.data
-        vc.narration = form.narration.data
-
-        db.session.commit()
-        flash('VC updated successfully!', 'success')
-        return redirect(url_for('view_vc', id=vc.id))
-    
-    # Pre-populate members for editing
-    form.members.choices = [(p.id, p.name) for p in Person.query.all()]
-    form.members.data = [member.id for member in vc.members]
-
-    return render_template('vc/edit.html', form=form, vc=vc)
 
 @app.route('/persons')
 def persons():

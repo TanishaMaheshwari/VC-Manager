@@ -13,10 +13,6 @@
     transition: transform 0.3s ease-in-out;
     cursor: pointer;
 }
-.pending-vc-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
 </style>
 {% endblock %}
 
@@ -59,7 +55,7 @@
             <div class="card shadow-sm h-100">
                 <div class="card-body d-flex flex-column align-items-center justify-content-center">
                     <h5 class="card-title text-muted">Total Due</h5>
-                    <p class="display-4 fw-bold text-danger">₹{{ total_due|round(2) }}</p>
+                    <p class="display-4 fw-bold text-danger">₹{{ total_due|round(2)|indian_comma }}</p>
                 </div>
             </div>
         </div>
@@ -67,7 +63,7 @@
             <div class="card shadow-sm h-100">
                 <div class="card-body d-flex flex-column align-items-center justify-content-center">
                     <h5 class="card-title text-muted">Total Members</h5>
-                    <p class="display-4 fw-bold text-success">{{ total_persons }}</p>
+                    <p class="display-4 fw-bold text-success">{{ total_members }}</p>
                 </div>
             </div>
         </div>
@@ -88,13 +84,13 @@
                         <div class="swiper-wrapper">
                             {% for vc in pending_vcs %}
                             <div class="swiper-slide">
-                                <div class="card h-100 border-warning pending-vc-card">
+                                <div class="card border-warning pending-vc-card">
                                     <div class="card-body text-center">
                                         <h6 class="card-title">
                                             <span class="badge bg-warning text-dark">{{ vc.vc_number }}</span>
                                         </h6>
-                                        <p class="card-text">{{ vc.name }}</p>
-                                        <small class="text-muted">{{ vc.start_date.strftime('%d/%m/%Y') }}</small>
+                                        <p class="card-text mb-1">{{ vc.name }}</p>
+                                        <small class="text-muted" style="display:block; margin-bottom:0;">{{ vc.start_date.strftime('%d/%m/%Y') }}</small>
                                         <div class="mt-2">
                                             <button class="btn btn-sm btn-outline-primary"
                                                 onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
@@ -128,6 +124,7 @@
             <thead class="table-dark">
                 <tr>
                     <th>VC</th>
+                    <th>Name</th>
                     <th>Date</th>
                     <th>Hand</th>
                     <th>Amount</th>
@@ -142,43 +139,49 @@
                     <td data-label="VC">
                         <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
                     </td>
+                    <td data-label="Name">{{ vc.name }}</td>
                     <td data-label="Date">
-                        <div class="fw-semibold">{{ vc.start_date.strftime('%d/%m/%y') }}</div>
-                        <small class="text-muted">{{ vc.start_date.strftime('%B %Y') }}</small>
+                        <div class="fw-semibold">{{ vc.start_date.strftime('%d-%m-%y') }}</div>
+                        <!-- <div class="fw-semibold">{{ vc.start_date.strftime('%d/%m/%y') }}</div> -->
+                        <!-- <small class="text-muted">{{ vc.start_date.strftime('%B %Y') }}</small> -->
                     </td>
                     <td data-label="Hand">
                         <div class="d-flex align-items-center">
                             <div class="progress me-2" style="width: 60px; height: 8px;">
                                 <div class="progress-bar bg-success"
+                                     style="width: {{ (vc.completed_hands / vc.tenure * 100) }}%"></div>
+                                <div class="progress-bar bg-secondary"
                                      style="width: {{ (vc.current_hand / vc.tenure * 100) }}%"></div>
                             </div>
-                            <span class="fw-semibold">{{ vc.current_hand }} / {{ vc.tenure }}</span>
+                            <span class="fw-semibold">{{ vc.completed_hands }} / {{ vc.tenure }}</span>
                         </div>
                     </td>
                     <td data-label="Amount">
-                        <span class="fw-bold fs-5">${{ "%.0f"|format(vc.amount) }}</span>
+                        <span class="fw-bold">₹{{ "%.0f"|format(vc.amount)|indian_comma  }}</span>
                     </td>
                     <td data-label="Due Count">
                         {% if vc.due_count > 0 %}
-                        <span class="badge bg-danger">{{ vc.due_count }}</span>
+                        <span class="badge bg-warning text-dark px-2 py-2">{{ vc.due_count }}</span>
                         {% else %}
                         <span class="badge bg-success">0</span>
                         {% endif %}
                     </td>
                     <td data-label="Total Due">
-                        <span class="fw-bold">${{ "%.0f"|format(vc.total_due) }}</span>
+                        <span class="fw-bold">₹{{ "%.0f"|format(vc.total_due)|indian_comma  }}</span>
                     </td>
                     <td data-label="Actions">
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-secondary"
+                            <button class="btn btn-outline-primary" style="border: none;"
                                 onclick="event.stopPropagation(); location.href='{{ url_for('view_vc', id=vc.id) }}'">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn btn-outline-warning"
-                                onclick="event.stopPropagation(); location.href='{{ url_for('create_vc', id=vc.id) }}'">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
+                           <button class="btn btn-outline-danger"
+                                onclick="event.stopPropagation(); 
+                                        if (confirm('Are you sure you want to delete VC {{ vc.vc_number }}? This action cannot be undone.')) {
+                                            window.location.href='{{ url_for('delete_vc', id=vc.id) }}';
+                                        }">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -220,7 +223,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
       1024: {
         slidesPerView: 3,
         spaceBetween: 40,
-        pagination: false, // ❌ hide dots on desktop
+        pagination: false, // hide dots on desktop
       },
     },
   });

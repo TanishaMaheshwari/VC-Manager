@@ -3,24 +3,38 @@
 {% block title %}VC {{ vc.vc_number }} - Hand {{ hand.hand_number }} Distribution{% endblock %}
 
 {% block content %}
+<style>
+    /* Make contribution card visually larger than payout */
+.contribution-section {
+  min-height: 3x; /* 👈 not valid, so use calc instead */
+  min-height: calc(3 * 120px); /* assuming payout ~120px tall */
+  padding: 2rem;
+  font-size: 1.1rem; /* slightly larger text */
+}
 
+/* Contribution rows spacing */
+.contribution-section .distribution-row {
+  padding: 1.2rem 1rem;
+}
+</style>
 <div class="row mb-4">
-<div class="col-12">
-<div class="d-flex justify-content-between align-items-center">
-<div>
-<h1 class="display-6 fw-bold" style="background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-<i class="fas fa-hand-paper me-3"></i>Hand {{ hand.hand_number }} Distribution
-</h1>
-<p class="text-muted fs-5">
-<span class="badge bg-primary me-2">VC {{ vc.vc_number }}</span>
-{{ vc.name }} - {{ hand.date.strftime('%d %B %Y') }}
-</p>
-</div>
-<a href="{{ url_for('view_vc', id=vc.id) }}" class="btn btn-outline-secondary">
-<i class="fas fa-arrow-left me-2"></i>Back to VC Timeline
-</a>
-</div>
-</div>
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="display-6 fw-bold"
+            style="background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          <i class="fas fa-hand-paper me-3"></i>Hand {{ hand.hand_number }} Distribution
+        </h1>
+        <p class="text-muted fs-5">
+          <span class="badge bg-primary me-2">VC {{ vc.vc_number }}</span>
+          {{ vc.name }} - {{ hand.date.strftime('%d %B %Y') }}
+        </p>
+      </div>
+      <a href="{{ url_for('view_vc', id=vc.id) }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to VC Timeline
+      </a>
+    </div>
+  </div>
 </div>
 
 <!-- Hand Summary -->
@@ -42,7 +56,9 @@
             <div class="stat-label">Total Collected</div>
           </div>
           <div class="col-md-3">
-            <div class="stat-number text-warning">${{ "%.0f"|format(hand.due_amount_for_month) }}</div>
+            <div class="stat-number text-warning">
+              ${{ "%.0f"|format(hand.due_amount_for_month) }}
+            </div>
             <div class="stat-label">Remaining Due</div>
           </div>
         </div>
@@ -52,313 +68,302 @@
 </div>
 
 <!-- Distribution Table -->
-
 <div class="row">
-<div class="col-12">
-<div class="distribution-card">
-<div class="distribution-header">
-<div class="d-flex justify-content-between align-items-center">
-<div>
-<i class="fas fa-building me-2"></i>VC {{ vc.vc_number }}
-</div>
-<div>
-<i class="fas fa-calendar me-2"></i>{{ hand.hand_number }}TH HAND
-</div>
-<div>
-<i class="fas fa-clock me-2"></i>{{ hand.date.strftime('%d-%m-%y') }}
-</div>
-</div>
-</div>
+  <div class="col-12">
+    <!-- <div class="distribution-card"> -->
 
-        <!-- Contributions Section -->
-        <h3 class="mb-3">Contributions</h3>
-        <div class="distribution-card mb-4">
-            {% if contributions %}
-                {% for c in contributions %}
-                <div class="distribution-row">
-                    <div>
-                        <div class="hand-number" style="width: 40px; height: 40px; font-size: 0.9rem;">{{ loop.index }}</div>
-                    </div>
-                    <div>
-                        <div class="person-badge">{{ c.person.short_name }}</div>
-                    </div>
-                    <div>
-                        <span class="fw-bold fs-5 text-success">
-                            ${{ "%.0f"|format(c.amount) }}
-                        </span>
-                    </div>
-                    <div>
-                        <div class="fw-semibold">Contribution</div>
-                        <small class="text-muted">{{ c.person.name }}</small>
-                    </div>
-                    <div>
-                        <div class="fw-semibold">{{ c.date.strftime('%d/%m/%Y') }}</div>
-                        <small class="text-muted">{{ c.date.strftime('%I:%M %p') }}</small>
-                    </div>
-                    <div>
-                        <span class="badge bg-secondary">Payment</span>
-                    </div>
+      <div class="distribution-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <div><i class="fas fa-building me-2"></i>VC {{ vc.vc_number }}</div>
+          <div><i class="fas fa-calendar me-2"></i>{{ hand.hand_number }}TH HAND</div>
+          <div><i class="fas fa-clock me-2"></i>{{ hand.date.strftime('%d-%m-%y') }}</div>
+        </div>
+      </div>
+
+      <!-- Payout Section -->
+      <!-- <h3 class="mb-3">Payout</h3> -->
+      <div class="distribution-card mb-4">
+        {% if payout %}
+          <div class="distribution-row highlight">
+            <div>
+              <div class="hand-number">1</div>
+            </div>
+            <div>
+              <div class="person-badge">{{ payout.person.short_name }}</div>
+            </div>
+            <div>
+              <span class="fw-bold fs-5 text-danger">
+                ${{ "%.0f"|format(payout.amount) }}
+              </span>
+            </div>
+            <div>
+              <div class="fw-semibold">{{ payout.narration or 'Payout' }}</div>
+              <small class="text-muted">{{ payout.person.name }}</small>
+            </div>
+            
+            <div>
+              <span class="badge bg-warning text-dark">
+                <i class="fas fa-star me-1"></i>Payout
+              </span>
+            </div>
+          </div>
+        {% else %}
+          <div class="text-center py-2">
+            <i class="fas fa-star fa-2x text-muted mb-3"></i>
+            <h5 class="text-muted">No payout recorded yet</h5>
+            <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#handDistributionModal">
+              <i class="fas fa-hand-holding-dollar me-2"></i>Add Payout
+            </button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Contributions Section -->
+      <!-- <h3 class="mb-3">Contributions</h3> -->
+      <!-- Contributions Section -->
+        <div class="distribution-card contribution-section">
+        {% if contributions %}
+            {% for c in contributions %}
+            <div class="distribution-row">
+                <div>
+                <div class="hand-number">{{ loop.index }}</div>
                 </div>
-                {% endfor %}
-            {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No contributions recorded yet</h5>
-                    <button class="btn btn-primary" onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
-                        <i class="fas fa-plus me-2"></i>Add First Contribution
-                    </button>
+                <div>
+                <div class="person-badge">{{ c.person.short_name }}</div>
                 </div>
-            {% endif %}
+                <div>
+                <span class="fw-bold fs-5 text-success">
+                    ${{ "%.0f"|format(c.amount) }}
+                </span>
+                </div>
+                <div>
+                <div class="fw-semibold">{{ c.person.name }}</div>
+                <!-- <small class="text-muted">{{ c.person.name }}</small> -->
+                </div>
+                <div>
+                <div class="fw-semibold">{{ c.date.strftime('%d/%m/%Y') }}</div>
+                <small class="text-muted">{{ c.date.strftime('%I:%M %p') }}</small>
+                </div>
+                <div>
+                <span class="badge bg-secondary">Payment</span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No contributions recorded yet</h5>
+            <button class="btn btn-primary"
+                    onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
+                <i class="fas fa-plus me-2"></i>Add First Contribution
+            </button>
+            </div>
+        {% endif %}
         </div>
 
-        <!-- Payout Section -->
-        <h3 class="mb-3">Payout</h3>
-        <div class="distribution-card">
-            {% if payout %}
-                <div class="distribution-row highlight">
-                    <div>
-                        <div class="hand-number" style="width: 40px; height: 40px; font-size: 0.9rem;">1</div>
-                    </div>
-                    <div>
-                        <div class="person-badge">{{ payout.person.short_name }}</div>
-                    </div>
-                    <div>
-                        <span class="fw-bold fs-5 text-danger">
-                            ${{ "%.0f"|format(payout.amount) }}
-                        </span>
-                    </div>
-                    <div>
-                        <div class="fw-semibold">{{ payout.narration or 'Payout' }}</div>
-                        <small class="text-muted">{{ payout.person.name }}</small>
-                    </div>
-                    <div>
-                        <div class="fw-semibold">{{ payout.payout_date.strftime('%d/%m/%Y') }}</div>
-                        <small class="text-muted">{{ payout.payout_date.strftime('%I:%M %p') }}</small>
-                    </div>
-                    <div>
-                        <span class="badge bg-warning text-dark">
-                            <i class="fas fa-star me-1"></i>Payout
-                        </span>
-                    </div>
-                </div>
-            {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-star fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No payout recorded yet</h5>
-                </div>
-            {% endif %}
-        </div>
-</div>
-
-</div>
-
-<!-- Legend and Notes -->
-
-<div class="row mt-4">
-<div class="col-md-6">
-<div class="alert alert-warning">
-<h6 class="alert-heading">
-<i class="fas fa-lightbulb me-2"></i>Legend
-</h6>
-<ul class="mb-0">
-<li><strong>Yellow highlighted rows:</strong> Show the members who took the VC money for this hand</li>
-<li><strong>Red amounts:</strong> Negative amounts (money taken out)</li>
-<li><strong>Green amounts:</strong> Positive amounts (money paid in)</li>
-</ul>
-</div>
-</div>
-<div class="col-md-6">
-<div class="alert alert-info">
-<h6 class="alert-heading">
-<i class="fas fa-info-circle me-2"></i>Quick Stats
-</h6>
-<ul class="mb-0">
-<li><strong>Total Participants:</strong> {{ distributions|length }}</li>
-<li><strong>VC Money Takers:</strong>
-{% set takers = distributions|selectattr('is_vc_money_taken')|list %}
-{% if takers %}
-{% for payout in vc_payouts %}
-<div class="person-badge">{{ payout.person.short_name }}</div>
-<div class="amount">{{ payout.amount }}</div>
-{% endfor %}
-{% else %}
-None
-{% endif %}
-</li>
-<li><strong>Payments Made:</strong> {{ distributions|rejectattr('is_vc_money_taken')|list|length }}</li>
-</ul>
-</div>
-</div>
-</div>
-
-<!-- Action Buttons -->
-
-<div class="row mt-4">
-<div class="col-12">
-<div class="card">
-<div class="card-header">
-<h6 class="mb-0">
-<i class="fas fa-tools me-2"></i>Hand Management Actions
-</h6>
-</div>
-<div class="card-body">
-<div class="d-flex flex-wrap gap-2">
-<button class="btn btn-success" onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
-<i class="fas fa-plus me-2"></i>Add Payment
-</button>
-<button class="btn btn-info" onclick="location.href='{{ url_for('create_ledger_entry') }}?vc_id={{ vc.id }}'">
-<i class="fas fa-book me-2"></i>Add Ledger Entry
-</button>
-<button class="btn btn-warning" onclick="editHandDetails({{ hand.id }})">
-<i class="fas fa-edit me-2"></i>Edit Hand Details
-</button>
-<button class="btn btn-primary" onclick="sendReminders({{ hand.id }})">
-<i class="fas fa-bell me-2"></i>Send Reminders
-</button>
-<button class="btn btn-outline-secondary" onclick="exportHandData({{ hand.id }})">
-<i class="fas fa-download me-2"></i>Export Data
-</button>
-{% if not payout_recorded %}
-<button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#handDistributionModal">
-<i class="fas fa-hand-holding-dollar me-2"></i>Distribute Hand
-</button>
-{% endif %}
-</div>
-</div>
-</div>
-</div>
+    <!-- </div> -->
+  </div>
 </div>
 
 <!-- Hand Distribution Modal -->
+<div class="modal fade" id="handDistributionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Distribute Hand #{{ hand.hand_number }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
 
-<div class="modal fade" id="handDistributionModal" tabindex="-1" aria-labelledby="handDistributionModalLabel" aria-hidden="true">
-<div class="modal-dialog">
-<div class="modal-content">
-<div class="modal-header">
-<h5 class="modal-title" id="handDistributionModalLabel">Distribute Hand #{{ hand.hand_number }}</h5>
-<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <form method="POST" action="{{ url_for('distribute_hand', vc_id=vc.id) }}">
+        <div class="modal-body">
+          <!-- Winning Bid Price -->
+          <div class="mb-3">
+            <label for="bid_price" class="form-label">Winning Bid Price (₹)</label>
+            <input type="number" class="form-control" id="bid_price" name="bid_price"
+                   placeholder="Enter final bid amount" required>
+          </div>
+
+          <!-- Winners -->
+          <div class="mb-3">
+            <label class="form-label">Select Winner(s)</label>
+            <select class="form-select" name="winners" multiple required>
+              {% for member in members %}
+                <option value="{{ member.id }}">{{ member.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Hold CTRL (or tap multiple on mobile) to select more than one winner.</div>
+          </div>
+
+          <!-- Narration (optional) -->
+          <div class="mb-3">
+            <label for="narration" class="form-label">Narration</label>
+            <input type="text" class="form-control" id="narration" name="narration"
+                   placeholder="e.g. Hand distributed at auction">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm Distribution</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
-<div class="modal-body">
-<form id="handDistributionForm" class="p-3">
-<p class="text-danger" id="errorMessage" style="display:none;"></p>
-<input type="hidden" name="hand_number" value="{{ hand.hand_number }}">
-<div class="mb-3">
-<label for="firstWinner" class="form-label">First Winner</label>
-<select class="form-select" id="firstWinner" name="first_winner" required>
-<option value="">Select a member...</option>
-{% for member in members %}
-<option value="{{ member.id }}"
-{% if not member_eligibility[member.id]['is_eligible'] %}disabled{% endif %}
-data-eligible="{{ member_eligibility[member.id]['is_eligible'] }}"
-data-reason="{{ member_eligibility[member.id]['reason'] | default('') }}">
-{{ member.name }}
-{% if not member_eligibility[member.id]['is_eligible'] %}
-- Ineligible: {{ member_eligibility[member.id]['reason'] }}
-{% endif %}
-</option>
-{% endfor %}
-</select>
-<div class="form-text text-muted">A member can only be a first winner once in a solo hand, or twice in a shared hand.</div>
+
+<!-- Legend and Notes -->
+<div class="row mt-4">
+  <div class="col-md-6">
+    <div class="alert alert-warning">
+      <h6 class="alert-heading">
+        <i class="fas fa-lightbulb me-2"></i>Legend
+      </h6>
+      <ul class="mb-0">
+        <li><strong>Yellow highlighted rows:</strong> Show the members who took the VC money for this hand</li>
+        <li><strong>Red amounts:</strong> Negative amounts (money taken out)</li>
+        <li><strong>Green amounts:</strong> Positive amounts (money paid in)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="alert alert-info">
+      <h6 class="alert-heading">
+        <i class="fas fa-info-circle me-2"></i>Quick Stats
+      </h6>
+      <ul class="mb-0">
+        <li><strong>Total Participants:</strong> {{ distributions|length }}</li>
+        <li>
+          <strong>VC Money Takers:</strong>
+          {% set takers = distributions|selectattr('is_vc_money_taken')|list %}
+          {% if takers %}
+            {% for payout in vc_payouts %}
+              <div class="person-badge">{{ payout.person.short_name }}</div>
+              <div class="amount">{{ payout.amount }}</div>
+            {% endfor %}
+          {% else %}
+            None
+          {% endif %}
+        </li>
+        <li><strong>Payments Made:</strong> {{ distributions|rejectattr('is_vc_money_taken')|list|length }}</li>
+      </ul>
+    </div>
+  </div>
 </div>
-<div class="mb-3">
-<label for="secondWinner" class="form-label">Second Winner (Optional)</label>
-<select class="form-select" id="secondWinner" name="second_winner">
-<option value="">Select a member...</option>
-{% for member in members %}
-<option value="{{ member.id }}">{{ member.name }}</option>
-{% endfor %}
-</select>
-<div class="form-text text-muted">Select this if the payout is being shared.</div>
+
+<!-- Action Buttons -->
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">
+          <i class="fas fa-tools me-2"></i>Hand Management Actions
+        </h6>
+      </div>
+      <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-success"
+                  onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
+            <i class="fas fa-plus me-2"></i>Add Payment
+          </button>
+          <button class="btn btn-info"
+                  onclick="location.href='{{ url_for('create_ledger_entry') }}?vc_id={{ vc.id }}'">
+            <i class="fas fa-book me-2"></i>Add Ledger Entry
+          </button>
+          <button class="btn btn-warning" onclick="editHandDetails({{ hand.id }})">
+            <i class="fas fa-edit me-2"></i>Edit Hand Details
+          </button>
+          <button class="btn btn-primary" onclick="sendReminders({{ hand.id }})">
+            <i class="fas fa-bell me-2"></i>Send Reminders
+          </button>
+          <button class="btn btn-outline-secondary" onclick="exportHandData({{ hand.id }})">
+            <i class="fas fa-download me-2"></i>Export Data
+          </button>
+          {% if not payout_recorded %}
+            <button type="button" class="btn btn-dark"
+                    data-bs-toggle="modal" data-bs-target="#handDistributionModal">
+              <i class="fas fa-hand-holding-dollar me-2"></i>Distribute Hand
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
-</form>
-</div>
-<div class="modal-footer">
-<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-<button type="button" class="btn btn-primary" id="distributeBtn">Distribute Hand</button>
-</div>
-</div>
-</div>
-</div>
+
 {% endblock %}
 
 {% block scripts %}
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-const distributeBtn = document.getElementById('distributeBtn');
-const distributeForm = document.getElementById('handDistributionForm');
-const errorMessage = document.getElementById('errorMessage');
-const firstWinnerSelect = document.getElementById('firstWinner');
-const modal = new bootstrap.Modal(document.getElementById('handDistributionModal'));
+  const distributeBtn = document.getElementById('distributeBtn');
+  const distributeForm = document.getElementById('handDistributionForm');
+  const errorMessage = document.getElementById('errorMessage');
+  const firstWinnerSelect = document.getElementById('firstWinner');
+  const modal = new bootstrap.Modal(document.getElementById('handDistributionModal'));
 
-    // Handle form submission
-    distributeBtn.addEventListener(&#39;click&#39;, function() {
-        const firstWinnerId = document.getElementById(&#39;firstWinner&#39;).value;
-        const secondWinnerId = document.getElementById(&#39;secondWinner&#39;).value;
-        const handNumber = document.querySelector(&#39;input[name=&quot;hand_number&quot;]&#39;).value;
-        
-        if (!firstWinnerId) {
-            errorMessage.style.display = &#39;block&#39;;
-            errorMessage.textContent = &#39;Please select a first winner.&#39;;
-            return;
-        }
+  // Handle form submission
+  distributeBtn.addEventListener('click', function() {
+    const firstWinnerId = document.getElementById('firstWinner').value;
+    const secondWinnerId = document.getElementById('secondWinner').value;
+    const handNumber = document.querySelector('input[name="hand_number"]').value;
 
-        const formData = new FormData();
-        formData.append(&#39;first_winner&#39;, firstWinnerId);
-        formData.append(&#39;hand_number&#39;, handNumber);
-        if (secondWinnerId) {
-            formData.append(&#39;second_winner&#39;, secondWinnerId);
-        }
-        
-        fetch(&#39;/vc/{{ vc.id }}/distribute-hand&#39;, {
-            method: &#39;POST&#39;,
-            body: formData,
-        })
-        .then(response =&gt; response.json())
-        .then(data =&gt; {
-            if (data.success) {
-                alert(data.message);
-                modal.hide();
-                location.reload();
-            } else {
-                errorMessage.style.display = &#39;block&#39;;
-                errorMessage.textContent = data.message;
-            }
-        })
-        .catch(error =&gt; {
-            console.error(&#39;Error:&#39;, error);
-            errorMessage.style.display = &#39;block&#39;;
-            errorMessage.textContent = &#39;An unexpected error occurred. Please try again.&#39;;
-        });
+    if (!firstWinnerId) {
+      errorMessage.style.display = 'block';
+      errorMessage.textContent = 'Please select a first winner.';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('first_winner', firstWinnerId);
+    formData.append('hand_number', handNumber);
+    if (secondWinnerId) {
+      formData.append('second_winner', secondWinnerId);
+    }
+
+    fetch('/vc/{{ vc.id }}/distribute-hand', {
+      method: 'POST',
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert(data.message);
+        modal.hide();
+        location.reload();
+      } else {
+        errorMessage.style.display = 'block';
+        errorMessage.textContent = data.message;
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      errorMessage.style.display = 'block';
+      errorMessage.textContent = 'An unexpected error occurred. Please try again.';
     });
+  });
 });
 
 function editHandDetails(handId) {
-    // Implement hand editing functionality
-    alert(&#39;Hand editing feature coming soon!&#39;);
+  alert('Hand editing feature coming soon!');
 }
 
 function sendReminders(handId) {
-    if (confirm(&#39;Send payment reminders to all participants?&#39;)) {
-        // Implement reminder functionality
-        alert(&#39;Reminders sent successfully!&#39;);
-    }
+  if (confirm('Send payment reminders to all participants?')) {
+    alert('Reminders sent successfully!');
+  }
 }
 
 function exportHandData(handId) {
-    // Implement export functionality
-    window.open(`/hand/${handId}/export`, &#39;_blank&#39;);
+  window.open(`/hand/${handId}/export`, '_blank');
 }
 
 // Add animations
-document.addEventListener(&#39;DOMContentLoaded&#39;, function() {
-    const distributionRows = document.querySelectorAll(&#39;.distribution-row&#39;);
-    distributionRows.forEach((row, index) =&gt; {
-        row.style.animationDelay = `${index * 0.1}s`;
-        row.classList.add(&#39;fade-in&#39;);
-    });
+document.addEventListener('DOMContentLoaded', function() {
+  const distributionRows = document.querySelectorAll('.distribution-row');
+  distributionRows.forEach((row, index) => {
+    row.style.animationDelay = `${index * 0.1}s`;
+    row.classList.add('fade-in');
+  });
 });
-
 </script>
-
 {% endblock %}

@@ -13,7 +13,7 @@
                 <p class="text-muted fs-5">
                     <i class="fas fa-calendar me-2"></i>Started: {{ vc.start_date.strftime('%d %B %Y') }}
                     <span class="mx-3">|</span>
-                    <i class="fas fa-dollar-sign me-2"></i>Total: ${{ "%.0f"|format(vc.amount) }}
+                    <i class="fas fa-dollar-sign me-2"></i>Total: ₹{{ "%.0f"|format(vc.amount)|indian_comma }}
                     <span class="mx-3">|</span>
                     <i class="fas fa-clock me-2"></i>{{ vc.tenure }} Months
                 </p>
@@ -22,7 +22,7 @@
                 <a href="{{ url_for('vcs_list') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to VCs
                 </a>
-                <a href="{{ url_for('edit_vc', id=vc.id) }}" class="btn btn-warning">
+                <a href="{{ url_for('delete_vc', id=vc.id) }}" class="btn btn-warning">
                     <i class="fas fa-edit me-2"></i>Edit VC
                 </a>
             </div>
@@ -41,11 +41,11 @@
                         <div class="stat-label">Current Hand</div>
                     </div>
                     <div class="col-md-3">
-                        <div class="stat-number text-success">${{ "%.0f"|format(vc.total_paid) }}</div>
+                        <div class="stat-number text-success">₹{{ "%.0f"|format(vc.total_paid)|indian_comma }}</div>
                         <div class="stat-label">Total Paid</div>
                     </div>
                     <div class="col-md-3">
-                        <div class="stat-number text-danger">${{ "%.0f"|format(vc.total_due) }}</div>
+                        <div class="stat-number text-danger">₹{{ "%.0f"|format(vc.total_due)|indian_comma }}</div>
                         <div class="stat-label">Total Due</div>
                     </div>
                     <div class="col-md-3">
@@ -61,53 +61,51 @@
 </div>
 
 <!-- Hands Timeline -->
+<!-- Hands Timeline -->
 <div class="row">
     <div class="col-12">
         <div class="hand-timeline">
-            <div class="card-header text-center">
+            <!-- Timeline Header -->
+            <div class="card-header text-center py-2">
                 <h5 class="mb-0">
                     <i class="fas fa-timeline me-2"></i>Hands Timeline - VC {{ vc.vc_number }}
                 </h5>
             </div>
-            
-            <!-- Timeline Header -->
-            <div class="hand-row" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; font-weight: 600;">
-                <div><i class="fas fa-hashtag"></i> Hand</div>
-                <div><i class="fas fa-calendar"></i> Date</div>
-                <div><i class="fas fa-dollar-sign"></i> Contribution</div>
-                <div><i class="fas fa-money-bill"></i> Paid</div>
-                <div><i class="fas fa-wallet"></i> Balance</div>
-                <div><i class="fas fa-user"></i> Self/Half</div>
+
+            <!-- Header Row -->
+            <div class="hand-row header-row d-flex justify-content-between align-items-center px-2 py-1" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; font-weight: 600; font-size: 0.9rem;">
+                <div style="flex:1">Hand</div>
+                <div style="flex:2">Date</div>
+                <div style="flex:2">% Interest</div>
+                <div style="flex:2">Paid</div>
+                <div style="flex:2">Balance</div>
+                <div style="flex:2">Contribution per Person</div>
+                <div style="flex:1">Self/Half</div>
             </div>
-            
+
             <!-- Timeline Rows -->
             {% for hand in hands %}
-            <div class="hand-row {{ 'active' if hand.hand_number == vc.current_hand else '' }}" 
-                 onclick="location.href='{{ url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'">
-                <div>
-                    <div class="hand-number">{{ hand.hand_number }}</div>
-                </div>
-                <div>
-                    <div class="fw-semibold">{{ hand.date.strftime('%d/%m/%Y') }}</div>
-                    <small class="text-muted">{{ hand.date.strftime('%b %Y') }}</small>
-                </div>
-                <div>
-                    <span class="fw-bold fs-5">${{ "%.0f"|format(hand.contribution_amount) }}</span>
-                </div>
-                <div>
-                    <span class="fw-bold text-success">${{ "%.0f"|format(hand.total_paid) }}</span>
-                </div>
-                <div>
-                    <span class="fw-bold">${{ "%.0f"|format(vc.amount) }}</span>
-                </div>
-                <div>
-                    <span class="badge bg-info">${{ "%.0f"|format(hand.contribution_amount / 2) }}</span>
-                </div>
+            <div class="hand-row d-flex justify-content-between align-items-center px-2 py-3 {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
+                 onclick="location.href='{{ url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'"
+                 style="font-size: 0.85rem; cursor:pointer;">
+                 
+                <div class="fw-bold" style="flex:1">{{ hand.hand_number }}</div>
+                <div class="fw-semibold" style="flex:2">{{ hand.date.strftime('%d/%m/%Y') }}</div>
+                <div class="fw-bold" style="flex:2">{{ hand.interest_rate if hand.interest_rate else vc.min_interest }}</div>
+                <div class="fw-bold text-success" style="flex:2">₹{{ "%.0f"|format(hand.total_paid)|indian_comma }}</div>
+                <div class="fw-bold" style="flex:2">₹{{ "%.0f"|format(hand.balance)|indian_comma }}</div>
+                <div class="fw-bold" style="flex:2">₹{{ "%.0f"|format(hand.contribution_amount)|indian_comma }}</div>
+                <div style="flex:1">
+                    <span class="badge {{ 'bg-success' if hand.self_half_option=='self' else 'bg-warning' }}">
+                        {{ hand.self_half_option|capitalize }}
+                    </span>
+                </div>  
             </div>
             {% endfor %}
         </div>
     </div>
 </div>
+
 
 <!-- Instructions Card -->
 <div class="row mt-4">
@@ -153,7 +151,7 @@
                     <button class="btn btn-info" onclick="location.href='{{ url_for('create_ledger_entry') }}?vc_id={{ vc.id }}'">
                         <i class="fas fa-book me-2"></i>Add Ledger Entry
                     </button>
-                    <button class="btn btn-warning" onclick="location.href='{{ url_for('edit_vc', id=vc.id) }}'">
+                    <button class="btn btn-warning" onclick="location.href='{{ url_for('delete_vc', id=vc.id) }}'">
                         <i class="fas fa-edit me-2"></i>Edit VC Details
                     </button>
                     {% if vc.status.value != 'paid' %}
