@@ -61,57 +61,93 @@
 </div>
 
 <!-- Hands Timeline -->
-<!-- Hands Timeline -->
-<div class="row">
-    <div class="col-12">
-        <div class="hand-timeline">
-            <!-- Timeline Header -->
-            <div class="card-header text-center py-2">
-                <h5 class="mb-0">
-                    <i class="fas fa-timeline me-2"></i>Hands Timeline - VC {{ vc.vc_number }}
-                </h5>
+<div class="container mx-auto p-4">
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <!-- <h1 class="text-3xl font-bold text-gray-800 mb-4">{{ vc.name }} (#{{ vc.vc_number }})</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700 mb-6">
+            <div>
+                <p><strong>Amount:</strong> ₹{{ vc.amount | indian_comma }}</p>
+                <p><strong>Tenure:</strong> {{ vc.tenure }} hands</p>
+                <p><strong>Start Date:</strong> {{ vc.start_date.strftime('%d-%m-%Y') }}</p>
+                <p><strong>Current Hand:</strong> {{ vc.current_hand }}</p>
             </div>
+            <div>
+                <p><strong>Minimum Interest:</strong> {{ vc.min_interest }}%</p>
+                <p><strong>Members:</strong> {{ vc.members|map(attribute='name')|join(', ') }}</p>
+                <p><strong>Status:</strong> <span class="badge badge-{{ vc.status.name.lower() }}">{{ vc.status.name.capitalize() }}</span></p>
+            </div>
+        </div> -->
 
-            <!-- Header Row -->
-            <div class="hand-row header-row d-flex justify-content-between align-items-center px-2 py-1" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; font-weight: 600; font-size: 0.9rem;">
-                <div style="flex:1">Hand</div>
-                <div style="flex:2">Date</div>
-                <div style="flex:2">% Interest</div>
-                <div style="flex:2">Paid</div>
-                <div style="flex:2">Balance</div>
-                <div style="flex:2">Contribution per Person</div>
-                <div style="flex:1">Self/Half</div>
-            </div>
+        <!-- <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Hands Timeline</h2> -->
+        <div class="row">
+            <div class="col-12">
+                <div class="hand-timeline">
+                    <!-- Timeline Header -->
+                    <div class="card-header text-center py-2">
+                        <h5 class="mb-0">
+                            <i class="fas fa-timeline me-2"></i>Hands Timeline - VC {{ vc.vc_number }}
+                        </h5>
+                    </div>
 
-            <!-- Timeline Rows -->
-            {% for hand in hands %}
-            <div class="hand-row d-flex justify-content-between align-items-center px-2 py-3 {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
-                 onclick="location.href='{{ url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'"
-                 style="font-size: 0.85rem; cursor:pointer;">
-                 
-                <div class="fw-bold" style="flex:1">{{ hand.hand_number }}</div>
-                <div class="fw-semibold" style="flex:2">{{ hand.date.strftime('%d/%m/%Y') }}</div>
-                <div class="fw-bold" style="flex:2">{{ hand.interest_rate if hand.interest_rate else vc.min_interest }}</div>
-                <div class="fw-bold text-success" style="flex:2">₹{{ "%.0f"|format(hand.total_paid)|indian_comma }}</div>
-                <div class="fw-bold" style="flex:2">₹{{ "%.0f"|format(hand.balance)|indian_comma }}</div>
-                <div class="fw-bold" style="flex:2">₹{{ "%.0f"|format(hand.contribution_amount)|indian_comma }}</div>
-                <div style="flex:1">
-                    {% if hand.winner_short_name %}
-                        <span class="badge bg-primary fw-bold">
-                            {{ hand.winner_short_name }}
-                        </span>
-                    {% else %}
-                        <span class="badge {{ 'bg-success' if hand.hand_number == vc.current_hand else 'bg-secondary' }}">
-                            {{ 'Open' if hand.hand_number == vc.current_hand else 'Pending' }}
-                        </span>
-                    {% endif %}
-                </div> 
+                    <!-- Header Row -->
+                    <div class="hand-row header-row d-flex justify-content-between align-items-center px-2 py-1" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; font-weight: 600; font-size: 0.9rem;">
+                        <div style="flex:1">Hand</div>
+                        <div style="flex:2">Date</div>
+                        <div style="flex:2">Min. Interest Amount</div>
+                        <div style="flex:2">Earned Interest</div>
+                        <div style="flex:2">Bid Price</div>
+                        <div style="flex:2">Contribution per Person</div>
+                        <div style="flex:1">Payout</div>
+                    </div>
+
+                    <!-- Timeline Rows -->
+                    {% for hand in hands %}
+                    <div class="hand-row d-flex justify-content-between align-items-center px-2 py-3 {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
+                         onclick="location.href='{{ url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'"
+                         style="font-size: 0.85rem; cursor:pointer;">
+                         
+                        <div class="fw-bold" style="flex:1">{{ hand.hand_number }}</div>
+                        <div class="fw-semibold" style="flex:2">{{ hand.date.strftime('%d/%m/%Y') }}</div>
+                        <div class="fw-bold" style="flex:2">₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }}</div>
+                        <div class="fw-bold" style="flex:2">
+                            {% if hand.hand_distributions %}
+                                ₹{{ "%.0f"|format(vc.amount - hand.total_paid)|indian_comma }}
+                            {% else %}
+                                ₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }}
+                            {% endif %}
+                        </div>
+                        <div class="fw-bold" style="flex:2">
+                            {% if hand.hand_distributions %}
+                                ₹{{ "%.0f"|format(hand.total_paid)|indian_comma }}
+                            {% else %}
+                                ₹{{ "%.0f"|format(hand.projected_payout)|indian_comma }}
+                            {% endif %}
+                        </div>
+                        <div class="fw-bold" style="flex:2">
+                            {% if hand.hand_distributions %}
+                                ₹{{ "%.0f"|format(hand.total_paid / vc.members|length)|indian_comma }}
+                            {% else %}
+                                ₹{{ "%.0f"|format(hand.projected_payout / vc.members|length)|indian_comma }}
+                            {% endif %}
+                        </div>
+                        <div style="flex:1">
+                            {% if hand.winner_short_name %}
+                                <span class="badge bg-primary fw-bold">
+                                    {{ hand.winner_short_name }}
+                                </span>
+                            {% else %}
+                                <span class="badge {{ 'bg-success' if hand.hand_number == vc.current_hand else 'bg-secondary' }}">
+                                    {{ 'Open' if hand.hand_number == vc.current_hand else 'Pending' }}
+                                </span>
+                            {% endif %}
+                        </div> 
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-            {% endfor %}
         </div>
     </div>
 </div>
-
 
 <!-- Instructions Card -->
 <div class="row mt-4">

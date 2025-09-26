@@ -57,7 +57,7 @@
           </div>
           <div class="col-md-3">
             <div class="stat-number text-warning">
-              ${{ "%.0f"|format(hand.due_amount_for_month) }}
+              {{ "%.0f"|format(hand.due_amount_for_month) }}
             </div>
             <div class="stat-label">Remaining Due</div>
           </div>
@@ -93,12 +93,12 @@
             </div>
             <div>
               <span class="fw-bold fs-5 text-danger">
-                ${{ "%.0f"|format(payout.amount) }}
+                {{ "%.0f"|format(payout.amount) }}
               </span>
             </div>
             <div>
-              <div class="fw-semibold">{{ payout.narration or 'Payout' }}</div>
-              <small class="text-muted">{{ payout.person.name }}</small>
+              <div class="fw-semibold">{{ payout.person.name }}</div>
+              <small class="text-muted">{{ payout.narration or 'Payout' }}</small>
             </div>
             
             <div>
@@ -200,7 +200,7 @@
                     </option>
                     {% endfor %}
                 </select>
-                <div class="form-text">Hold CTRL (or tap multiple on mobile) to select up to 2 winners.</div>
+                <!-- <div class="form-text">Hold CTRL (or tap multiple on mobile) to select up to 2 winners.</div> -->
             </div>
 
 
@@ -379,10 +379,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 document.getElementById("winnerSelect").addEventListener("change", function () {
     let selected = Array.from(this.selectedOptions);
-    if (selected.length > 2) {
+    if (selected.length > 1) {
       // Deselect the last one
       selected[selected.length - 1].selected = false;
-      alert("You can select only 2 winners.");
+      alert("You can select only 1 winners.");
     }
   });
 

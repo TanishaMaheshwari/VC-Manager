@@ -137,7 +137,69 @@ class VCHand(db.Model):
             return ", ".join(winner_names)
             
         return None
-
+    
+    @property
+    def projected_payout(self):
+        """
+        Calculates the projected payout amount for this hand based on the minimum interest.
+        This is used for hands that have not been distributed yet.
+        """
+        # The number of steps from the last hand, where the last hand has a step of 1
+        steps_from_end = self.vc.tenure - self.hand_number + 1
+        
+        # Linear deduction based on min_interest as a percentage of the total amount
+        # Example: if amount is 100, min_interest is 2%, the step is 2.
+        deduction_amount = self.vc.amount * (self.vc.min_interest/100)
+        payout_amount = self.vc.amount - (steps_from_end * deduction_amount)
+        
+        return payout_amount
+    
+    @property
+    def actual_contribution_per_person(self):
+        """
+        Returns the actual per-person contribution for this hand based on the bid price,
+        or the projected amount if the hand is not yet distributed.
+        """
+        if self.hand_distributions:
+            # The bid price is the amount from the first (and only) hand distribution record
+            payout = self.hand_distributions[0]
+            if len(self.vc.members) > 0:
+                return payout.amount / len(self.vc.members)
+        
+        # Fallback to the projected contribution based on the new logic
+        if len(self.vc.members) > 0:
+            return self.projected_payout / len(self.vc.members)
+        
+        return 0
+    
+    @property
+    def interest_rate(self):
+        """
+        Calculates the interest rate based on the bid price for distributed hands,
+        or the projected payout for pending hands.
+        """
+        if self.hand_distributions:
+            payout_amount = self.hand_distributions[0].amount
+        else:
+            payout_amount = self.projected_payout
+            
+        total_vc_amount = self.vc.amount
+        
+        if total_vc_amount > 0:
+            interest_amount = total_vc_amount - payout_amount
+            # The interest rate is the percentage of the original pool
+            return (interest_amount / total_vc_amount) * 100
+            
+        return 0
+    
+    @property
+    def interest_amount(self):
+        """
+        Calculates the total interest amount (money saved) for this hand,
+        based on the projected payout.
+        """
+        return self.vc.amount - self.projected_payout
+    
 class HandDistribution(db.Model):
     __tablename__ = 'hand_distributions'
     
@@ -246,6 +308,10 @@ class VCForm(FlaskForm):
     members = MultiCheckboxField("Members", coerce=int)
 
     submit = SubmitField("Create")
+
+    def validate_tenure(self, field):
+        if len(self.members.data) != field.data:
+            raise ValidationError("Tenure (number of hands) must be equal to the number of members.")
 
     def validate_members(self, field):
         if not field.data or len(field.data) < 1:
@@ -441,6 +507,14 @@ def distribute_hand(vc_id):
 
         hand = VCHand.query.get_or_404(hand_id)
         vc = hand.vc
+
+        required_earned_interest = vc.amount - hand.projected_payout
+        earned_interest_from_bid = vc.amount - bid_price
+        
+        if earned_interest_from_bid < required_earned_interest:
+            flash(f"The bid price must be ₹{hand.projected_payout:.0f} or less to cover the minimum interest of ₹{required_earned_interest:.0f}.", 'danger')
+            return redirect(url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
+
         winner_objs = Person.query.filter(Person.id.in_(winners)).all()
 
         # Check if already distributed
