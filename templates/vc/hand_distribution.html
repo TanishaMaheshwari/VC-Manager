@@ -38,7 +38,7 @@
 </div>
 
 <!-- Hand Summary -->
-<div class="row mb-4">
+<!-- <div class="row mb-4">
   <div class="col-12">
     <div class="card">
       <div class="card-body">
@@ -65,7 +65,7 @@
       </div>
     </div>
   </div>
-</div>
+</div> -->
 
 <!-- Distribution Table -->
 <div class="row">
@@ -84,29 +84,33 @@
       <!-- <h3 class="mb-3">Payout</h3> -->
       <div class="distribution-card mb-4">
         {% if payout %}
-          <div class="distribution-row highlight">
-            <div>
-              <div class="hand-number">1</div>
+            <div class="distribution-row highlight">
+                <div>
+                    <div class="hand-number">1</div>
+                </div>
+                <div>
+                    <div class="person-badge">{{ payout.person.short_name }}</div>
+                </div>
+                <div>
+                    <span class="fw-bold fs-5 text-danger">
+                    {{ "%.0f"|format(payout.amount - hand.actual_contribution_per_person) }}
+                    </span>
+                </div>
+                <div>
+                    <div class="fw-semibold">{{ payout.person.name }}</div>
+                    <small class="text-muted">Winning bid price: {{ payout.amount }}</small>
+                </div>
+                <div>
+                    <span class="badge bg-warning text-dark">
+                    <i class="fas fa-star me-1"></i>Payout
+                    </span>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="editPayout({{ payout.id }}, '{{ payout.person.short_name }}', {{ payout.amount }})">
+                    <i class="fas fa-edit"></i>
+                    </button>
+                </div>
             </div>
-            <div>
-              <div class="person-badge">{{ payout.person.short_name }}</div>
-            </div>
-            <div>
-              <span class="fw-bold fs-5 text-danger">
-                {{ "%.0f"|format(payout.amount) }}
-              </span>
-            </div>
-            <div>
-              <div class="fw-semibold">{{ payout.person.name }}</div>
-              <small class="text-muted">{{ payout.narration or 'Payout' }}</small>
-            </div>
-            
-            <div>
-              <span class="badge bg-warning text-dark">
-                <i class="fas fa-star me-1"></i>Payout
-              </span>
-            </div>
-          </div>
         {% else %}
           <div class="text-center py-2">
             <i class="fas fa-star fa-2x text-muted mb-3"></i>
@@ -123,7 +127,7 @@
       <!-- Contributions Section -->
         <div class="distribution-card contribution-section">
         {% if contributions %}
-            {% for c in contributions %}
+            {% for c in contributions if not (payout and c.person_id == payout.person_id) %}
             <div class="distribution-row">
                 <div>
                 <div class="hand-number">{{ loop.index }}</div>
@@ -133,12 +137,11 @@
                 </div>
                 <div>
                 <span class="fw-bold fs-5 text-success">
-                    ${{ "%.0f"|format(c.amount) }}
+                    ₹{{ "%.0f"|format(c.amount) }}
                 </span>
                 </div>
                 <div>
                 <div class="fw-semibold">{{ c.person.name }}</div>
-                <!-- <small class="text-muted">{{ c.person.name }}</small> -->
                 </div>
                 <div>
                 <div class="fw-semibold">{{ c.date.strftime('%d/%m/%Y') }}</div>
@@ -301,6 +304,39 @@
     </div>
   </div>
 </div>
+<!-- Edit Payout Modal -->
+<div class="modal fade" id="editPayoutModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editPayoutForm" method="POST" action="{{ url_for('edit_payout', vc_id=vc.id, hand_id=hand.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Payout</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="payout_id" id="editPayoutId">
+
+          <div class="mb-3">
+            <label class="form-label">Winner</label>
+            <select name="person_id" id="editPayoutPerson" class="form-select">
+              {% for member in vc.members %}
+                <option value="{{ member.id }}">{{ member.name }} ({{ member.short_name }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Winning Bid Price</label>
+            <input type="number" step="0.01" name="amount" id="editPayoutAmount" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 {% endblock %}
 
@@ -367,6 +403,19 @@ function sendReminders(handId) {
 
 function exportHandData(handId) {
   window.open(`/hand/${handId}/export`, '_blank');
+}
+
+function editPayout(id, shortName, amount) {
+  document.getElementById("editPayoutId").value = id;
+  document.getElementById("editPayoutAmount").value = amount;
+  let select = document.getElementById("editPayoutPerson");
+  for (let i = 0; i < select.options.length; i++) {
+    if (select.options[i].text.includes(shortName)) {
+      select.selectedIndex = i;
+      break;
+    }
+  }
+  new bootstrap.Modal(document.getElementById("editPayoutModal")).show();
 }
 
 // Add animations

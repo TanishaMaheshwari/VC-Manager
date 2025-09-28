@@ -66,7 +66,30 @@ class VC(db.Model):
     
     @property
     def total_due(self):
-        return sum(hand.due_amount for hand in self.hands)
+        """
+        Total due across all declared hands in this VC.
+        Declared hand = has at least one HandDistribution.
+        Formula = per-person contribution * (members - 1).
+        """
+        total = 0
+        member_count = len(self.members)
+        if member_count == 0:
+            return 0
+
+        for hand in self.hands:
+            if hand.hand_distributions:  # hand has been declared
+                per_person = hand.actual_contribution_per_person
+                total += per_person * (member_count - 1)
+        return total
+
+    
+    @property
+    def current_hand_obj(self):
+        """Return the current active hand object, or the last hand if current_hand > tenure."""
+        if self.current_hand <= self.tenure:
+            return self.current_hand
+        else:
+            return self.tenure
     
     @property
     def completed_hands(self):
@@ -199,6 +222,18 @@ class VCHand(db.Model):
         based on the projected payout.
         """
         return self.vc.amount - self.projected_payout
+
+    def amount_due_for(self, person_id):
+        # winner(s) pay nothing
+        winner_ids = [d.person_id for d in self.hand_distributions]
+        if person_id in winner_ids:
+            return 0
+
+        expected = self.actual_contribution_per_person
+        paid = sum(c.amount for c in self.contributions if c.person_id == person_id)
+        return max(expected - paid, 0)
+
+
     
 class HandDistribution(db.Model):
     __tablename__ = 'hand_distributions'
@@ -383,12 +418,78 @@ def dashboard():
     total_vcs = len(vcs)
     persons = Person.query.all()
     total_persons = len(persons)
-    return render_template('dashboard.html', today=date.today(), total_due=total_due, total_vcs=total_vcs, vcs=vcs, persons=persons, total_persons=total_persons)
+    form = PaymentForm()
+
+    # --- 1. Show only VCs with pending payments ---
+    pending_vcs = []
+    for vc in VC.query.all():
+        for hand in vc.hands:
+            # contribution is expected from all except the winner(s)
+            expected_ids = {m.id for m in vc.members} - {d.person_id for d in hand.hand_distributions}
+            paid_ids = {c.person_id for c in hand.contributions}
+            pending_ids = expected_ids - paid_ids
+            if pending_ids:
+                pending_vcs.append(vc)
+                break
+
+    form.vc_id.choices = [(vc.id, f"VC {vc.vc_number} - {vc.name}") for vc in pending_vcs]
+
+    # --- 2. Populate Hand dropdown (empty until VC selected) ---
+    form.hand_id.choices = []
+    if form.vc_id.data:
+        vc = VC.query.get(form.vc_id.data)
+        form.hand_id.choices = [
+            (h.id, f"Hand {h.hand_number} - Winner: {h.hand_distributions[0].person.short_name if h.hand_distributions else 'TBD'}")
+            for h in vc.hands
+        ]
+
+    # --- 3. Populate Person dropdown (only pending members) ---
+    form.person_id.choices = []
+    if form.hand_id.data:
+        hand = VCHand.query.get(form.hand_id.data)
+        if hand:
+            expected_ids = {m.id for m in hand.vc.members}  # all VC members
+            distributed_ids = {d.person_id for d in hand.hand_distributions}
+            paid_ids = {c.person_id for c in hand.contributions}
+            pending_ids = expected_ids - distributed_ids - paid_ids
+
+            pending_persons = Person.query.filter(Person.id.in_(pending_ids)).all()
+            form.person_id.choices = [(p.id, p.name) for p in pending_persons]
+
+
+    if form.validate_on_submit():
+        # --- 4. Record contribution (payment IN) ---
+        contribution = Contribution(
+            hand_id=form.hand_id.data,
+            person_id=form.person_id.data,
+            amount=form.amount.data,
+            date=datetime.utcnow()
+        )
+        db.session.add(contribution)
+
+        # --- 5. Ledger entry (debit) ---
+        person = Person.query.get(form.person_id.data)
+        vc = VC.query.get(form.vc_id.data)
+        ledger_entry = LedgerEntry(
+            person_id=form.person_id.data,
+            vc_id=form.vc_id.data,
+            date=form.date.data or datetime.utcnow(),
+            narration=f"Contribution for VC {vc.vc_number}: {form.narration.data}",
+            debit=form.amount.data,
+            balance=person.total_balance - form.amount.data
+        )
+        db.session.add(ledger_entry)
+
+        db.session.commit()
+        flash('Contribution recorded successfully!', 'success')
+        return redirect(url_for('vcs_list'))
+    
+    return render_template('dashboard.html', form=form, today=date.today(), total_due=total_due, total_vcs=total_vcs, vcs=vcs, persons=persons, total_persons=total_persons)
 
 @app.route('/vcs')
 def vcs_list():
     vcs = VC.query.order_by(VC.vc_number).all()
-    total_due = sum(vc.amount * vc.due_count for vc in vcs)
+    total_due = sum(vc.total_due for vc in vcs)
     total_vcs = len(vcs)
     total_members = sum(len(vc.members) for vc in vcs)
     return render_template('vc/list.html', vcs=vcs, total_due=total_due, total_members=total_members, total_vcs=total_vcs)
@@ -656,35 +757,106 @@ def search_persons():
     
     return render_template('person/list_partial.html', persons=persons)
 
+
 @app.route('/person/create', methods=['GET', 'POST'])
 def create_person():
+    """
+    Handles the creation of a new Person, calculates the signed opening_balance,
+    and automatically creates a corresponding opening LedgerEntry if the balance is non-zero.
+    """
     form = PersonForm()
     if form.validate_on_submit():
+        
+        # 1. Calculate the final signed opening balance
+        balance_amount = form.opening_balance.data if form.opening_balance.data is not None else 0
+        balance_type = form.opening_balance_type.data # 'DR' or 'CR'
+
+        # DR (Debit) is positive, CR (Credit) is negative
+        final_opening_balance = float(balance_amount)
+        if balance_type == 'CR':
+            final_opening_balance = -final_opening_balance
+
+        # 2. Create the Person object
         person = Person(
             name=form.name.data,
             short_name=form.short_name.data,
             phone=form.phone.data,
-            phone2=form.phone2.data
+            phone2=form.phone2.data,
+            opening_balance=final_opening_balance,
+            created_at=datetime.utcnow()
         )
+        
+        # Add Person to session (to get an ID after commit)
         db.session.add(person)
+        
+        # 3. Create initial LedgerEntry if balance is non-zero
+        opening_entry = None
+        if final_opening_balance != 0:
+            
+            # Absolute value of the balance
+            entry_amount = abs(final_opening_balance)
+            
+            # Determine if it's Debit or Credit based on the sign
+            # DR (Positive balance) -> Debit in the ledger
+            # CR (Negative balance) -> Credit in the ledger
+            
+            if final_opening_balance > 0:
+                # Debit Balance (Person owes us)
+                debit_amount = entry_amount
+                credit_amount = 0.0
+                description = f"Opening Balance (DR) on {date.today().strftime('%Y-%m-%d')}"
+            else:
+                # Credit Balance (We owe Person)
+                debit_amount = 0.0
+                credit_amount = entry_amount
+                description = f"Opening Balance (CR) on {date.today().strftime('%Y-%m-%d')}"
+            
+            # Create the Ledger Entry object
+            opening_entry = LedgerEntry(
+                # person_id will be automatically linked after the person is committed
+                person=person, 
+                date=date.today(),
+                description=description,
+                debit=debit_amount,
+                credit=credit_amount,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(opening_entry)
+
+
+        # 4. Commit both Person and LedgerEntry in a single transaction
         try:
             db.session.commit()
-            flash('Person created successfully!', 'success')
+            
+            # Success message reflects the action
+            flash_msg = f'Person "{person.name}" created successfully.'
+            if opening_entry:
+                 flash_msg += f' Initial Ledger Entry recorded: ₹{entry_amount:.2f} ({balance_type}).'
+            
+            flash(flash_msg, 'success')
             return redirect(url_for('persons'))
+            
         except IntegrityError:
             db.session.rollback()
-            flash('Error: A person with that name already exists. Please use a different name.', 'danger')
+            flash('Error: A person with that name or short name already exists. Please use a different value.', 'danger')
             return redirect(url_for('create_person'))
         except Exception as e:
             db.session.rollback()
-            flash(f'An unexpected error occurred: {str(e)}', 'danger')
+            flash(f'An unexpected database error occurred: {str(e)}', 'danger')
             return redirect(url_for('create_person'))
 
-    # If form validation fails, display a generic error message
+    # If form validation fails, display specific errors
     if not form.validate_on_submit() and form.is_submitted():
-        flash('Please fill out all required fields correctly.', 'danger')
+        for field, errors in form.errors.items():
+             for error in errors:
+                 flash(f'Error in {field.replace("_", " ").title()}: {error}', 'danger')
+        
+        if not form.errors:
+             flash('Please fill out all required fields correctly.', 'danger')
+
 
     return render_template('person/create.html', form=form)
+
 
 @app.route('/person/<int:id>/edit', methods=['GET', 'POST'])
 def edit_person(id):
@@ -723,18 +895,186 @@ def person_ledger(person_id):
         entries = [e for e in entries if e.vc_id == vc_id]
     
     return render_template('ledger/person.html', person=person, entries=entries)
+@app.route("/record-payment", methods=["GET", "POST"])
+def record_payment():
+    form = PaymentForm()
+
+    # 1. VC dropdown: only show VCs with pending payments
+    pending_vcs = VC.query.filter(VC.status != PaymentStatus.PAID).all()
+    form.vc_id.choices = [(vc.id, f"VC {vc.vc_number}") for vc in pending_vcs]
+
+    # 2. Dynamic hand & person choices handled via JS, pass all hands & members for simplicity
+    all_hands = {hand.id: hand for vc in pending_vcs for hand in vc.hands}
+    all_members = {member.id: member for vc in pending_vcs for member in vc.members}
+
+    if form.validate_on_submit():
+        vc = VC.query.get(form.vc_id.data)
+        hand = VCHand.query.get(form.hand_id.data)
+        person = Person.query.get(form.person_id.data)
+
+        if not vc or not hand or not person:
+            flash("Valid VC, hand, and person are required.", "danger")
+            return redirect(request.url)
+
+        # 3. Record Payment
+        payment = Payment(
+            vc_id=vc.id,
+            hand_id=hand.id,
+            person_id=person.id,
+            amount=form.amount.data,
+            date=form.date.data,
+            narration=form.narration.data or f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}"
+        )
+        db.session.add(payment)
+
+        # 4. Update Ledger automatically
+        current_balance = person.total_balance
+        ledger_entry = LedgerEntry(
+            person_id=person.id,
+            vc_id=vc.id,
+            date=form.date.data,
+            narration=payment.narration,
+            debit=0,
+            credit=payment.amount,
+            balance=current_balance + payment.amount
+        )
+        db.session.add(ledger_entry)
+        db.session.commit()
+
+        flash(f"Payment of ₹{payment.amount} recorded for {person.name}", "success")
+        return redirect(url_for("record_payment"))
+
+    return render_template("payment/create.html", form=form, pending_vcs=pending_vcs, all_hands=all_hands, all_members=all_members)
+
+# @app.route('/payment/create', methods=['GET', 'POST'])
+# def create_payment():
+#     form = PaymentForm()
+    
+#     # Populate choices
+#     form.vc_id.choices = [(vc.id, f"VC {vc.vc_number} - {vc.name}") for vc in VC.query.all()]
+#     form.hand_id.choices = [(h.id, f"Hand {h.hand_number}") for h in VCHand.query.all()]
+#     form.person_id.choices = [(p.id, p.name) for p in Person.query.all()]
+    
+#     if form.validate_on_submit():
+#         # 1. Record contribution (payment IN)
+#         contribution = Contribution(
+#             hand_id=form.hand_id.data,
+#             person_id=form.person_id.data,
+#             amount=form.amount.data,
+#             date=datetime.utcnow()
+#         )
+#         db.session.add(contribution)
+
+#         # 2. Ledger entry for contribution (debit)
+#         person = Person.query.get(form.person_id.data)
+#         vc = VC.query.get(form.vc_id.data)
+#         ledger_entry = LedgerEntry(
+#             person_id=form.person_id.data,
+#             vc_id=form.vc_id.data,
+#             date=datetime.utcnow(),
+#             narration=f"Contribution for VC {vc.vc_number}: {form.narration.data}",
+#             debit=form.amount.data
+#         )
+#         prev_balance = person.total_balance
+#         ledger_entry.balance = prev_balance - form.amount.data
+#         db.session.add(ledger_entry)
+
+#         db.session.commit()
+#         flash('Contribution recorded successfully!', 'success')
+#         return redirect(url_for('vcs_list'))
+
+#     return render_template('payment/create.html', form=form)
+
+@app.route("/api/vc/<int:vc_id>/details")
+def vc_details(vc_id):
+    vc = VC.query.get_or_404(vc_id)
+    
+    hands = []
+    for h in vc.hands:
+        # Only include hands with a winner
+        winner_name = h.winner_short_name or None
+        if not winner_name:
+            continue
+
+        hands.append({
+            "id": h.id,
+            "hand_number": h.hand_number,
+            "winner_name": winner_name,
+            "date": h.date.isoformat()  # send ISO string for JS
+        })
+
+    return jsonify({
+        "hands": hands
+    })
+
+@app.route("/api/hand/<int:hand_id>/details")
+def hand_details(hand_id):
+    hand = VCHand.query.get(hand_id)
+    if not hand:
+        return jsonify({"error": "Hand not found"}), 404
+
+    # Get the winner for this hand from HandDistribution
+    winner_distribution = HandDistribution.query.filter_by(hand_id=hand_id).first()
+    winner_id = winner_distribution.person_id if winner_distribution else None
+
+    # Get all VC members except the winner
+    pending_persons = Person.query.filter(
+        Person.id.in_([m.id for m in hand.vc.members])
+    ).all()
+
+    if winner_id:
+        pending_persons = [p for p in pending_persons if p.id != winner_id]
+
+    pending_persons_data = [{"id": p.id, "name": p.name} for p in pending_persons]
+
+    return jsonify({
+        "contribution_amount": hand.actual_contribution_per_person,
+        "pending_persons": pending_persons_data
+    })
 
 @app.route('/payment/create', methods=['GET', 'POST'])
 def create_payment():
     form = PaymentForm()
-    
-    # Populate choices
-    form.vc_id.choices = [(vc.id, f"VC {vc.vc_number} - {vc.name}") for vc in VC.query.all()]
-    form.hand_id.choices = [(h.id, f"Hand {h.hand_number}") for h in VCHand.query.all()]
-    form.person_id.choices = [(p.id, p.name) for p in Person.query.all()]
-    
+
+    # --- 1. Show only VCs with pending payments ---
+    pending_vcs = []
+    for vc in VC.query.all():
+        for hand in vc.hands:
+            # contribution is expected from all except the winner(s)
+            expected_ids = {m.id for m in vc.members} - {d.person_id for d in hand.hand_distributions}
+            paid_ids = {c.person_id for c in hand.contributions}
+            pending_ids = expected_ids - paid_ids
+            if pending_ids:
+                pending_vcs.append(vc)
+                break
+
+    form.vc_id.choices = [(vc.id, f"VC {vc.vc_number} - {vc.name}") for vc in pending_vcs]
+
+    # --- 2. Populate Hand dropdown (empty until VC selected) ---
+    form.hand_id.choices = []
+    if form.vc_id.data:
+        vc = VC.query.get(form.vc_id.data)
+        form.hand_id.choices = [
+            (h.id, f"Hand {h.hand_number} - Winner: {h.hand_distributions[0].person.short_name if h.hand_distributions else 'TBD'}")
+            for h in vc.hands
+        ]
+
+    # --- 3. Populate Person dropdown (only pending members) ---
+    form.person_id.choices = []
+    if form.hand_id.data:
+        hand = VCHand.query.get(form.hand_id.data)
+        if hand:
+            expected_ids = {m.id for m in hand.vc.members}  # all VC members
+            distributed_ids = {d.person_id for d in hand.hand_distributions}
+            paid_ids = {c.person_id for c in hand.contributions}
+            pending_ids = expected_ids - distributed_ids - paid_ids
+
+            pending_persons = Person.query.filter(Person.id.in_(pending_ids)).all()
+            form.person_id.choices = [(p.id, p.name) for p in pending_persons]
+
+
     if form.validate_on_submit():
-        # 1. Record contribution (payment IN)
+        # --- 4. Record contribution (payment IN) ---
         contribution = Contribution(
             hand_id=form.hand_id.data,
             person_id=form.person_id.data,
@@ -743,25 +1083,24 @@ def create_payment():
         )
         db.session.add(contribution)
 
-        # 2. Ledger entry for contribution (debit)
+        # --- 5. Ledger entry (debit) ---
         person = Person.query.get(form.person_id.data)
         vc = VC.query.get(form.vc_id.data)
         ledger_entry = LedgerEntry(
             person_id=form.person_id.data,
             vc_id=form.vc_id.data,
-            date=datetime.utcnow(),
+            date=form.date.data or datetime.utcnow(),
             narration=f"Contribution for VC {vc.vc_number}: {form.narration.data}",
-            debit=form.amount.data
+            debit=form.amount.data,
+            balance=person.total_balance - form.amount.data
         )
-        prev_balance = person.total_balance
-        ledger_entry.balance = prev_balance - form.amount.data
         db.session.add(ledger_entry)
 
         db.session.commit()
         flash('Contribution recorded successfully!', 'success')
         return redirect(url_for('vcs_list'))
 
-    return render_template('payment/create.html', form=form)
+    return render_template('payment/create.html', form=form, datetime=datetime)
 
 @app.route('/payout/create/<int:hand_id>/<int:person_id>', methods=['POST'])
 def create_payout(hand_id, person_id):
@@ -798,6 +1137,51 @@ def create_payout(hand_id, person_id):
     db.session.commit()
     flash(f"Payout of {total_pool} given to {person.name}", "success")
     return redirect(url_for('view_hand_distribution', vc_id=hand.vc_id, hand_number=hand.hand_number))
+
+@app.route("/vc/<int:vc_id>/hand/<int:hand_id>/edit-payout", methods=["POST"])
+def edit_payout(vc_id, hand_id):
+    payout_id = request.form["payout_id"]
+    person_id = int(request.form["person_id"])
+    amount = float(request.form["amount"])
+
+    payout = HandDistribution.query.get_or_404(payout_id)
+    hand = VCHand.query.get_or_404(hand_id)
+    vc = hand.vc
+
+    # Calculate minimum allowed bid price based on min_interest
+    required_earned_interest = vc.amount - hand.projected_payout
+    earned_interest_from_bid = vc.amount - amount
+
+    if earned_interest_from_bid < required_earned_interest:
+        flash(
+            f"The bid price must be ₹{hand.projected_payout:.0f} or less to cover the minimum interest of ₹{required_earned_interest:.0f}.",
+            "danger"
+        )
+        return redirect(url_for("view_hand_distribution", vc_id=vc_id, hand_number=hand.hand_number))
+
+    # Update payout
+    payout.person_id = person_id
+    payout.amount = amount
+
+    # Update contributions for all members (contr per person = new bid price / member count)
+    members = vc.members
+    per_person_contribution = amount / len(members)
+    # Remove old contributions for this hand
+    Contribution.query.filter_by(hand_id=hand.id).delete()
+    # Add new contributions
+    for member in members:
+        contribution = Contribution(
+            hand_id=hand.id,
+            person_id=member.id,
+            amount=per_person_contribution,
+            date=datetime.utcnow()
+        )
+        db.session.add(contribution)
+
+    db.session.commit()
+
+    flash("Payout updated successfully", "success")
+    return redirect(url_for("view_hand_distribution", vc_id=vc_id, hand_number=hand.hand_number))
 
 
 @app.route('/ledger/create', methods=['GET', 'POST'])

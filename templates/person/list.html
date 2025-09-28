@@ -162,8 +162,8 @@
                                 <td class="responsive-table-cell" data-label="Primary Phone">{{ person.phone or '-' }}</td>
                                 <td class="responsive-table-cell" data-label="Secondary Phone">{{ person.phone2 or '-' }}</td>
                                 <td class="responsive-table-cell" data-label="Balance">
-                                    <span class="badge bg-{{ 'success' if person.opening_balance >= 0 else 'danger' }}">
-                                        ₹{{ "%.0f"|format(person.opening_balance) }}
+                                    <span class="badge bg-{{ 'success' if person.total_balance >= 0 else 'danger' }}">
+                                        ₹{{ "%.0f"|format(person.total_balance) }}
                                     </span>
                                 </td>
                                 <td class="responsive-table-cell" data-label="Actions">

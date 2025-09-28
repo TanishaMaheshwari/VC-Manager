@@ -14,52 +14,65 @@
             <div class="card-body">
                 <form method="POST">
                     {{ form.hidden_tag() }}
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            {{ form.vc_id.label(class="form-label") }}
-                            {{ form.vc_id(class="form-select") }}
-                            {% for error in form.vc_id.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.hand_id.label(class="form-label") }}
-                            {{ form.hand_id(class="form-select") }}
-                            {% for error in form.hand_id.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
+
+                    <!-- VC selection -->
+                    <div class="mb-3">
+                        {{ form.vc_id.label(class="form-label") }}
+                        {{ form.vc_id(class="form-select", id="vc-select") }}
+                        {% for error in form.vc_id.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Hand selection -->
+                    <div class="mb-3">
+                        {{ form.hand_id.label(class="form-label") }}
+                        {{ form.hand_id(class="form-select", id="hand-select") }}
+                        {% for error in form.hand_id.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text text-muted">
+                            Select the hand. Each option shows Hand number, winner, and date.
                         </div>
                     </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            {{ form.person_id.label(class="form-label") }}
-                            {{ form.person_id(class="form-select") }}
-                            {% for error in form.person_id.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.date.label(class="form-label") }}
-                            {{ form.date(class="form-control") }}
-                            {% for error in form.date.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
+
+                    <!-- Person selection -->
+                    <div class="mb-3">
+                        {{ form.person_id.label(class="form-label") }}
+                        {{ form.person_id(class="form-select", id="person-select") }}
+                        {% for error in form.person_id.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Date (defaults to today) -->
+                    <div class="mb-3">
+                        {{ form.date.label(class="form-label") }}
+                        {{ form.date(class="form-control", id="payment-date") }}
+                        {% for error in form.date.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text text-muted">
+                            Defaults to today, but editable.
                         </div>
                     </div>
-                    
+
+                    <!-- Amount (auto-filled contribution) -->
                     <div class="mb-3">
                         {{ form.amount.label(class="form-label") }}
                         <div class="input-group">
                             <span class="input-group-text">₹</span>
-                            {{ form.amount(class="form-control") }}
+                            {{ form.amount(class="form-control", id="payment-amount") }}
                         </div>
                         {% for error in form.amount.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
+                        <div class="form-text text-muted">
+                            Auto-filled with actual contribution per person for the selected hand.
+                        </div>
                     </div>
-                    
+
+                    <!-- Narration -->
                     <div class="mb-3">
                         {{ form.narration.label(class="form-label") }}
                         {{ form.narration(class="form-control", rows="3") }}
@@ -67,8 +80,8 @@
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
-                    <div class="d-flex justify-content-between">
+
+                    <div class="d-flex justify-content-between flex-wrap gap-2">
                         <a href="{{ url_for('vcs_list') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-1"></i>Back
                         </a>
@@ -79,4 +92,94 @@
         </div>
     </div>
 </div>
+
+<!-- JS to handle dynamic updates -->
+ <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const vcSelect = document.getElementById("vc-select");
+        const handSelect = document.getElementById("hand-select");
+        const personSelect = document.getElementById("person-select");
+        const amountInput = document.getElementById("payment-amount");
+
+        // Load hands for a given VC
+        async function loadHands(vcId) {
+            if (!vcId) return;
+
+            try {
+                const res = await fetch(`/api/vc/${vcId}/details`);
+                const data = await res.json();
+
+                // Reset dropdowns
+                handSelect.innerHTML = '<option value="">-- Select Hand --</option>';
+                personSelect.innerHTML = '<option value="">-- Select Person --</option>';
+                amountInput.value = "";
+
+                // Only include hands that have a winner
+                const handsWithWinner = data.hands.filter(h => h.winner_name);
+                handsWithWinner.forEach(h => {
+                    const handDate = new Date(h.date).toLocaleDateString();
+                    const opt = document.createElement("option");
+                    opt.value = h.id;
+                    opt.textContent = `Hand ${h.hand_number} - Winner: ${h.winner_name} - Date: ${handDate}`;
+                    handSelect.appendChild(opt);
+                });
+
+                // Auto-select first hand if exists
+                if (handSelect.options.length > 1) {
+                    handSelect.selectedIndex = 1;
+                    handSelect.dispatchEvent(new Event("change")); // triggers person loading
+                }
+
+            } catch (err) {
+                console.error("Failed to load hands:", err);
+            }
+        }
+
+        // Load persons and contribution amount for a given hand
+        async function loadPersons(handId) {
+            if (!handId) return;
+
+            try {
+                const res = await fetch(`/api/hand/${handId}/details`);
+                const data = await res.json();
+
+                // Reset persons and amount
+                personSelect.innerHTML = '<option value="">-- Select Person --</option>';
+                amountInput.value = "";
+
+                // Populate persons dropdown
+                data.pending_persons.forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    personSelect.appendChild(opt);
+                });
+
+                // Set contribution amount
+                amountInput.value = data.contribution_amount || "";
+
+            } catch (err) {
+                console.error("Failed to load pending persons:", err);
+            }
+        }
+
+        // When VC changes
+        vcSelect.addEventListener("change", () => {
+            const vcId = vcSelect.value;
+            loadHands(vcId);
+        });
+
+        // When Hand changes
+        handSelect.addEventListener("change", () => {
+            const handId = handSelect.value;
+            loadPersons(handId);
+        });
+
+        // Trigger load on page load if VC is pre-selected
+        if (vcSelect.value) {
+            loadHands(vcSelect.value);
+        }
+    });
+</script>
+
 {% endblock %}

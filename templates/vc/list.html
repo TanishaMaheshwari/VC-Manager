@@ -41,33 +41,6 @@
         </div>
     </div>
 
-    <!-- Dashboard Stats -->
-    <div class="row text-center mb-5">
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h5 class="card-title text-muted">Total VCs</h5>
-                    <p class="display-4 fw-bold text-primary">{{ total_vcs }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h5 class="card-title text-muted">Total Due</h5>
-                    <p class="display-4 fw-bold text-danger">₹{{ total_due|round(2)|indian_comma }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h5 class="card-title text-muted">Total Members</h5>
-                    <p class="display-4 fw-bold text-success">{{ total_members }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Pending VCs Section -->
     {% set pending_vcs = vcs|selectattr('status.value', 'equalto', 'pending')|list %}
@@ -153,7 +126,7 @@
                                 <div class="progress-bar bg-secondary"
                                      style="width: {{ (vc.current_hand / vc.tenure * 100) }}%"></div>
                             </div>
-                            <span class="fw-semibold">{{ vc.completed_hands }} / {{ vc.tenure }}</span>
+                            <span class="fw-semibold">{{ vc.current_hand_obj }} / {{ vc.tenure }}</span>
                         </div>
                     </td>
                     <td data-label="Amount">
