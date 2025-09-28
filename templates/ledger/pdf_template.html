@@ -71,16 +71,16 @@
                 <div class="summary-label">Total Entries</div>
             </div>
             <div class="summary-item">
-                <div class="summary-number text-success">${{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
+                <div class="summary-number text-success">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
                 <div class="summary-label">Total Credits</div>
             </div>
             <div class="summary-item">
-                <div class="summary-number text-danger">${{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
+                <div class="summary-number text-danger">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
                 <div class="summary-label">Total Debits</div>
             </div>
             <div class="summary-item">
                 <div class="summary-number {{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}">
-                    ${{ "%.0f"|format(person.total_balance) }}
+                    ₹{{ "%.0f"|format(person.total_balance) }}
                 </div>
                 <div class="summary-label">Current Balance</div>
             </div>
@@ -110,21 +110,21 @@
                     </td>
                     <td>
                         {% if entry.debit > 0 %}
-                            <span class="amount-debit">${{ "%.0f"|format(entry.debit) }}</span>
+                            <span class="amount-debit">₹{{ "%.0f"|format(entry.debit) }}</span>
                         {% else %}
                             -
                         {% endif %}
                     </td>
                     <td>
                         {% if entry.credit > 0 %}
-                            <span class="amount-credit">${{ "%.0f"|format(entry.credit) }}</span>
+                            <span class="amount-credit">₹{{ "%.0f"|format(entry.credit) }}</span>
                         {% else %}
                             -
                         {% endif %}
                     </td>
                     <td>
                         <span class="{{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
-                            ${{ "%.0f"|format(entry.balance) }}
+                            ₹{{ "%.0f"|format(entry.balance) }}
                         </span>
                     </td>
                 </tr>

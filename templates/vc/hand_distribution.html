@@ -112,7 +112,7 @@
                 </div>
             </div>
         {% else %}
-          <div class="text-center py-2">
+          <div class="text-center py-5">
             <i class="fas fa-star fa-2x text-muted mb-3"></i>
             <h5 class="text-muted">No payout recorded yet</h5>
             <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#handDistributionModal">
@@ -128,27 +128,27 @@
         <div class="distribution-card contribution-section">
         {% if contributions %}
             {% for c in contributions if not (payout and c.person_id == payout.person_id) %}
-            <div class="distribution-row">
+            <div class="distribution-row" style="cursor:pointer"
+                onclick="window.location.href='{{ url_for('person_ledger', person_id=c.person_id) }}'">
+                <div><div class="hand-number">{{ loop.index }}</div></div>
+                <div><div class="person-badge">{{ c.person.short_name }}</div></div>
+                <div><span class="fw-bold fs-5 text-success">₹{{ "%.0f"|format(c.amount) }}</span></div>
+                <div><div class="fw-semibold">{{ c.person.name }}</div></div>
                 <div>
-                <div class="hand-number">{{ loop.index }}</div>
+                    {% if ledger_map.get(c.person_id) %}
+                        <div class="fw-semibold">{{ ledger_map[c.person_id].date.strftime('%d/%m/%Y') }}</div>
+                        <small class="text-muted">{{ ledger_map[c.person_id].date.strftime('%I:%M %p') }}</small>
+                    {% else %}
+                        <div class="fw-semibold">{{ c.date.strftime('%d/%m/%Y') }}</div>
+                        <small class="text-muted">{{ c.date.strftime('%I:%M %p') }}</small>
+                    {% endif %}
                 </div>
                 <div>
-                <div class="person-badge">{{ c.person.short_name }}</div>
-                </div>
-                <div>
-                <span class="fw-bold fs-5 text-success">
-                    ₹{{ "%.0f"|format(c.amount) }}
-                </span>
-                </div>
-                <div>
-                <div class="fw-semibold">{{ c.person.name }}</div>
-                </div>
-                <div>
-                <div class="fw-semibold">{{ c.date.strftime('%d/%m/%Y') }}</div>
-                <small class="text-muted">{{ c.date.strftime('%I:%M %p') }}</small>
-                </div>
-                <div>
-                <span class="badge bg-secondary">Payment</span>
+                    {% if ledger_map.get(c.person_id) %}
+                        <span class="badge bg-success">Paid</span>
+                    {% else %}
+                        <span class="badge bg-secondary">To be Paid</span>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -156,10 +156,10 @@
             <div class="text-center py-5">
             <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
             <h5 class="text-muted">No contributions recorded yet</h5>
-            <button class="btn btn-primary"
+            <!-- <button class="btn btn-primary"
                     onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
                 <i class="fas fa-plus me-2"></i>Add First Contribution
-            </button>
+            </button> -->
             </div>
         {% endif %}
         </div>

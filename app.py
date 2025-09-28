@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, send_file, jsonify
+from flask import Flask, render_template, redirect, url_for, flash, request, send_file, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf import FlaskForm
@@ -11,7 +11,7 @@ from enum import Enum
 from fpdf import FPDF
 from weasyprint import HTML
 import os
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import validates
 import io
@@ -19,7 +19,45 @@ from babel.numbers import format_decimal
 
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SECRET_KEY'] = 'your-secret-key-here'  # Make sure this is set for session
+# --- Authentication Config ---
+LOGIN_ID = 'VCManager001'
+LOGIN_PASSWORD = '123vc'
+
+# Routes
+from functools import wraps
+
+# --- Authentication Decorator ---
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Login Route ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        password = request.form.get('password')
+        if user_id == LOGIN_ID and password == LOGIN_PASSWORD:
+            session['logged_in'] = True
+            flash('Logged in successfully!', 'success')
+            next_url = request.args.get('next')
+            return redirect(next_url or url_for('dashboard'))
+        else:
+            error = 'Invalid credentials. Please try again.'
+    return render_template('login.html', error=error)
+
+# --- Logout Route ---
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    flash('Logged out successfully.', 'success')
+    return redirect(url_for('login'))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vc_committee.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -402,7 +440,7 @@ def init_db():
         
         db.session.commit()
         print('Sample persons created.')
-    
+
     print('Database initialized!')
 
 
@@ -411,7 +449,8 @@ def indian_comma(value):
     return format_decimal(value, locale='en_IN')
 
 # Routes
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
+@login_required
 def dashboard():
     vcs = VC.query.order_by(VC.vc_number).all()
     total_due = sum(vc.total_due for vc in vcs)
@@ -437,25 +476,28 @@ def dashboard():
     # --- 2. Populate Hand dropdown (empty until VC selected) ---
     form.hand_id.choices = []
     if form.vc_id.data:
-        vc = VC.query.get(form.vc_id.data)
+        vc = db.session.get(VC, form.vc_id.data)
         form.hand_id.choices = [
             (h.id, f"Hand {h.hand_number} - Winner: {h.hand_distributions[0].person.short_name if h.hand_distributions else 'TBD'}")
             for h in vc.hands
         ]
 
     # --- 3. Populate Person dropdown (only pending members) ---
-    form.person_id.choices = []
     if form.hand_id.data:
-        hand = VCHand.query.get(form.hand_id.data)
+        hand = db.session.get(VCHand, form.hand_id.data)
         if hand:
             expected_ids = {m.id for m in hand.vc.members}  # all VC members
-            distributed_ids = {d.person_id for d in hand.hand_distributions}
-            paid_ids = {c.person_id for c in hand.contributions}
-            pending_ids = expected_ids - distributed_ids - paid_ids
-
+            distributed_ids = {d.person_id for d in hand.hand_distributions}  # winners
+            potential_ids = expected_ids - distributed_ids
+            # Ledger entries already recorded for this VC & Hand
+            ledger_entries = LedgerEntry.query.filter(
+                LedgerEntry.vc_id == hand.vc.id,
+                LedgerEntry.narration.like(f"Payment for VC {hand.vc.vc_number}, Hand {hand.hand_number}%")
+            ).all()
+            paid_ids = {l.person_id for l in ledger_entries}
+            pending_ids = potential_ids - paid_ids
             pending_persons = Person.query.filter(Person.id.in_(pending_ids)).all()
             form.person_id.choices = [(p.id, p.name) for p in pending_persons]
-
 
     if form.validate_on_submit():
         # --- 4. Record contribution (payment IN) ---
@@ -474,8 +516,8 @@ def dashboard():
             person_id=form.person_id.data,
             vc_id=form.vc_id.data,
             date=form.date.data or datetime.utcnow(),
-            narration=f"Contribution for VC {vc.vc_number}: {form.narration.data}",
-            debit=form.amount.data,
+            narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}",
+            credit=form.amount.data,
             balance=person.total_balance - form.amount.data
         )
         db.session.add(ledger_entry)
@@ -487,6 +529,7 @@ def dashboard():
     return render_template('dashboard.html', form=form, today=date.today(), total_due=total_due, total_vcs=total_vcs, vcs=vcs, persons=persons, total_persons=total_persons)
 
 @app.route('/vcs')
+@login_required
 def vcs_list():
     vcs = VC.query.order_by(VC.vc_number).all()
     total_due = sum(vc.total_due for vc in vcs)
@@ -495,6 +538,7 @@ def vcs_list():
     return render_template('vc/list.html', vcs=vcs, total_due=total_due, total_members=total_members, total_vcs=total_vcs)
 
 @app.route('/vc/create', methods=['GET', 'POST'])
+@login_required
 def create_vc():
     form = VCForm()
     form.members.choices = [(p.id, p.name) for p in Person.query.all()]
@@ -532,6 +576,7 @@ def create_vc():
 
 
 @app.route('/vc/<int:id>')
+@login_required
 def view_vc(id):
     vc = VC.query.get_or_404(id)
     hands = VCHand.query.filter_by(vc_id=id).order_by(VCHand.hand_number).all()
@@ -540,7 +585,7 @@ def view_vc(id):
 
 
 @app.route("/vc/<int:vc_id>/hand/<int:hand_number>")
-# @login_required
+@login_required
 def view_hand_distribution(vc_id, hand_number):
     vc = VC.query.get_or_404(vc_id)
     hand = VCHand.query.filter_by(vc_id=vc.id, hand_number=hand_number).first_or_404()
@@ -556,6 +601,17 @@ def view_hand_distribution(vc_id, hand_number):
 
     payout = HandDistribution.query.filter_by(hand_id=hand.id).first()
     payout_recorded = payout is not None
+
+    ledger_entries = LedgerEntry.query.filter(
+        LedgerEntry.vc_id == vc.id,
+        LedgerEntry.narration.like(f'%Payment for VC {vc.vc_number}, Hand {hand.hand_number}%')
+    ).all()
+
+    # Map person_id → ledger entry
+    ledger_map = {}
+    for entry in ledger_entries:
+        if entry.person_id not in ledger_map:
+            ledger_map[entry.person_id] = entry  # take first matching entry
 
     members = vc.members
     member_eligibility = {}
@@ -583,11 +639,14 @@ def view_hand_distribution(vc_id, hand_number):
         contributions=contributions,
         payout=payout,
         distributions=[], # Placeholder for template
-        vc_payouts=[] # Placeholder for template
+        vc_payouts=[], # Placeholder for template
+        ledger_map=ledger_map
     )
+
 import traceback
 
 @app.route("/vc/<int:vc_id>/distribute-hand", methods=['POST'])
+@login_required
 def distribute_hand(vc_id):
     try:
         print("--- Starting distribute_hand function ---")
@@ -717,6 +776,7 @@ def distribute_hand(vc_id):
         flash(f"An error occurred during distribution: {str(e)}. Changes have been rolled back.", 'danger')
         return redirect(url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
 @app.route('/vc/delete/<int:id>')
+@login_required
 def delete_vc(id):
     vc = VC.query.get_or_404(id)
     db.session.delete(vc)
@@ -726,12 +786,14 @@ def delete_vc(id):
 
 
 @app.route('/persons')
+@login_required
 def persons():
     persons = Person.query.all()
     return render_template('person/list.html', persons=persons)
 
 # New route to handle live search requests
 @app.route('/search_persons')
+@login_required
 def search_persons():
     query = request.args.get('q', '')
     sort_order = request.args.get('sort', 'name_asc')
@@ -759,81 +821,37 @@ def search_persons():
 
 
 @app.route('/person/create', methods=['GET', 'POST'])
+@login_required
 def create_person():
-    """
-    Handles the creation of a new Person, calculates the signed opening_balance,
-    and automatically creates a corresponding opening LedgerEntry if the balance is non-zero.
-    """
     form = PersonForm()
     if form.validate_on_submit():
-        
-        # 1. Calculate the final signed opening balance
-        balance_amount = form.opening_balance.data if form.opening_balance.data is not None else 0
-        balance_type = form.opening_balance_type.data # 'DR' or 'CR'
-
-        # DR (Debit) is positive, CR (Credit) is negative
-        final_opening_balance = float(balance_amount)
-        if balance_type == 'CR':
-            final_opening_balance = -final_opening_balance
-
-        # 2. Create the Person object
+        # Create person object
         person = Person(
             name=form.name.data,
             short_name=form.short_name.data,
             phone=form.phone.data,
             phone2=form.phone2.data,
-            opening_balance=final_opening_balance,
+            opening_balance=0,
             created_at=datetime.utcnow()
         )
-        
-        # Add Person to session (to get an ID after commit)
         db.session.add(person)
-        
-        # 3. Create initial LedgerEntry if balance is non-zero
-        opening_entry = None
-        if final_opening_balance != 0:
-            
-            # Absolute value of the balance
-            entry_amount = abs(final_opening_balance)
-            
-            # Determine if it's Debit or Credit based on the sign
-            # DR (Positive balance) -> Debit in the ledger
-            # CR (Negative balance) -> Credit in the ledger
-            
-            if final_opening_balance > 0:
-                # Debit Balance (Person owes us)
-                debit_amount = entry_amount
-                credit_amount = 0.0
-                description = f"Opening Balance (DR) on {date.today().strftime('%Y-%m-%d')}"
-            else:
-                # Credit Balance (We owe Person)
-                debit_amount = 0.0
-                credit_amount = entry_amount
-                description = f"Opening Balance (CR) on {date.today().strftime('%Y-%m-%d')}"
-            
-            # Create the Ledger Entry object
-            opening_entry = LedgerEntry(
-                # person_id will be automatically linked after the person is committed
-                person=person, 
-                date=date.today(),
-                description=description,
-                debit=debit_amount,
-                credit=credit_amount,
-                created_at=datetime.utcnow()
-            )
-            db.session.add(opening_entry)
 
-
-        # 4. Commit both Person and LedgerEntry in a single transaction
         try:
             db.session.commit()
             
-            # Success message reflects the action
-            flash_msg = f'Person "{person.name}" created successfully.'
-            if opening_entry:
-                 flash_msg += f' Initial Ledger Entry recorded: ₹{entry_amount:.2f} ({balance_type}).'
-            
-            flash(flash_msg, 'success')
+            # --- Add opening balance to ledger if > 0 ---
+            if form.opening_balance.data and form.opening_balance.data > 0:
+                ledger_entry = LedgerEntry(
+                    person_id=person.id,
+                    date=person.created_at,
+                    narration="Opening Balance",
+                    credit=form.opening_balance.data,
+                    balance=form.opening_balance.data  # set initial balance
+                )
+                db.session.add(ledger_entry)
+                db.session.commit()
+
+            flash('Person created successfully!', 'success')    
             return redirect(url_for('persons'))
             
         except IntegrityError:
@@ -847,18 +865,13 @@ def create_person():
 
     # If form validation fails, display specific errors
     if not form.validate_on_submit() and form.is_submitted():
-        for field, errors in form.errors.items():
-             for error in errors:
-                 flash(f'Error in {field.replace("_", " ").title()}: {error}', 'danger')
+        flash('Please fill out all required fields correctly.', 'danger')
         
-        if not form.errors:
-             flash('Please fill out all required fields correctly.', 'danger')
-
-
     return render_template('person/create.html', form=form)
 
 
 @app.route('/person/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_person(id):
     person = Person.query.get_or_404(id)
     form = PersonForm(obj=person)
@@ -885,6 +898,7 @@ def edit_person(id):
     return render_template('person/edit.html', form=form, person=person)
 
 @app.route('/ledger/<int:person_id>')
+@login_required
 def person_ledger(person_id):
     person = Person.query.get_or_404(person_id)
     entries = LedgerEntry.query.filter_by(person_id=person_id).order_by(LedgerEntry.date.desc()).all()
@@ -895,7 +909,9 @@ def person_ledger(person_id):
         entries = [e for e in entries if e.vc_id == vc_id]
     
     return render_template('ledger/person.html', person=person, entries=entries)
+
 @app.route("/record-payment", methods=["GET", "POST"])
+@login_required
 def record_payment():
     form = PaymentForm()
 
@@ -923,7 +939,7 @@ def record_payment():
             person_id=person.id,
             amount=form.amount.data,
             date=form.date.data,
-            narration=form.narration.data or f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}"
+            narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}"
         )
         db.session.add(payment)
 
@@ -986,6 +1002,7 @@ def record_payment():
 #     return render_template('payment/create.html', form=form)
 
 @app.route("/api/vc/<int:vc_id>/details")
+@login_required
 def vc_details(vc_id):
     vc = VC.query.get_or_404(vc_id)
     
@@ -1008,31 +1025,36 @@ def vc_details(vc_id):
     })
 
 @app.route("/api/hand/<int:hand_id>/details")
+@login_required
 def hand_details(hand_id):
-    hand = VCHand.query.get(hand_id)
+    hand = db.session.get(VCHand, hand_id)
     if not hand:
         return jsonify({"error": "Hand not found"}), 404
 
-    # Get the winner for this hand from HandDistribution
-    winner_distribution = HandDistribution.query.filter_by(hand_id=hand_id).first()
-    winner_id = winner_distribution.person_id if winner_distribution else None
+    expected_ids = {m.id for m in hand.vc.members}
+    distributed_ids = {d.person_id for d in hand.hand_distributions}
+    potential_ids = expected_ids - distributed_ids
 
-    # Get all VC members except the winner
-    pending_persons = Person.query.filter(
-        Person.id.in_([m.id for m in hand.vc.members])
+    # Exclude persons who already have ledger entries
+    ledger_entries = LedgerEntry.query.filter(
+        LedgerEntry.vc_id == hand.vc.id,
+        LedgerEntry.narration.like(f"Payment for VC {hand.vc.vc_number}, Hand {hand.hand_number}%")
     ).all()
+    paid_ids = {l.person_id for l in ledger_entries}
+    pending_ids = potential_ids - paid_ids
 
-    if winner_id:
-        pending_persons = [p for p in pending_persons if p.id != winner_id]
+    pending_persons = Person.query.filter(Person.id.in_(pending_ids)).all()
 
-    pending_persons_data = [{"id": p.id, "name": p.name} for p in pending_persons]
+    contribution_amount = hand.actual_contribution_per_person  # or compute dynamically
 
     return jsonify({
-        "contribution_amount": hand.actual_contribution_per_person,
-        "pending_persons": pending_persons_data
+        "pending_persons": [{"id": p.id, "name": p.name} for p in pending_persons],
+        "contribution_amount": contribution_amount
     })
 
+
 @app.route('/payment/create', methods=['GET', 'POST'])
+@login_required
 def create_payment():
     form = PaymentForm()
 
@@ -1053,25 +1075,28 @@ def create_payment():
     # --- 2. Populate Hand dropdown (empty until VC selected) ---
     form.hand_id.choices = []
     if form.vc_id.data:
-        vc = VC.query.get(form.vc_id.data)
+        vc = db.session.get(VC, form.vc_id.data)
         form.hand_id.choices = [
             (h.id, f"Hand {h.hand_number} - Winner: {h.hand_distributions[0].person.short_name if h.hand_distributions else 'TBD'}")
             for h in vc.hands
         ]
 
     # --- 3. Populate Person dropdown (only pending members) ---
-    form.person_id.choices = []
     if form.hand_id.data:
-        hand = VCHand.query.get(form.hand_id.data)
+        hand = db.session.get(VCHand, form.hand_id.data)
         if hand:
             expected_ids = {m.id for m in hand.vc.members}  # all VC members
-            distributed_ids = {d.person_id for d in hand.hand_distributions}
-            paid_ids = {c.person_id for c in hand.contributions}
-            pending_ids = expected_ids - distributed_ids - paid_ids
-
+            distributed_ids = {d.person_id for d in hand.hand_distributions}  # winners
+            potential_ids = expected_ids - distributed_ids
+            # Ledger entries already recorded for this VC & Hand
+            ledger_entries = LedgerEntry.query.filter(
+                LedgerEntry.vc_id == hand.vc.id,
+                LedgerEntry.narration.like(f"Payment for VC {hand.vc.vc_number}, Hand {hand.hand_number}%")
+            ).all()
+            paid_ids = {l.person_id for l in ledger_entries}
+            pending_ids = potential_ids - paid_ids
             pending_persons = Person.query.filter(Person.id.in_(pending_ids)).all()
             form.person_id.choices = [(p.id, p.name) for p in pending_persons]
-
 
     if form.validate_on_submit():
         # --- 4. Record contribution (payment IN) ---
@@ -1090,8 +1115,8 @@ def create_payment():
             person_id=form.person_id.data,
             vc_id=form.vc_id.data,
             date=form.date.data or datetime.utcnow(),
-            narration=f"Contribution for VC {vc.vc_number}: {form.narration.data}",
-            debit=form.amount.data,
+            narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}",
+            credit=form.amount.data,
             balance=person.total_balance - form.amount.data
         )
         db.session.add(ledger_entry)
@@ -1103,6 +1128,7 @@ def create_payment():
     return render_template('payment/create.html', form=form, datetime=datetime)
 
 @app.route('/payout/create/<int:hand_id>/<int:person_id>', methods=['POST'])
+@login_required
 def create_payout(hand_id, person_id):
     hand = VCHand.query.get_or_404(hand_id)
     person = Person.query.get_or_404(person_id)
@@ -1139,6 +1165,7 @@ def create_payout(hand_id, person_id):
     return redirect(url_for('view_hand_distribution', vc_id=hand.vc_id, hand_number=hand.hand_number))
 
 @app.route("/vc/<int:vc_id>/hand/<int:hand_id>/edit-payout", methods=["POST"])
+@login_required
 def edit_payout(vc_id, hand_id):
     payout_id = request.form["payout_id"]
     person_id = int(request.form["person_id"])
@@ -1185,12 +1212,13 @@ def edit_payout(vc_id, hand_id):
 
 
 @app.route('/ledger/create', methods=['GET', 'POST'])
+@login_required
 def create_ledger_entry():
     form = LedgerEntryForm()
     
     # Populate choices
     form.person_id.choices = [(p.id, p.name) for p in Person.query.all()]
-    form.vc_id.choices = [('', 'Select VC (Optional)')] + [(vc.id, f"VC {vc.vc_number}") for vc in VC.query.all()]
+    form.vc_id.choices = [(0, '--- None ---')] + [(vc.id, vc.name) for vc in VC.query.all()]
     
     if form.validate_on_submit():
         person = Person.query.get(form.person_id.data)
@@ -1198,7 +1226,7 @@ def create_ledger_entry():
         
         entry = LedgerEntry(
             person_id=form.person_id.data,
-            vc_id=form.vc_id.data if form.vc_id.data else None,
+            vc_id = form.vc_id.data if form.vc_id.data != 0 else None,
             date=form.date.data,
             narration=form.narration.data,
             debit=form.debit.data or 0,
@@ -1238,6 +1266,7 @@ def generate_pdf_for_person(person_id):
 # This is the route that your button's JavaScript function will call.
 # The <int:personId> part captures the ID from the URL.
 @app.route('/ledger/<int:person_id>/pdf')
+@login_required
 def export_ledger_pdf(person_id):
     person = Person.query.get_or_404(person_id)
     entries = LedgerEntry.query.filter_by(person_id=person_id).order_by(LedgerEntry.date.desc()).all()
