@@ -422,7 +422,7 @@ def check_db():
 
 @app.route("/test-db")
 def test_db():
-    from app import db
+    from application import db
     tables = db.engine.table_names()
     return {"tables": tables}
 
