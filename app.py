@@ -16,53 +16,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import validates
 import io
 from babel.numbers import format_decimal
-
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'  # Make sure this is set for session
-# --- Authentication Config ---
-LOGIN_ID = 'VCManager001'
-LOGIN_PASSWORD = '123vc'
-
-# Routes
-from functools import wraps
-
-# --- Authentication Decorator ---
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('logged_in'):
-            return redirect(url_for('login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
-
-# --- Login Route ---
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        user_id = request.form.get('user_id')
-        password = request.form.get('password')
-        if user_id == LOGIN_ID and password == LOGIN_PASSWORD:
-            session['logged_in'] = True
-            flash('Logged in successfully!', 'success')
-            next_url = request.args.get('next')
-            return redirect(next_url or url_for('dashboard'))
-        else:
-            error = 'Invalid credentials. Please try again.'
-    return render_template('login.html', error=error)
-
-# --- Logout Route ---
-@app.route('/logout')
-def logout():
-    session.pop('logged_in', None)
-    flash('Logged out successfully.', 'success')
-    return redirect(url_for('login'))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vc_committee.db'
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")  
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# --- Authentication Config ---
+LOGIN_ID = 'VCManager001'
+LOGIN_PASSWORD = '123vc'
 
 # Models
 class PaymentStatus(Enum):
@@ -72,17 +39,16 @@ class PaymentStatus(Enum):
 
 class VC(db.Model):
     __tablename__ = 'vcs'
-    
     id = db.Column(db.Integer, primary_key=True)
     vc_number = db.Column(db.Integer, unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     amount = db.Column(db.Float, nullable=False)
-    tenure = db.Column(db.Integer, nullable=False)  # Number of months/hands
-    current_hand = db.Column(db.Integer, default=1)  # Which hand is currently active
+    tenure = db.Column(db.Integer, nullable=False)
+    current_hand = db.Column(db.Integer, default=1)
     narration = db.Column(db.Text)
-    status = db.Column(db.Enum(PaymentStatus), default=PaymentStatus.PENDING)
-    min_interest = db.Column(db.Float, nullable=False, default=0.0) # Added new column
+    status = db.Column(db.Enum(PaymentStatus, native_enum=False), default=PaymentStatus.PENDING)
+    min_interest = db.Column(db.Float, nullable=False, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -151,15 +117,14 @@ class VC(db.Model):
 
 class VCHand(db.Model):
     __tablename__ = 'vc_hands'
-    
     id = db.Column(db.Integer, primary_key=True)
-    vc_id = db.Column(db.Integer, db.ForeignKey('vcs.id'), nullable=False)
+    vc_id = db.Column(db.Integer, db.ForeignKey('vcs.id'), nullable=False, index=True)
     hand_number = db.Column(db.Integer, nullable=False)
     date = db.Column(db.DateTime, nullable=False)
     contribution_amount = db.Column(db.Float, nullable=False)
     balance = db.Column(db.Float, nullable=False)
-    self_half_option = db.Column(db.String(10), default='self')  # 'self' or 'half'
-    is_active = db.Column(db.Boolean, default=False)  # Current active hand
+    self_half_option = db.Column(db.String(10), default='self')
+    is_active = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -275,10 +240,9 @@ class VCHand(db.Model):
     
 class HandDistribution(db.Model):
     __tablename__ = 'hand_distributions'
-    
     id = db.Column(db.Integer, primary_key=True)
-    hand_id = db.Column(db.Integer, db.ForeignKey('vc_hands.id'), nullable=False)
-    person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False)
+    hand_id = db.Column(db.Integer, db.ForeignKey('vc_hands.id'), nullable=False, index=True)
+    person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False, index=True)
     amount = db.Column(db.Float, nullable=False)
     narration = db.Column(db.Text)
     payment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -290,10 +254,9 @@ class HandDistribution(db.Model):
 
 class Contribution(db.Model):
     __tablename__ = 'contributions'
-    
     id = db.Column(db.Integer, primary_key=True)
-    hand_id = db.Column(db.Integer, db.ForeignKey('vc_hands.id'), nullable=False)
-    person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False)
+    hand_id = db.Column(db.Integer, db.ForeignKey('vc_hands.id'), nullable=False, index=True)
+    person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False, index=True)
     amount = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -305,8 +268,8 @@ class Person(db.Model):
     name = db.Column(db.String(80), unique=True, nullable=False)
     short_name = db.Column(db.String(20), unique=True, nullable=False)
     phone = db.Column(db.String(20), nullable=False)
-    phone2 = db.Column(db.String(20), nullable=True)  # Made optional
-    opening_balance = db.Column(db.Float, default=0.0, nullable=True)  # Made optional
+    phone2 = db.Column(db.String(20), nullable=True)
+    opening_balance = db.Column(db.Float, default=0.0, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
@@ -331,25 +294,22 @@ class Person(db.Model):
 
 class Payment(db.Model):
     __tablename__ = 'payments'
-    
     id = db.Column(db.Integer, primary_key=True)
-    vc_id = db.Column(db.Integer, db.ForeignKey('vcs.id'), nullable=False)
-    person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False)
-    hand_id = db.Column(db.Integer, db.ForeignKey('vc_hands.id'), nullable=False)
+    vc_id = db.Column(db.Integer, db.ForeignKey('vcs.id'), nullable=False, index=True)
+    person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False, index=True)
+    hand_id = db.Column(db.Integer, db.ForeignKey('vc_hands.id'), nullable=False, index=True)
     amount = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     narration = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
     # Relationships
     hand = db.relationship('VCHand', backref='payments')
 
 class LedgerEntry(db.Model):
     __tablename__ = 'ledger_entries'
-    
     id = db.Column(db.Integer, primary_key=True)
-    person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False)
-    vc_id = db.Column(db.Integer, db.ForeignKey('vcs.id'), nullable=True)
+    person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False, index=True)
+    vc_id = db.Column(db.Integer, db.ForeignKey('vcs.id'), nullable=True, index=True)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     narration = db.Column(db.Text, nullable=False)
     debit = db.Column(db.Float, default=0)
@@ -360,8 +320,8 @@ class LedgerEntry(db.Model):
 # Forms
 vc_members = db.Table(
     'vc_members',
-    db.Column('vc_id', db.Integer, db.ForeignKey('vcs.id'), primary_key=True),
-    db.Column('person_id', db.Integer, db.ForeignKey('persons.id'), primary_key=True)
+    db.Column('vc_id', db.Integer, db.ForeignKey('vcs.id'), primary_key=True, index=True),
+    db.Column('person_id', db.Integer, db.ForeignKey('persons.id'), primary_key=True, index=True)
 )
 
 class MultiCheckboxField(SelectMultipleField):
@@ -449,6 +409,56 @@ def indian_comma(value):
     return format_decimal(value, locale='en_IN')
 
 # Routes
+from functools import wraps
+
+@app.route('/check-db')
+def check_db():
+    try:
+        result = db.engine.execute("SHOW TABLES;")
+        tables = [row[0] for row in result]
+        return {"status": "connected", "tables": tables}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.route("/test-db")
+def test_db():
+    from app import db
+    tables = db.engine.table_names()
+    return {"tables": tables}
+
+# --- Authentication Decorator ---
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Login Route ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        password = request.form.get('password')
+        if user_id == LOGIN_ID and password == LOGIN_PASSWORD:
+            session['logged_in'] = True
+            flash('Logged in successfully!', 'success')
+            next_url = request.args.get('next')
+            return redirect(next_url or url_for('dashboard'))
+        else:
+            error = 'Invalid credentials. Please try again.'
+    return render_template('login.html', error=error)
+
+# --- Logout Route ---
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    flash('Logged out successfully.', 'success')
+    return redirect(url_for('login'))
+
+# Routes
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def dashboard():
@@ -518,7 +528,7 @@ def dashboard():
             date=form.date.data or datetime.utcnow(),
             narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}",
             credit=form.amount.data,
-            balance=person.total_balance - form.amount.data
+            balance=person.total_balance + form.amount.data
         )
         db.session.add(ledger_entry)
 
@@ -1300,8 +1310,12 @@ def export_ledger_pdf(person_id):
 
 if __name__ == "__main__":
     with app.app_context():
-        # This is the crucial line that creates the database file and all tables.
         db.create_all()
-        print("Database 'vc_committee.db' and tables created successfully.")
+        print("✅ Tables created successfully in AWS RDS!")    
+        try:
+            with db.engine.connect() as conn:
+                print("✅ Successfully connected to:", conn.engine.url)
+        except Exception as e:
+            print("❌ Database connection failed:", e)
     port = int(os.environ.get("PORT", 5000))  # Render gives PORT dynamically
     app.run(host="0.0.0.0", port=port)
