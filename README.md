@@ -78,9 +78,6 @@ The application will be available at:
 ### Access the App
 
 1. Open your browser and go to `http://127.0.0.1:5000`
-2. Login with credentials:
-   - **User ID**: `VCManager001`
-   - **Password**: `123vc`
 
 ## Database Management
 
