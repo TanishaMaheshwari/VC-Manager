@@ -132,38 +132,38 @@
 </style>
 <div class="row mb-4">
     <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center ps-5">
             <div class="vc-header">
-                <h1 class="display-6 fw-bold vc-title">
-                    VC {{ vc.vc_number }} - {{ vc.name }}
-                </h1>
-                <div class="vc-meta text-muted fs-5 d-flex flex-wrap">
-                    <span>{{ vc.start_date.strftime('%d %B %Y') }}</span>
-                    <span class="mx-3 d-none d-md-inline">|</span>
+            <h1 class="display-6 fw-bold vc-title">
+                VC {{ vc.vc_number }} - {{ vc.name }}
+            </h1>
+            <div class="vc-meta text-muted fs-5 d-flex flex-wrap">
+                <span>{{ vc.start_date.strftime('%d %B %Y') }}</span>
+                <span class="mx-3 d-none d-md-inline">|</span>
 
-                    <span>₹{{ "%.0f"|format(vc.amount)|indian_comma }}</span>
-                    <span class="mx-3 d-none d-md-inline">|</span>
+                <span>₹{{ "%.0f"|format(vc.amount)|indian_comma }}</span>
+                <span class="mx-3 d-none d-md-inline">|</span>
 
-                    <span>{{ vc.tenure }} Months</span>
-                </div>
+                <span>{{ vc.tenure }} Months</span>
+            </div>
             </div>
 
             <div class="d-flex gap-2 flex-wrap action-buttons">
-                <!-- <a href="{{ url_for('vcs_list') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('vcs_list') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to VCs
-                </a> -->
-                <div class="d-flex flex-wrap gap-2 quick-actions">
+                </a>
+                <!-- <div class="d-flex flex-wrap gap-2 quick-actions">
                     <button class="btn btn-success" onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}'">
                         <i class="fas fa-plus me-2"></i>Add Payment
                     </button>
                     <button class="btn btn-info" onclick="location.href='{{ url_for('create_ledger_entry') }}?vc_id={{ vc.id }}'">
                         <i class="fas fa-book me-2"></i>Add Ledger Entry
                     </button>
-                </div>
+                </div> -->
                 <!-- Updated Delete Button to use custom confirmation function -->
-                <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
+                <!-- <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
                     <i class="fas fa-trash me-2"></i>Delete VC
-                </button>
+                </button> -->
             </div>
         </div>
     </div>
@@ -184,7 +184,7 @@
                         <div class="stat-label">Total Paid</div>
                     </div>
                     <div class="col-md-3">
-                        <div class="stat-number text-danger">₹{{ "%.0f"|format(vc.total_due)|indian_comma }}</div>
+                        <div class="stat-number text-danger">₹{{ "%.0f"|format(vc.total_due_per_vc)|indian_comma }}</div>
                         <div class="stat-label">Total Due</div>
                     </div>
                     <div class="col-md-3">
@@ -287,7 +287,7 @@
 </div>
 
 <!-- Instructions Card -->
-<div class="row mt-4">
+<!-- <div class="row mt-4">
     <div class="col-12">
         <div class="alert alert-info">
             <h6 class="alert-heading">
@@ -311,10 +311,10 @@
             </div>
         </div>
     </div>
-</div>
+</div> -->
 
 <!-- Custom Delete Confirmation Modal -->
-<div id="deleteConfirmationModal" class="custom-modal-backdrop">
+<!-- <div id="deleteConfirmationModal" class="custom-modal-backdrop">
     <div class="custom-modal-content">
         <h5 class="mb-3 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion</h5>
         <p>Are you absolutely sure you want to delete **VC <span id="vcNumberPlaceholder" class="fw-bold"></span>**?</p>
@@ -324,7 +324,7 @@
             <button class="btn btn-danger" id="confirmDeleteButton">Delete Permanently</button>
         </div>
     </div>
-</div>
+</div> -->
 {% endblock %}
 
 {% block scripts %}

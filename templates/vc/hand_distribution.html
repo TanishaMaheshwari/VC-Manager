@@ -23,11 +23,11 @@
       <div>
         <h1 class="display-6 fw-bold"
             style="background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          <i class="fas fa-hand-paper me-3"></i>Hand {{ hand.hand_number }} Distribution
+          <i class="fas fa-hand-paper me-3"></i>Hand Distribution - {{ hand.hand_number }}
         </h1>
         <p class="text-muted fs-5">
-          <span class="badge bg-primary me-2">VC {{ vc.vc_number }}</span>
-          {{ vc.name }} - {{ hand.date.strftime('%d %B %Y') }}
+          <span class="badge bg-primary me-2">VC: {{ vc.name }}</span>
+          {{ hand.date.strftime('%d %B %Y') }}
         </p>
       </div>
       <a href="{{ url_for('view_vc', id=vc.id) }}" class="btn btn-outline-secondary">
@@ -72,13 +72,13 @@
   <div class="col-12">
     <!-- <div class="distribution-card"> -->
 
-      <div class="distribution-header">
+      <!-- <div class="distribution-header">
         <div class="d-flex justify-content-between align-items-center">
           <div><i class="fas fa-building me-2"></i>VC {{ vc.vc_number }}</div>
           <div><i class="fas fa-calendar me-2"></i>{{ hand.hand_number }}TH HAND</div>
           <div><i class="fas fa-clock me-2"></i>{{ hand.date.strftime('%d-%m-%y') }}</div>
         </div>
-      </div>
+      </div> -->
 
       <!-- Payout Section -->
       <!-- <h3 class="mb-3">Payout</h3> -->
@@ -106,9 +106,9 @@
                     </span>
                 </div>
                 <div>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="editPayout({{ payout.id }}, '{{ payout.person.short_name }}', {{ payout.amount }})">
+                    <!-- <button class="btn btn-sm btn-outline-secondary" onclick="editPayout({{ payout.id }}, '{{ payout.person.short_name }}', {{ payout.amount }})">
                     <i class="fas fa-edit"></i>
-                    </button>
+                    </button> -->
                 </div>
             </div>
         {% else %}
@@ -127,31 +127,42 @@
       <!-- Contributions Section -->
         <div class="distribution-card contribution-section">
         {% if contributions %}
-            {% for c in contributions if not (payout and c.person_id == payout.person_id) %}
-            <div class="distribution-row" style="cursor:pointer"
-                onclick="window.location.href='{{ url_for('person_ledger', person_id=c.person_id) }}'">
+          {# Group contributions by person to avoid duplicate rows when multiple Contribution records exist #}
+          {% for group in contributions|groupby('person_id') %}
+            {% set person_id = group.grouper %}
+            {# Skip the payout person if present by wrapping body in an if (Jinja may not support 'continue') #}
+            {% if not (payout and person_id == payout.person_id) %}
+              {% set entries = group.list %}
+              {% set total_amount = entries|sum(attribute='amount') %}
+              {% set latest = entries|last %}
+              {# Determine paid status: ledger_map OR any contribution entry marked paid #}
+              {% set is_paid = ledger_map.get(person_id) or (entries|selectattr('paid')|list|length > 0) %}
+
+              <div class="distribution-row" style="cursor:pointer"
+                onclick="window.location.href='{{ url_for('person_ledger', person_id=person_id) }}'">
                 <div><div class="hand-number">{{ loop.index }}</div></div>
-                <div><div class="person-badge">{{ c.person.short_name }}</div></div>
-                <div><span class="fw-bold fs-5 text-success">₹{{ "%.0f"|format(c.amount) }}</span></div>
-                <div><div class="fw-semibold">{{ c.person.name }}</div></div>
+                <div><div class="person-badge">{{ latest.person.short_name }}</div></div>
+                <div><span class="fw-bold fs-5 text-success">₹{{ "%.0f"|format(total_amount) }}</span></div>
+                <div><div class="fw-semibold">{{ latest.person.name }}</div></div>
                 <div>
-                    {% if ledger_map.get(c.person_id) %}
-                        <div class="fw-semibold">{{ ledger_map[c.person_id].date.strftime('%d/%m/%Y') }}</div>
-                        <small class="text-muted">{{ ledger_map[c.person_id].date.strftime('%I:%M %p') }}</small>
-                    {% else %}
-                        <div class="fw-semibold">{{ c.date.strftime('%d/%m/%Y') }}</div>
-                        <small class="text-muted">{{ c.date.strftime('%I:%M %p') }}</small>
-                    {% endif %}
+                  {% if ledger_map.get(person_id) %}
+                    <div class="fw-semibold">{{ ledger_map[person_id].date.strftime('%d/%m/%Y') }}</div>
+                    <small class="text-muted">{{ ledger_map[person_id].date.strftime('%I:%M %p') }}</small>
+                  {% else %}
+                    <div class="fw-semibold">{{ latest.date.strftime('%d/%m/%Y') }}</div>
+                    <small class="text-muted">{{ latest.date.strftime('%I:%M %p') }}</small>
+                  {% endif %}
                 </div>
                 <div>
-                    {% if ledger_map.get(c.person_id) %}
-                        <span class="badge bg-success">Paid</span>
-                    {% else %}
-                        <span class="badge bg-secondary">To be Paid</span>
-                    {% endif %}
+                  {% if is_paid %}
+                    <span class="badge bg-success">Paid</span>
+                  {% else %}
+                    <span class="badge bg-secondary">To be Paid</span>
+                  {% endif %}
                 </div>
-            </div>
-            {% endfor %}
+              </div>
+            {% endif %}
+          {% endfor %}
         {% else %}
             <div class="text-center py-5">
             <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
@@ -227,7 +238,7 @@
 </div>
 
 <!-- Legend and Notes -->
-<div class="row mt-4">
+<!-- <div class="row mt-4">
   <div class="col-md-6">
     <div class="alert alert-warning">
       <h6 class="alert-heading">
@@ -263,10 +274,10 @@
       </ul>
     </div>
   </div>
-</div>
+</div> -->
 
 <!-- Action Buttons -->
-<div class="row mt-4">
+<!-- <div class="row mt-4">
   <div class="col-12">
     <div class="card">
       <div class="card-header">
@@ -303,7 +314,7 @@
       </div>
     </div>
   </div>
-</div>
+</div> -->
 <!-- Edit Payout Modal -->
 <div class="modal fade" id="editPayoutModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">

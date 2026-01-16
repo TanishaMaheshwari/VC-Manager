@@ -6,7 +6,7 @@ from wtforms import StringField, FloatField, TextAreaField, SelectField, DateTim
 from wtforms import SelectMultipleField
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import DataRequired, Email, Optional, NumberRange, ValidationError
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from enum import Enum
 from fpdf import FPDF
 from weasyprint import HTML
@@ -20,8 +20,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")  
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
+app.config['SECRET_KEY'] = "123123"
+app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://Tanisha:mnmnmnmn@Tanisha.mysql.pythonanywhere-services.com/Tanisha$default"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -42,15 +42,15 @@ class VC(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     vc_number = db.Column(db.Integer, unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    start_date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     amount = db.Column(db.Float, nullable=False)
     tenure = db.Column(db.Integer, nullable=False)
     current_hand = db.Column(db.Integer, default=1)
     narration = db.Column(db.Text)
     status = db.Column(db.Enum(PaymentStatus, native_enum=False), default=PaymentStatus.PENDING)
     min_interest = db.Column(db.Float, nullable=False, default=0.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     hands = db.relationship('VCHand', backref='vc', lazy=True, cascade='all, delete-orphan')
@@ -69,22 +69,12 @@ class VC(db.Model):
         return sum(1 for hand in self.hands if hand.due_amount > 0)
     
     @property
-    def total_due(self):
+    def total_due_per_vc(self):
         """
-        Total due across all declared hands in this VC.
-        Declared hand = has at least one HandDistribution.
-        Formula = per-person contribution * (members - 1).
+        Total outstanding (unpaid) contributions for this VC.
+        Sums all contributions where paid=False across all hands in this VC.
         """
-        total = 0
-        member_count = len(self.members)
-        if member_count == 0:
-            return 0
-
-        for hand in self.hands:
-            if hand.hand_distributions:  # hand has been declared
-                per_person = hand.actual_contribution_per_person
-                total += per_person * (member_count - 1)
-        return total
+        return sum(c.amount for hand in self.hands for c in hand.contributions if not c.paid)
 
     
     @property
@@ -94,7 +84,15 @@ class VC(db.Model):
             return self.current_hand
         else:
             return self.tenure
-    
+        
+    @property
+    def completed_hand_obj(self):
+        """Return the current active hand object, or the last hand if current_hand > tenure."""
+        if self.current_hand <= self.tenure:
+            return self.current_hand - 1
+        else:
+            return self.tenure
+        
     @property
     def completed_hands(self):
         """Return number of hands fully paid"""
@@ -259,6 +257,7 @@ class Contribution(db.Model):
     person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False, index=True)
     amount = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
+    paid = db.Column(db.Boolean, default=False)  # True when this contribution/payment has been made
 
     person = db.relationship('Person', backref='contributions')
 
@@ -291,6 +290,14 @@ class Person(db.Model):
         for entry in self.ledger_entries:
             balance += (entry.credit or 0) - (entry.debit or 0)
         return balance
+
+    @property
+    def total_due_per_person(self):
+        """
+        Total outstanding (unpaid) contributions for this person.
+        Sums all contributions where paid=False for this specific person.
+        """
+        return sum(c.amount for c in self.contributions if not c.paid)
 
 class Payment(db.Model):
     __tablename__ = 'payments'
@@ -363,7 +370,9 @@ class PaymentForm(FlaskForm):
     hand_id = SelectField('Hand', validators=[DataRequired()], coerce=int)
     person_id = SelectField('Person', validators=[DataRequired()], coerce=int)
     amount = FloatField('Amount', validators=[DataRequired(), NumberRange(min=0.01)])
-    date = DateTimeField('Date', validators=[DataRequired()], default=datetime.utcnow)
+    # Use HTML5 `datetime-local` format for consistent browser-level editing
+    # Format corresponds to: YYYY-MM-DDTHH:MM (no seconds)
+    date = DateTimeField('Date', format='%Y-%m-%dT%H:%M', validators=[DataRequired()], default=datetime.now)
     narration = TextAreaField('Narration')
     submit = SubmitField('Record Payment')
 
@@ -463,7 +472,8 @@ def logout():
 @login_required
 def dashboard():
     vcs = VC.query.order_by(VC.vc_number).all()
-    total_due = sum(vc.total_due for vc in vcs)
+    # Total due = sum of all unpaid contributions globally (across all people)
+    total_due = sum(c.amount for vc in vcs for hand in vc.hands for c in hand.contributions if not c.paid)
     total_vcs = len(vcs)
     persons = Person.query.all()
     total_persons = len(persons)
@@ -510,14 +520,25 @@ def dashboard():
             form.person_id.choices = [(p.id, p.name) for p in pending_persons]
 
     if form.validate_on_submit():
-        # --- 4. Record contribution (payment IN) ---
-        contribution = Contribution(
+        # --- 4. Mark existing contribution as paid (do not add duplicate) ---
+        contrib = Contribution.query.filter_by(
             hand_id=form.hand_id.data,
-            person_id=form.person_id.data,
-            amount=form.amount.data,
-            date=datetime.utcnow()
-        )
-        db.session.add(contribution)
+            person_id=form.person_id.data
+        ).order_by(Contribution.date.asc()).first()
+
+        if contrib:
+            # Update existing contribution record
+            contrib.paid = True
+            # if amount provided, update stored amount to actual paid amount
+            try:
+                if form.amount.data:
+                    contrib.amount = form.amount.data
+            except Exception:
+                pass
+            contrib.date = form.date.data or datetime.utcnow()
+            db.session.add(contrib)
+        else:
+            alert_msg = "No existing contribution record found for this person in the selected hand."
 
         # --- 5. Ledger entry (debit) ---
         person = Person.query.get(form.person_id.data)
@@ -542,7 +563,8 @@ def dashboard():
 @login_required
 def vcs_list():
     vcs = VC.query.order_by(VC.vc_number).all()
-    total_due = sum(vc.total_due for vc in vcs)
+    # Total due = sum of all unpaid contributions globally (across all people)
+    total_due = sum(c.amount for vc in vcs for hand in vc.hands for c in hand.contributions if not c.paid)
     total_vcs = len(vcs)
     total_members = sum(len(vc.members) for vc in vcs)
     return render_template('vc/list.html', vcs=vcs, total_due=total_due, total_members=total_members, total_vcs=total_vcs)
@@ -744,12 +766,14 @@ def distribute_hand(vc_id):
         print(f"Contribution per member: {per_person_contribution}")
         for member in members:
             print(f"Processing member: {member.name}")
+
             # Contribution record
             contribution = Contribution(
                 hand_id=hand.id,
                 person_id=member.id,
                 amount=per_person_contribution,
-                date=datetime.utcnow()
+                date=datetime.utcnow(),
+                paid=False
             )
             db.session.add(contribution)
             print("Added Contribution to session.")
@@ -965,6 +989,16 @@ def record_payment():
             balance=current_balance + payment.amount
         )
         db.session.add(ledger_entry)
+        # Mark any matching Contribution records for this hand/person as paid
+        try:
+            contribs = Contribution.query.filter_by(hand_id=hand.id, person_id=person.id).all()
+            for c in contribs:
+                c.paid = True
+                db.session.add(c)
+        except Exception:
+            # ignore if contributions table not yet present or other issues
+            pass
+
         db.session.commit()
 
         flash(f"Payment of ₹{payment.amount} recorded for {person.name}", "success")
@@ -1114,7 +1148,8 @@ def create_payment():
             hand_id=form.hand_id.data,
             person_id=form.person_id.data,
             amount=form.amount.data,
-            date=datetime.utcnow()
+            date=datetime.utcnow(),
+            paid=False
         )
         db.session.add(contribution)
 
@@ -1211,7 +1246,8 @@ def edit_payout(vc_id, hand_id):
             hand_id=hand.id,
             person_id=member.id,
             amount=per_person_contribution,
-            date=datetime.utcnow()
+            date=datetime.utcnow(),
+            paid=False
         )
         db.session.add(contribution)
 
@@ -1229,6 +1265,11 @@ def create_ledger_entry():
     # Populate choices
     form.person_id.choices = [(p.id, p.name) for p in Person.query.all()]
     form.vc_id.choices = [(0, '--- None ---')] + [(vc.id, vc.name) for vc in VC.query.all()]
+    
+    # Pre-fill person_id from query parameter if provided
+    person_id = request.args.get('person_id', type=int)
+    if person_id and not form.is_submitted():
+        form.person_id.data = person_id
     
     if form.validate_on_submit():
         person = Person.query.get(form.person_id.data)

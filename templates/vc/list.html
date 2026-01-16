@@ -27,15 +27,23 @@
                     style="background: linear-gradient(135deg, #6366f1, #8b5cf6); 
                            -webkit-background-clip: text; 
                            -webkit-text-fill-color: transparent;">
-                    <i class="fas fa-list me-2"></i>All VCs
+                    <i class="fas fa-list me-2 ps-3"></i>All VCs
                 </h1>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-primary" onclick="location.href='{{ url_for('create_vc') }}'">
-                        <i class="fas fa-plus me-2"></i>Create VC
+                    <button class="btn btn-primary btn" onclick="location.href='{{ url_for('create_vc') }}'">
+                        <!-- <i class="fas fa-plus me-2"></i> -->
+                        Create
                     </button>
-                    <button class="btn btn-outline-primary" onclick="location.href='{{ url_for('persons') }}'">
+                    <!-- <button class="btn btn-outline-primary" onclick="location.href='{{ url_for('persons') }}'">
                         <i class="fas fa-users me-2"></i>Accounts
-                    </button>
+                    </button> -->
+                    <!-- VC search: filter table by VC name -->
+                    <div class="input-group ms-2" style="max-width: 320px;">
+                        <input id="vc-search-input" type="search" class="form-control form-control" placeholder="Search VCs by name">
+                        <button id="vc-search-btn" class="btn btn-outline-secondary btn-sm" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -43,7 +51,7 @@
 
 
     <!-- Pending VCs Section -->
-    {% set pending_vcs = vcs|selectattr('status.value', 'equalto', 'pending')|list %}
+    <!-- {% set pending_vcs = vcs|selectattr('status.value', 'equalto', 'pending')|list %}
     {% if pending_vcs %}
     <div class="row mt-5">
         <div class="col-12">
@@ -51,9 +59,9 @@
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-hourglass-half me-2"></i>Pending VCs</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body"> -->
                     <!-- Swiper -->
-                    <div class="swiper mySwiper">
+                    <!-- <div class="swiper mySwiper">
                         <div class="swiper-wrapper">
                             {% for vc in pending_vcs %}
                             <div class="swiper-slide">
@@ -74,20 +82,20 @@
                                 </div>
                             </div>
                             {% endfor %}
-                        </div>
+                        </div> -->
 
                         <!-- Pagination -->
-                        <div class="swiper-pagination"></div>
+                        <!-- <div class="swiper-pagination"></div> -->
 
                         <!-- Navigation Arrows -->
-                        <div class="swiper-button-next"></div>
+                        <!-- <div class="swiper-button-next"></div>
                         <div class="swiper-button-prev"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
+    {% endif %} -->
 
     <!-- Other Sections ... -->
 
@@ -101,14 +109,16 @@
                     <th>Date</th>
                     <th>Hand</th>
                     <th>Amount</th>
-                    <th>Due Count</th>
+                    <!-- <th>Due Count</th> -->
                     <th>Total Due</th>
-                    <th>Actions</th>
+                    <!-- <th>Actions</th> -->
                 </tr>
             </thead>
             <tbody>
+                {# Render VCs with completion ratio != 1 first, then render those with ratio == 1 at the end #}
                 {% for vc in vcs %}
-                <tr class="clickable" onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                    {% if vc.tenure and (vc.completed_hand_obj / vc.tenure) != 1 %}
+                    <tr class="clickable" onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
                     <td data-label="VC">
                         <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
                     </td>
@@ -122,25 +132,25 @@
                         <div class="d-flex align-items-center">
                             <div class="progress me-2" style="width: 60px; height: 8px;">
                                 <div class="progress-bar bg-secondary"
-                                     style="width: {{ (vc.current_hand / vc.tenure * 100) }}%"></div>
+                                     style="width: {{ (vc.completed_hand_obj / vc.tenure * 100) }}%"></div>
                             </div>
-                            <span class="fw-semibold">{{ vc.current_hand_obj }} / {{ vc.tenure }}</span>
+                            <span class="fw-semibold">{{ vc.completed_hand_obj }} / {{ vc.tenure }}</span>
                         </div>
                     </td>
                     <td data-label="Amount">
                         <span class="fw-bold">₹{{ "%.0f"|format(vc.amount)|indian_comma  }}</span>
                     </td>
-                    <td data-label="Due Count">
+                    <!-- <td data-label="Due Count">
                         {% if vc.due_count > 0 %}
                         <span class="badge bg-warning text-dark px-2 py-2">{{ vc.due_count }}</span>
                         {% else %}
                         <span class="badge bg-success">0</span>
                         {% endif %}
-                    </td>
+                    </td> -->
                     <td data-label="Total Due">
-                        <span class="fw-bold">₹{{ "%.0f"|format(vc.total_due)|indian_comma  }}</span>
+                        <span class="fw-bold">₹{{ "%.0f"|format(vc.total_due_per_vc)|indian_comma  }}</span>
                     </td>
-                    <td data-label="Actions">
+                    <!-- <td data-label="Actions">
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-primary" style="border: none;"
                                 onclick="event.stopPropagation(); location.href='{{ url_for('view_vc', id=vc.id) }}'">
@@ -153,8 +163,39 @@
                                         }">
                             <i class="fas fa-trash"></i>
                         </button>
+                    </td> -->
+                </tr>
+                    {% endif %}
+                {% endfor %}
+
+                {# Append VCs where completion ratio == 1 (fully completed) #}
+                {% for vc in vcs %}
+                    {% if vc.tenure and (vc.completed_hand_obj / vc.tenure) == 1 %}
+                    <tr class="clickable" onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                    <td data-label="VC">
+                        <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
+                    </td>
+                    <td data-label="Name">{{ vc.name }}</td>
+                    <td data-label="Date">
+                        <div class="fw-semibold">{{ vc.start_date.strftime('%d-%m-%y') }}</div>
+                    </td>
+                    <td data-label="Hand">
+                        <div class="d-flex align-items-center">
+                            <div class="progress me-2" style="width: 60px; height: 8px;">
+                                <div class="progress-bar bg-secondary"
+                                     style="width: {{ (vc.completed_hand_obj / vc.tenure * 100) }}%"></div>
+                            </div>
+                            <span class="fw-semibold">{{ vc.completed_hand_obj }} / {{ vc.tenure }}</span>
+                        </div>
+                    </td>
+                    <td data-label="Amount">
+                        <span class="fw-bold">₹{{ "%.0f"|format(vc.amount)|indian_comma  }}</span>
+                    </td>
+                    <td data-label="Total Due">
+                        <span class="fw-bold">₹{{ "%.0f"|format(vc.total_due_per_vc)|indian_comma  }}</span>
                     </td>
                 </tr>
+                    {% endif %}
                 {% endfor %}
             </tbody>
         </table>
@@ -212,6 +253,44 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
   toggleNav();
   window.addEventListener('resize', toggleNav);
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('vc-search-input');
+    const searchBtn = document.getElementById('vc-search-btn');
+    const tableRows = Array.from(document.querySelectorAll('.modern-table tbody tr'));
+
+    function runFilter() {
+        const q = (searchInput.value || '').trim().toLowerCase();
+        if (!q) {
+            tableRows.forEach(r => r.style.display = '');
+            return;
+        }
+
+        tableRows.forEach(row => {
+            const nameCell = row.querySelector('td[data-label="Name"]');
+            const nameText = (nameCell && nameCell.textContent || '').toLowerCase();
+            if (nameText.includes(q)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    searchBtn.addEventListener('click', runFilter);
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            runFilter();
+        }
+        if (e.key === 'Escape') {
+            searchInput.value = '';
+            runFilter();
+        }
+    });
 });
 </script>
 

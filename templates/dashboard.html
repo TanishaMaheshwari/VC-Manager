@@ -58,7 +58,9 @@
                         <!-- Date (defaults to today) -->
                         <div class="mb-3">
                             {{ form.date.label(class="form-label") }}
-                            {{ form.date(class="form-control", id="payment-date") }}
+                            {# Use HTML5 datetime-local so browsers show date + HH:MM (no seconds) #}
+                            {% set date_val = form.date.data.strftime('%Y-%m-%dT%H:%M') if form.date.data else '' %}
+                            <input id="payment-date" name="{{ form.date.name }}" type="datetime-local" class="form-control" value="{{ date_val }}">
                             {% for error in form.date.errors %}
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
@@ -229,7 +231,7 @@
                         </thead>
                         <tbody>
                             {% for vc in vcs %}
-                                {% if vc.total_due > 0 %}
+                                {% if vc.total_due_per_vc > 0 %}
                                     <tr>
                                         <td>
                                             <span class="badge bg-primary me-2">{{ vc.vc_number }}</span>
@@ -242,7 +244,7 @@
                                             {{ vc.hand_person.name if vc.hand_person else 'N/A' }}
                                         </td>
                                         <td>
-                                            <span class="due-amount">₹{{ "%.2f"|format(vc.total_due) }}</span>
+                                            <span class="due-amount">₹{{ "%.2f"|format(vc.total_due_per_vc) }}</span>
                                         </td>
                                     </tr>
                                 {% endif %}
