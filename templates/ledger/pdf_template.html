@@ -63,29 +63,35 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Personal Ledger for {{ person.name }}</h1>
-        <div class="summary-box">
-            <div class="summary-item">
-                <div class="summary-number">{{ entries|length }}</div>
-                <div class="summary-label">Total Entries</div>
+   <div class="header">
+    <h1>
+        Personal Ledger for {{ person.name }}
+        <span class="{{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}" style="font-size: 0.5em;">
+            (₹{{ "%.0f"|format(person.total_balance) }})
+        </span>
+    </h1>
+    <div class="summary-box">
+        <div class="summary-item">
+            <div class="summary-number">{{ entries|length }}</div>
+            <div class="summary-label">Total Entries</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-number ">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
+            <div class="summary-label">Total Credits</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-number ">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
+            <div class="summary-label">Total Debits</div>
+        </div>
+        {% set net = (entries|sum(attribute='credit') or 0) - (entries|sum(attribute='debit') or 0) %}
+        <div class="summary-item">
+            <div class="summary-number {{ 'text-success' if net >= 0 else 'text-danger' }}">
+                ₹{{ "%.0f"|format(net) }}
             </div>
-            <div class="summary-item">
-                <div class="summary-number text-success">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
-                <div class="summary-label">Total Credits</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-number text-danger">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
-                <div class="summary-label">Total Debits</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-number {{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}">
-                    ₹{{ "%.0f"|format(person.total_balance) }}
-                </div>
-                <div class="summary-label">Current Balance</div>
-            </div>
+            <div class="summary-label">Net (Credit - Debit)</div>
         </div>
     </div>
+</div>
 
     <div class="table-container">
         <table class="ledger-table">
@@ -104,9 +110,9 @@
                     <td>{{ entry.date.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td>
                         <div>{{ entry.narration }}</div>
-                        {% if entry.vc %}
+                        <!-- {% if entry.vc %}
                             <small class="text-muted">VC {{ entry.vc.vc_number }} - {{ entry.vc.name }}</small>
-                        {% endif %}
+                        {% endif %} -->
                     </td>
                     <td>
                         {% if entry.debit > 0 %}

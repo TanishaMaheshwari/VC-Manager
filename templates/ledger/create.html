@@ -15,35 +15,18 @@
                 <form method="POST">
                     {{ form.hidden_tag() }}
                     
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            {{ form.person_id.label(class="form-label") }}
-                            {{ form.person_id(class="form-select") }}
-                            {% for error in form.person_id.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.vc_id.label(class="form-label") }}
-                            {{ form.vc_id(class="form-select") }}
-                            {% for error in form.vc_id.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+                    <div class="mb-3">
+                        {{ form.person_id.label(class="form-label") }}
+                        {{ form.person_id(class="form-select") }}
+                        {% for error in form.person_id.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
                     </div>
                     
                     <div class="mb-3">
                         {{ form.date.label(class="form-label") }}
                         {{ form.date(class="form-control") }}
                         {% for error in form.date.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.narration.label(class="form-label") }}
-                        {{ form.narration(class="form-control", rows="3") }}
-                        {% for error in form.narration.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
                     </div>
@@ -71,6 +54,14 @@
                         </div>
                     </div>
                     
+                    <div class="mb-3">
+                        {{ form.narration.label(class="form-label") }}
+                        {{ form.narration(class="form-control", rows="3") }}
+                        {% for error in form.narration.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         <strong>Note:</strong> Enter either a debit or credit amount, not both. 
@@ -78,7 +69,7 @@
                     </div>
                     
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('persons') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('person.persons') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-1"></i>Back
                         </a>
                         {{ form.submit(class="btn btn-primary") }}

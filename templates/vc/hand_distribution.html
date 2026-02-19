@@ -30,7 +30,7 @@
           {{ hand.date.strftime('%d %B %Y') }}
         </p>
       </div>
-      <a href="{{ url_for('view_vc', id=vc.id) }}" class="btn btn-outline-secondary">
+      <a href="{{ url_for('vc.view_vc', id=vc.id) }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back to VC Timeline
       </a>
     </div>
@@ -139,7 +139,7 @@
               {% set is_paid = ledger_map.get(person_id) or (entries|selectattr('paid')|list|length > 0) %}
 
               <div class="distribution-row" style="cursor:pointer"
-                onclick="window.location.href='{{ url_for('person_ledger', person_id=person_id) }}'">
+                onclick="window.location.href='{{ url_for('ledger.person_ledger', person_id=person_id) }}'">
                 <div><div class="hand-number">{{ loop.index }}</div></div>
                 <div><div class="person-badge">{{ latest.person.short_name }}</div></div>
                 <div><span class="fw-bold fs-5 text-success">₹{{ "%.0f"|format(total_amount) }}</span></div>
@@ -168,7 +168,7 @@
             <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
             <h5 class="text-muted">No contributions recorded yet</h5>
             <!-- <button class="btn btn-primary"
-                    onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
+                    onclick="location.href='{{ url_for('payment.create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
                 <i class="fas fa-plus me-2"></i>Add First Contribution
             </button> -->
             </div>
@@ -188,7 +188,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
-      <form method="POST" action="{{ url_for('distribute_hand', vc_id=vc.id) }}">
+      <form method="POST" action="{{ url_for('vc.distribute_hand', vc_id=vc.id) }}">
         <input type="hidden" name="hand_id" value="{{ hand.id }}"> <!-- Hidden field for hand_id -->
 
         <div class="modal-body">
@@ -288,11 +288,11 @@
       <div class="card-body">
         <div class="d-flex flex-wrap gap-2">
           <button class="btn btn-success"
-                  onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
+                  onclick="location.href='{{ url_for('payment.create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
             <i class="fas fa-plus me-2"></i>Add Payment
           </button>
           <button class="btn btn-info"
-                  onclick="location.href='{{ url_for('create_ledger_entry') }}?vc_id={{ vc.id }}'">
+                  onclick="location.href='{{ url_for('ledger.create_ledger_entry') }}?vc_id={{ vc.id }}'">
             <i class="fas fa-book me-2"></i>Add Ledger Entry
           </button>
           <button class="btn btn-warning" onclick="editHandDetails({{ hand.id }})">
@@ -319,7 +319,7 @@
 <div class="modal fade" id="editPayoutModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form id="editPayoutForm" method="POST" action="{{ url_for('edit_payout', vc_id=vc.id, hand_id=hand.id) }}">
+      <form id="editPayoutForm" method="POST" action="{{ url_for('hand.edit_payout', vc_id=vc.id, hand_id=hand.id) }}">
         <div class="modal-header">
           <h5 class="modal-title">Edit Payout</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

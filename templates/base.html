@@ -571,32 +571,47 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto">
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <a class="nav-link" href="{{ url_for('dashboard.index') }}">
                                 <i class="fas fa-home me-1"></i>Dashboard
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('vcs_list') }}">
+                            <a class="nav-link" href="{{ url_for('vc.vcs_list') }}">
                                 <i class="fas fa-list me-1"></i>All VCs
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('persons') }}">
+                            <a class="nav-link" href="{{ url_for('person.persons') }}">
                                 <i class="fas fa-users me-1"></i>Persons
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('create_payment') }}">
+                            <a class="nav-link" href="{{ url_for('payment.record_payment') }}">
                                 <i class="fas fa-money-bill me-1"></i>Payments
                             </a>
                         </li>
                     </ul>
 
-                <!-- Logout button on right -->
+                <!-- User menu on right -->
                 <div class="d-flex align-items-center ms-auto">
-                    <a href="{{ url_for('logout') }}" class="btn btn-outline-primary ms-2" style="font-size: 1rem;">
-                        <i class="fas fa-sign-out-alt me-1"></i>Logout
-                    </a>
+                    {% if current_user.is_authenticated %}
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle me-1"></i>{{ current_user.name }}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard.index') }}">
+                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                    {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-primary">Login</a>
+                    {% endif %}
                 </div>
             </div>
         </nav>

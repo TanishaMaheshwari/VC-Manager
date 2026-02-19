@@ -30,11 +30,11 @@
                     <i class="fas fa-list me-2 ps-3"></i>All VCs
                 </h1>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-primary btn" onclick="location.href='{{ url_for('create_vc') }}'">
+                    <button class="btn btn-primary btn" onclick="location.href='{{ url_for('vc.create_vc') }}'">
                         <!-- <i class="fas fa-plus me-2"></i> -->
                         Create
                     </button>
-                    <!-- <button class="btn btn-outline-primary" onclick="location.href='{{ url_for('persons') }}'">
+                    <!-- <button class="btn btn-outline-primary" onclick="location.href='{{ url_for('person.persons') }}'">
                         <i class="fas fa-users me-2"></i>Accounts
                     </button> -->
                     <!-- VC search: filter table by VC name -->
@@ -74,7 +74,7 @@
                                         <small class="text-muted" style="display:block; margin-bottom:0;">{{ vc.start_date.strftime('%d/%m/%Y') }}</small>
                                         <div class="mt-2">
                                             <button class="btn btn-sm btn-outline-primary"
-                                                onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                                                onclick="location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
                                                 View Details
                                             </button>
                                         </div>
@@ -118,7 +118,7 @@
                 {# Render VCs with completion ratio != 1 first, then render those with ratio == 1 at the end #}
                 {% for vc in vcs %}
                     {% if vc.tenure and (vc.completed_hand_obj / vc.tenure) != 1 %}
-                    <tr class="clickable" onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                    <tr class="clickable" onclick="location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
                     <td data-label="VC">
                         <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
                     </td>
@@ -153,13 +153,13 @@
                     <!-- <td data-label="Actions">
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-primary" style="border: none;"
-                                onclick="event.stopPropagation(); location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                                onclick="event.stopPropagation(); location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
                                 <i class="fas fa-eye"></i>
                             </button>
                            <button class="btn btn-outline-danger"
                                 onclick="event.stopPropagation(); 
                                         if (confirm('Are you sure you want to delete VC {{ vc.vc_number }}? This action cannot be undone.')) {
-                                            window.location.href='{{ url_for('delete_vc', id=vc.id) }}';
+                                            window.location.href='{{ url_for('vc.delete_vc', id=vc.id) }}';
                                         }">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -171,7 +171,7 @@
                 {# Append VCs where completion ratio == 1 (fully completed) #}
                 {% for vc in vcs %}
                     {% if vc.tenure and (vc.completed_hand_obj / vc.tenure) == 1 %}
-                    <tr class="clickable" onclick="location.href='{{ url_for('view_vc', id=vc.id) }}'">
+                    <tr class="clickable" onclick="location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
                     <td data-label="VC">
                         <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
                     </td>

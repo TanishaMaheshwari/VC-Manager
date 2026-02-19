@@ -149,19 +149,22 @@
             </div>
 
             <div class="d-flex gap-2 flex-wrap action-buttons">
-                <a href="{{ url_for('vcs_list') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to VCs
                 </a>
+                <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
+                    <i class="fas fa-trash me-2"></i>Delete VC
+                </button>
                 <!-- <div class="d-flex flex-wrap gap-2 quick-actions">
-                    <button class="btn btn-success" onclick="location.href='{{ url_for('create_payment') }}?vc_id={{ vc.id }}'">
+                    <button class="btn btn-success" onclick="location.href='{{ url_for('payment.create_payment') }}?vc_id={{ vc.id }}'">
                         <i class="fas fa-plus me-2"></i>Add Payment
                     </button>
-                    <button class="btn btn-info" onclick="location.href='{{ url_for('create_ledger_entry') }}?vc_id={{ vc.id }}'">
+                    <button class="btn btn-info" onclick="location.href='{{ url_for('ledger.create_ledger_entry') }}?vc_id={{ vc.id }}'">
                         <i class="fas fa-book me-2"></i>Add Ledger Entry
                     </button>
                 </div> -->
                 <!-- Updated Delete Button to use custom confirmation function -->
-                <!-- <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
+                <!-- <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
                     <i class="fas fa-trash me-2"></i>Delete VC
                 </button> -->
             </div>
@@ -242,7 +245,7 @@
                     <!-- Timeline Rows -->
                     {% for hand in hands %}
                     <div class="hand-row d-flex justify-content-between align-items-center px-2 py-3 {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
-                        onclick="location.href='{{ url_for('view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'">
+                        onclick="location.href='{{ url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'">
 
                         <div style="flex:1" data-label="Hand">{{ hand.hand_number }}</div>
                         <div style="flex:2" data-label="Date">{{ hand.date.strftime('%d/%m/%Y') }}</div>
@@ -314,17 +317,17 @@
 </div> -->
 
 <!-- Custom Delete Confirmation Modal -->
-<!-- <div id="deleteConfirmationModal" class="custom-modal-backdrop">
+<div id="deleteConfirmationModal" class="custom-modal-backdrop">
     <div class="custom-modal-content">
         <h5 class="mb-3 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion</h5>
-        <p>Are you absolutely sure you want to delete **VC <span id="vcNumberPlaceholder" class="fw-bold"></span>**?</p>
-        <p class="text-danger fw-bold">This action cannot be undone and all associated data will be lost.</p>
+        <p>Are you absolutely sure you want to delete <strong>VC <span id="vcNumberPlaceholder" class="fw-bold"></span></strong>?</p>
+        <p class="text-danger fw-bold">This action cannot be undone. All associated ledgers will be closed.</p>
         <div class="d-flex justify-content-end gap-2 mt-4">
             <button class="btn btn-secondary" onclick="hideDeleteConfirmation()">Cancel</button>
             <button class="btn btn-danger" id="confirmDeleteButton">Delete Permanently</button>
         </div>
     </div>
-</div> -->
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -343,8 +346,12 @@ function hideDeleteConfirmation() {
 
 document.getElementById('confirmDeleteButton').addEventListener('click', function() {
     hideDeleteConfirmation();
-    // Redirect to the actual delete URL after confirmation
-    window.location.href = deleteUrl;
+    // Create a form and submit as POST to the delete URL
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = deleteUrl;
+    document.body.appendChild(form);
+    form.submit();
 });
 
 

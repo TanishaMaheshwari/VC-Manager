@@ -120,7 +120,7 @@
             <h1 class="h2 mb-0">
                 <i class="fas fa-users me-2"></i>Persons (Accounts)
             </h1>
-            <a href="{{ url_for('create_person') }}" class="action-btn">
+            <a href="{{ url_for('person.create_person') }}" class="action-btn">
                 Add New Person
             </a>
         </div>
@@ -162,17 +162,17 @@
                                 <td class="responsive-table-cell" data-label="Primary Phone">{{ person.phone or '-' }}</td>
                                 <td class="responsive-table-cell" data-label="Secondary Phone">{{ person.phone2 or '-' }}</td>
                                 <td class="responsive-table-cell" data-label="Balance">
-                                    <span class="badge bg-{{ 'success' if person.total_balance >= 0 else 'danger' }}">
-                                        ₹{{ "%.0f"|format(person.total_balance) }}
+                                    <span class="badge bg-{{ 'success' if person.ledger_balance >= 0 else 'danger' }}">
+                                        ₹{{ "%.0f"|format(person.ledger_balance) }}
                                     </span>
                                 </td>
                                 <td class="responsive-table-cell" data-label="Actions">
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('person_ledger', person_id=person.id) }}" 
+                                        <a href="{{ url_for('ledger.person_ledger', person_id=person.id) }}" 
                                            class="btn btn-outline-primary" title="View Ledger">
                                             <i class="fas fa-book"></i>
                                         </a>
-                                        <a href="{{ url_for('edit_person', id=person.id) }}" 
+                                        <a href="{{ url_for('person.edit_person', id=person.id) }}" 
                                            class="btn btn-outline-warning" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
@@ -188,7 +188,7 @@
                     <i class="fas fa-users fa-3x text-muted mb-3"></i>
                     <h5>No persons found</h5>
                     <p class="text-muted">Create your first person to get started.</p>
-                    <a href="{{ url_for('create_person') }}" class="action-btn">
+                    <a href="{{ url_for('person.create_person') }}" class="action-btn">
                         Create First Person
                     </a>
                 </div>

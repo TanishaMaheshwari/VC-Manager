@@ -17,10 +17,10 @@
                     </p>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="{{ url_for('persons') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('person.persons') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Persons
                     </a>
-                    <a href="{{ url_for('create_payment') }}?person_id={{ person.id }}" class="btn btn-primary">
+                    <a href="{{ url_for('payment.record_payment') }}?person_id={{ person.id }}" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Add Payment
                     </a>
                 </div>
@@ -93,8 +93,8 @@
                         </div>
                         <div>
                             <strong>Balance (+/-):</strong><br>
-                            <span class="{{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}">
-                                ₹{{ "%.0f"|format(person.total_balance) }}
+                            <span class="{{ 'text-success' if person.ledger_balance >= 0 else 'text-danger' }}">
+                                ₹{{ "%.0f"|format(person.ledger_balance) }}
                             </span>
                         </div>
                     </div>
@@ -120,8 +120,8 @@
                         <div class="fw-semibold">{{ entry.narration }}</div>
                         {% if entry.vc %}
                             <small class="text-muted">
-                                <span class="badge bg-primary">VC {{ entry.vc.vc_number }}</span>
-                                {{ entry.vc.name }}
+                                <span class="badge bg-success">active</span>
+                                <!-- {{ entry.vc.name }} -->
                             </small>
                         {% endif %}
                     </div>
@@ -152,7 +152,7 @@
                     <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
                     <h5 class="text-muted">No ledger entries found</h5>
                     <p class="text-muted">Start by adding the first entry to this person's ledger.</p>
-                    <a href="{{ url_for('create_ledger_entry') }}?person_id={{ person.id }}" class="btn btn-primary">
+                    <a href="{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Add First Entry
                     </a>
                 </div>
@@ -180,8 +180,8 @@
                             <div class="stat-label">Total Credits</div>
                         </div>
                         <div class="col-md-3">
-                            <div class="stat-number {{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}">
-                                ₹{{ "%.0f"|format(person.total_balance) }}
+                            <div class="stat-number {{ 'text-success' if person.ledger_balance >= 0 else 'text-danger' }}">
+                                ₹{{ "%.0f"|format(person.ledger_balance) }}
                             </div>
                             <div class="stat-label">Current Balance</div>
                         </div>
@@ -202,14 +202,17 @@
                 </div>
                 <div class="card-body">
                     <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-success" onclick="location.href='{{ url_for('create_ledger_entry') }}?person_id={{ person.id }}'">
+                        <button class="btn btn-success" onclick="location.href='{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}'">
                             <i class="fas fa-plus me-2"></i>Add Ledger Entry
                         </button>
-                        <button class="btn btn-info" onclick="location.href='{{ url_for('edit_person', id=person.id) }}'">
+                        <button class="btn btn-info" onclick="location.href='{{ url_for('person.edit_person', id=person.id) }}'">
                             <i class="fas fa-edit me-2"></i>Edit Person Details
                         </button>
                         <button class="btn btn-primary" onclick="exportLedger({{ person.id }})">
                             <i class="fas fa-download me-2"></i>Export Ledger
+                        </button>
+                        <button class="btn btn-warning" onclick="closeLedger({{ person.id }})">
+                            <i class="fas fa-lock me-2"></i>Close Ledger
                         </button>
                         <!-- <button class="btn btn-outline-primary" onclick="printLedger()">
                             <i class="fas fa-print me-2"></i>Print Ledger
@@ -225,11 +228,21 @@
 {% block scripts %}
 <script>
 function addDebitEntry(personId) {
-    location.href = `{{ url_for('create_ledger_entry') }}?person_id=${personId}&type=debit`;
+    location.href = `{{ url_for('ledger.create_ledger_entry') }}?person_id=${personId}&type=debit`;
+}
+function exportLedger(personId) {
+    const params = new URLSearchParams(window.location.search);
+    window.open(`/ledger/${personId}/pdf?${params.toString()}`, '_blank');
 }
 
-function exportLedger(personId) {
-    window.open(`/ledger/${personId}/pdf`, '_blank');
+function closeLedger(personId) {
+    if (confirm('Are you sure you want to close this ledger? All existing entries will be deleted and replaced with a closing entry.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/ledger/${personId}/close`;
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 // function printLedger() {
@@ -246,5 +259,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+document.querySelector('form').addEventListener('submit', function(e) {
+        const from = document.querySelector('[name="from_date"]').value;
+        const to   = document.querySelector('[name="to_date"]').value;
+        if (from && to && to < from) {
+            e.preventDefault();
+            alert('To Date cannot be earlier than From Date.');
+        }
+    });
 </script>
 {% endblock %}
