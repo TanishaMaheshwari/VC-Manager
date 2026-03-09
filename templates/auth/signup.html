@@ -3,67 +3,501 @@
 {% block title %}Sign Up - VC Manager{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card shadow">
-                <div class="card-body p-5">
-                    <div class="text-center mb-4">
-                        <h2 class="fw-bold">
-                            <i class="fas fa-user-plus me-2"></i>Create Account
-                        </h2>
-                        <p class="text-muted">Join VC Manager to manage your VCs</p>
+<style>
+    /* ═══════════════════════════════════════════
+       SIGNUP PAGE SPECIFIC STYLES
+    ═══════════════════════════════════════════ */
+    
+    /* Ensure font size is properly inherited */
+    html {
+        font-size: var(--fs-base);
+    }
+
+    body {
+        font-size: var(--fs-base);
+    }
+
+    .signup-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 80px);
+        padding: 32px 16px;
+    }
+
+    .signup-card-wrapper {
+        width: 100%;
+        max-width: 480px;
+        position: relative;
+    }
+
+    /* Decorative background elements */
+    .signup-card-wrapper::before {
+        content: '';
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle at 30% 30%, rgba(79,195,247,0.1) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .signup-card-wrapper::after {
+        content: '';
+        position: absolute;
+        bottom: -80px;
+        right: -80px;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle at 70% 70%, rgba(21,101,192,0.06) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .signup-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: 
+            0 20px 60px rgba(0,0,0,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+        padding: 0;
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        transition: all 0.3s cubic-bezier(.22,1,.36,1);
+        animation: slideUp 0.5s cubic-bezier(.22,1,.36,1) both;
+    }
+
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    [data-theme="light"] .signup-card {
+        box-shadow: 
+            0 20px 60px rgba(26,37,53,0.12),
+            inset 0 1px 0 rgba(255,255,255,0.5);
+    }
+
+    .signup-card:hover {
+        box-shadow: 
+            0 30px 80px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+        border-color: var(--accent);
+    }
+
+    /* Card header with gradient */
+    .signup-header {
+        background: var(--grad-header);
+        padding: 40px 32px 32px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .signup-header::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% -10%, rgba(255,255,255,0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 100%, rgba(0,0,0,0.1) 0%, transparent 50%);
+        pointer-events: none;
+    }
+
+    .signup-icon-badge {
+        width: 64px;
+        height: 64px;
+        background: rgba(255,255,255,0.15);
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        font-size: 1.8rem;
+        color: #fff;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        position: relative;
+        z-index: 1;
+        animation: floatIcon 3s ease-in-out infinite;
+    }
+
+    @keyframes floatIcon {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-8px); }
+    }
+
+    .signup-header h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 8px;
+        letter-spacing: -0.02em;
+        position: relative;
+        z-index: 1;
+    }
+
+    .signup-header p {
+        color: rgba(255,255,255,0.85);
+        font-size: 0.95rem;
+        font-weight: 500;
+        position: relative;
+        z-index: 1;
+        margin: 0;
+    }
+
+    /* Card body */
+    .signup-body {
+        padding: 36px 32px;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .signup-body .form-label {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 10px;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .signup-body .form-control {
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 13px 16px;
+        font-size: 0.95rem;
+        color: var(--text);
+        font-family: 'DM Sans', sans-serif;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        height: 48px;
+    }
+
+    .signup-body .form-control::placeholder {
+        color: var(--text-muted);
+        opacity: 0.6;
+    }
+
+    .signup-body .form-control:focus {
+        outline: none;
+        background: var(--surface);
+        border-color: var(--accent);
+        box-shadow: 
+            0 0 0 1px var(--accent),
+            0 0 0 4px var(--accent-glow),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .signup-body .form-control.is-invalid {
+        border-color: var(--danger);
+        background: var(--surface2);
+    }
+
+    .signup-body .form-control.is-invalid:focus {
+        box-shadow: 
+            0 0 0 1px var(--danger),
+            0 0 0 4px rgba(255,107,107,0.15);
+    }
+
+    .form-text {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .form-text i {
+        font-size: 0.75rem;
+    }
+
+    .invalid-feedback {
+        font-size: 0.8rem;
+        color: var(--danger);
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 500;
+    }
+
+    .invalid-feedback::before {
+        content: '⚠';
+        font-size: 0.85rem;
+    }
+
+    /* Submit button */
+    .signup-submit-btn {
+        width: 100%;
+        height: 50px;
+        background: var(--grad-header);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-md);
+        font-family: 'DM Sans', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        box-shadow: 0 8px 24px rgba(21,101,192,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    .signup-submit-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .signup-submit-btn:hover {
+        opacity: 0.92;
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(21,101,192,0.4);
+    }
+
+    .signup-submit-btn:hover::before {
+        left: 100%;
+    }
+
+    .signup-submit-btn:active {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    /* Divider */
+    .signup-divider {
+        display: flex;
+        align-items: center;
+        margin: 28px 0;
+        gap: 12px;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .signup-divider::before,
+    .signup-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+    }
+
+    /* Footer */
+    .signup-footer {
+        text-align: center;
+    }
+
+    .signup-footer p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    .signup-footer a {
+        color: var(--accent);
+        font-weight: 600;
+        text-decoration: none;
+        transition: color var(--transition);
+        position: relative;
+    }
+
+    .signup-footer a::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--accent);
+        transition: width var(--transition);
+    }
+
+    .signup-footer a:hover {
+        color: var(--accent);
+    }
+
+    .signup-footer a:hover::after {
+        width: 100%;
+    }
+
+    /* Field animations */
+    .form-group {
+        animation: fadeField 0.4s ease both;
+    }
+
+    .form-group:nth-child(1) { animation-delay: 0.1s; }
+    .form-group:nth-child(2) { animation-delay: 0.15s; }
+    .form-group:nth-child(3) { animation-delay: 0.2s; }
+    .form-group:nth-child(4) { animation-delay: 0.25s; }
+
+    @keyframes fadeField {
+        from { opacity: 0; transform: translateX(-10px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 576px) {
+        .signup-container {
+            min-height: auto;
+            padding: 24px 16px;
+        }
+
+        .signup-card {
+            border-radius: var(--radius-md);
+        }
+
+        .signup-header {
+            padding: 32px 24px 24px;
+        }
+
+        .signup-header h1 {
+            font-size: 1.6rem;
+        }
+
+        .signup-body {
+            padding: 24px;
+        }
+
+        .signup-icon-badge {
+            width: 56px;
+            height: 56px;
+            font-size: 1.5rem;
+        }
+    }
+</style>
+
+<div class="signup-container">
+    <div class="signup-card-wrapper">
+        <div class="signup-card">
+            <!-- Header with gradient -->
+            <div class="signup-header">
+                <div class="signup-icon-badge">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h1>Create Account</h1>
+                <p>Join VC Manager to track and manage your ventures</p>
+            </div>
+
+            <!-- Signup form body -->
+            <div class="signup-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <!-- Email field -->
+                    <div class="form-group">
+                        <label for="{{ form.email.id }}" class="form-label">
+                            <i class="fas fa-envelope"></i>Email Address
+                        </label>
+                        {{ form.email(
+                            class="form-control" + (" is-invalid" if form.email.errors else ""),
+                            placeholder="you@example.com",
+                            autocomplete="email"
+                        ) }}
+                        {% for error in form.email.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
                     </div>
 
-                    <form method="POST" novalidate>
-                        {{ form.hidden_tag() }}
-
-                        <div class="mb-3">
-                            {{ form.email.label(class="form-label") }}
-                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
-                            {% for error in form.email.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form.name.label(class="form-label") }}
-                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
-                            {% for error in form.name.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form.password.label(class="form-label") }}
-                            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
-                            <small class="form-text text-muted">At least 6 characters</small>
-                            {% for error in form.password.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form.confirm_password.label(class="form-label") }}
-                            {{ form.confirm_password(class="form-control" + (" is-invalid" if form.confirm_password.errors else "")) }}
-                            {% for error in form.confirm_password.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="d-grid mb-3">
-                            {{ form.submit(class="btn btn-primary btn-lg") }}
-                        </div>
-                    </form>
-
-                    <hr class="my-4">
-
-                    <div class="text-center">
-                        <p class="mb-0">
-                            Already have an account?
-                            <a href="{{ url_for('auth.login') }}" class="fw-bold">Login here</a>
-                        </p>
+                    <!-- Name field -->
+                    <div class="form-group">
+                        <label for="{{ form.name.id }}" class="form-label">
+                            <i class="fas fa-user"></i>Full Name
+                        </label>
+                        {{ form.name(
+                            class="form-control" + (" is-invalid" if form.name.errors else ""),
+                            placeholder="Your full name",
+                            autocomplete="name"
+                        ) }}
+                        {% for error in form.name.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
                     </div>
+
+                    <!-- Password field -->
+                    <div class="form-group">
+                        <label for="{{ form.password.id }}" class="form-label">
+                            <i class="fas fa-lock"></i>Password
+                        </label>
+                        {{ form.password(
+                            class="form-control" + (" is-invalid" if form.password.errors else ""),
+                            placeholder="Min. 6 characters",
+                            autocomplete="new-password"
+                        ) }}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i>At least 6 characters required
+                        </div>
+                        {% for error in form.password.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Confirm Password field -->
+                    <div class="form-group">
+                        <label for="{{ form.confirm_password.id }}" class="form-label">
+                            <i class="fas fa-check-circle"></i>Confirm Password
+                        </label>
+                        {{ form.confirm_password(
+                            class="form-control" + (" is-invalid" if form.confirm_password.errors else ""),
+                            placeholder="Repeat your password",
+                            autocomplete="new-password"
+                        ) }}
+                        {% for error in form.confirm_password.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Submit button -->
+                    <button type="submit" class="signup-submit-btn">
+                        <i class="fas fa-user-plus"></i>Create Account
+                    </button>
+                </form>
+
+                <!-- Divider -->
+                <div class="signup-divider">or</div>
+
+                <!-- Footer -->
+                <div class="signup-footer">
+                    <p>
+                        Already have an account?
+                        <a href="{{ url_for('auth.login') }}">Log in here</a>
+                    </p>
                 </div>
             </div>
         </div>

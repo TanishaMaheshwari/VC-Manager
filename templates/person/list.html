@@ -4,224 +4,491 @@
 
 {% block content %}
 <style>
-    /* Custom styling for the action buttons */
-    .action-btn {
-        background-color: #007bff;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 0.25rem;
-        text-decoration: none;
-        font-weight: 500;
-        transition: background-color 0.2s ease-in-out;
+    /* ═══════════════════════════════════════════
+       PERSONS PAGE SPECIFIC STYLES
+    ═══════════════════════════════════════════ */
+
+    html {
+        font-size: var(--fs-base);
     }
 
-    .action-btn:hover {
-        background-color: #0056b3;
-        color: white;
+    body {
+        font-size: var(--fs-base);
     }
 
-    /* Styling for the search and sort controls */
-    .input-group-text {
-        background-color: #f8f9fa !important;
+    /* Page header */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 32px;
+        flex-wrap: nowrap;
     }
 
-    /* Mobile-first responsive table styling */
-    .responsive-table {
-        width: 100%;
-        border-collapse: collapse;
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        background: var(--grad-header);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
-    /* Style for the responsive table headers */
-    .responsive-table-head {
-        display: none; /* Hide on small screens */
+    .page-title i {
+        color: var(--accent);
+        flex-shrink: 0;
     }
 
-    /* Style for the responsive table rows and cells */
-    .responsive-table-row {
-        border: 1px solid #ddd;
-        margin-bottom: 15px;
-        display: block; /* Stack on small screens */
-        border-radius: 0.5rem;
-        background-color: #fff;
-        padding: 10px;
+    /* Control bar */
+    .control-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+        align-items: center;
     }
 
-    .responsive-table-cell {
-        padding: 8px;
-        position: relative;
-        text-align: right; /* Align cell content to the right on mobile */
-        display: block;
-        border-bottom: 1px solid #eee;
-        
+    .search-box {
+        display: flex;
+        gap: 8px;
+        flex: 1;
+        min-width: 240px;
     }
 
-    .responsive-table-cell:last-child {
-        border-bottom: none;
+    .search-box .form-control {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 14px;
+        font-size: 0.95rem;
     }
 
-    /* Data labels for mobile view */
-    .responsive-table-cell::before {
-        content: attr(data-label);
-        font-weight: bold;
-        float: left; /* Align labels to the left */
+    .search-box .form-control::placeholder {
+        color: var(--text-muted);
     }
 
-    /* Remove padding and alignment for the first cell (Full Name) */
-    .responsive-table-row .responsive-table-cell:first-child {
-        text-align: left;
+    .search-box .form-control:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+        color: var(--text);
     }
 
-    .responsive-table-row .responsive-table-cell:first-child::before {
-        content: '';
-        display: none;
+    .sort-select {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
     }
-    
-    /* New styling for mobile view */
-    @media (max-width: 767px) {
-        .h2.mb-0 {
-            font-size: 1.5rem;
+
+    .sort-select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+
+    .sort-select:hover {
+        border-color: var(--accent);
+    }
+
+    /* Person List Container */
+    .person-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* Person List Item */
+    .person-item {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px 20px;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+    .person-item:hover {
+        background: var(--surface2);
+        border-color: var(--accent);
+        box-shadow: var(--shadow-md);
+        transform: translateX(4px);
+    }
+
+    /* Person Item Left Section */
+    .person-item-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .person-name {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+
+    .person-badge {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: inline-block;
+        margin-bottom: 8px;
+        margin-right: 8px;
+    }
+
+    .person-meta {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    .person-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .person-meta-item i {
+        color: var(--accent);
+        font-size: 0.85rem;
+    }
+
+    /* Person Item Right Section (Stats) */
+    .person-item-actions {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        min-width: fit-content;
+    }
+
+    .balance-badge {
+        padding: 8px 14px;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        text-align: center;
+        font-size: 0.95rem;
+    }
+
+    .balance-badge.positive {
+        background: var(--success-bg);
+        color: var(--success);
+    }
+
+    .balance-badge.negative {
+        background: var(--danger-bg);
+        color: var(--danger);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+    }
+
+    .action-buttons .btn {
+        padding: 8px 12px;
+        border-radius: var(--radius-md);
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        border: 1.5px solid var(--border);
+        background: var(--surface2);
+        color: var(--accent);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .action-buttons .btn:hover {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+        transform: translateY(-2px);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 64px 20px;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .empty-state h3 {
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+
+    .empty-state .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: var(--radius-md);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .person-item-actions {
+            gap: 12px;
         }
 
-        .action-btn {
-            padding: 6px 12px;
-            font-size: 0.875rem;
+        .balance-badge {
+            font-size: 0.9rem;
         }
     }
 
-
-    /* Media query for larger screens (e.g., tablets and desktops) */
-    @media (min-width: 768px) {
-        .responsive-table-head {
-            display: table-header-group; /* Show headers on larger screens */
+    @media (max-width: 768px) {
+        .page-header {
+            flex-wrap: nowrap;
+            gap: 12px;
         }
 
-        .responsive-table-row {
-            display: table-row; /* Revert to table row layout */
-            border: none;
-            margin-bottom: 0;
-            padding: 0;
+        .page-title {
+            font-size: 1.3rem;
+            gap: 8px;
         }
 
-        .responsive-table-cell {
-            display: table-cell; /* Revert to table cell layout */
-            border-bottom: 1px solid #eee;
-            text-align: left;
+        .page-title i {
+            font-size: 1.2rem;
         }
 
-        .responsive-table-cell::before {
-            display: none;
+        .control-bar {
+            flex-direction: column;
+            width: 100%;
+            gap: 12px;
+        }
+
+        .search-box {
+            width: 100%;
+            min-width: auto;
+        }
+
+        .sort-select {
+            width: 100%;
+        }
+
+        .person-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px;
+        }
+
+        .person-item-main {
+            width: 100%;
+        }
+
+        .person-item-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .person-item:hover {
+            transform: none;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .page-title {
+            font-size: 1.25rem;
+        }
+
+        .person-item {
+            padding: 12px;
+        }
+
+        .person-name {
+            font-size: 0.95rem;
+        }
+
+        .person-meta {
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .person-badge {
+            font-size: 0.7rem;
+        }
+
+        .balance-badge {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+        }
+
+        .action-buttons {
+            gap: 6px;
+        }
+
+        .action-buttons .btn {
+            padding: 6px 10px;
         }
     }
 </style>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1 class="h2 mb-0">
-                <i class="fas fa-users me-2"></i>Persons (Accounts)
-            </h1>
-            <a href="{{ url_for('person.create_person') }}" class="action-btn">
-                Add New Person
-            </a>
-        </div>
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-users"></i>Persons (Accounts)
+        </h1>
+        <button class="btn btn-primary" onclick="location.href='{{ url_for('person.create_person') }}'">
+            <i class="fas fa-plus"></i>Add Person
+        </button>
     </div>
-</div>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <div class="input-group mb-3">
-                    <span class="input-group-text bg-light"><i class="fas fa-search"></i></span>
-                    <input type="search" class="form-control" id="searchInput" placeholder="Search">
-                    <select class="form-select" id="sortSelect">
-                        <option value="name_asc">Sort</option>
-                        <option value="balance_asc">Balance (Low to High)</option>
-                        <option value="balance_desc">Balance (High to Low)</option>
-                    </select>
-                </div>
+    <!-- Control Bar -->
+    <div class="control-bar">
+        <div class="search-box">
+            <input 
+                id="searchInput" 
+                type="search" 
+                class="form-control" 
+                placeholder="Search by name or phone">
+        </div>
+        <select id="sortSelect" class="sort-select">
+            <option value="name_asc">Sort by Name</option>
+            <option value="balance_asc">Balance (Low to High)</option>
+            <option value="balance_desc">Balance (High to Low)</option>
+        </select>
+    </div>
+
+    <!-- Person List -->
+    <div class="person-list">
+        {% if persons %}
+            {% for person in persons %}
+            <div class="person-item" id="person-{{ person.id }}">
                 
-                {% if persons %}
-                <div class="table-responsive">
-                    <table class="table table-hover" id="personsTable">
-                        <thead class="table-dark responsive-table-head">
-                            <tr>
-                                <th>Full Name</th>
-                                <th>Short Name</th>
-                                <th>Primary Phone</th>
-                                <th>Secondary Phone</th>
-                                <th>Balance</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="personsTableBody">
-                            {% for person in persons %}
-                            <tr class="responsive-table-row">
-                                <td class="responsive-table-cell" data-label="Full Name"><strong>{{ person.name }}</strong></td>
-                                <td class="responsive-table-cell" data-label="Short Name"><span class="badge bg-info">{{ person.short_name }}</span></td>
-                                <td class="responsive-table-cell" data-label="Primary Phone">{{ person.phone or '-' }}</td>
-                                <td class="responsive-table-cell" data-label="Secondary Phone">{{ person.phone2 or '-' }}</td>
-                                <td class="responsive-table-cell" data-label="Balance">
-                                    <span class="badge bg-{{ 'success' if person.ledger_balance >= 0 else 'danger' }}">
-                                        ₹{{ "%.0f"|format(person.ledger_balance) }}
-                                    </span>
-                                </td>
-                                <td class="responsive-table-cell" data-label="Actions">
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('ledger.person_ledger', person_id=person.id) }}" 
-                                           class="btn btn-outline-primary" title="View Ledger">
-                                            <i class="fas fa-book"></i>
-                                        </a>
-                                        <a href="{{ url_for('person.edit_person', id=person.id) }}" 
-                                           class="btn btn-outline-warning" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <!-- Left Section: Main Info -->
+                <div class="person-item-main">
+                    <!-- Name + Badge -->
+                    <div class="person-badge">{{ person.short_name }}</div>
+                    <div class="person-name">{{ person.name }}</div>
+
+                    <!-- Meta Info: Phones -->
+                    <div class="person-meta">
+                        {% if person.phone %}
+                        <div class="person-meta-item">
+                            <i class="fas fa-phone"></i>
+                            <span>{{ person.phone }}</span>
+                        </div>
+                        {% endif %}
+                        {% if person.phone2 %}
+                        <div class="person-meta-item">
+                            <i class="fas fa-phone"></i>
+                            <span>{{ person.phone2 }}</span>
+                        </div>
+                        {% endif %}
+                        {% if not person.phone and not person.phone2 %}
+                        <div class="person-meta-item" style="color: var(--text-muted);">
+                            <i class="fas fa-phone"></i>
+                            <span>No phone</span>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-                {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                    <h5>No persons found</h5>
-                    <p class="text-muted">Create your first person to get started.</p>
-                    <a href="{{ url_for('person.create_person') }}" class="action-btn">
-                        Create First Person
-                    </a>
+
+                <!-- Right Section: Actions -->
+                <div class="person-item-actions">
+                    <!-- Balance -->
+                    <div class="balance-badge {{ 'positive' if person.ledger_balance >= 0 else 'negative' }}">
+                        ₹{{ "%.0f"|format(person.ledger_balance) }}
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button class="btn" onclick="event.stopPropagation(); location.href='{{ url_for('ledger.person_ledger', person_id=person.id) }}'" title="View Ledger">
+                            <i class="fas fa-book"></i>
+                        </button>
+                        <button class="btn" onclick="event.stopPropagation(); location.href='{{ url_for('person.edit_person', id=person.id) }}'" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
                 </div>
-                {% endif %}
             </div>
-        </div>
+            {% endfor %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>No persons found</h3>
+                <p>Create your first person to get started</p>
+                <button class="btn btn-primary" onclick="location.href='{{ url_for('person.create_person') }}'">
+                    <i class="fas fa-plus"></i>Add First Person
+                </button>
+            </div>
+        {% endif %}
     </div>
+
+    <!-- Results Count -->
+    {% if persons %}
+    <div style="margin-top: 24px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+        Showing <strong>{{ persons|length }}</strong> person{{ 's' if persons|length != 1 else '' }}
+    </div>
+    {% endif %}
 </div>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    const tableBody = document.getElementById('personsTableBody');
-    const sortSelect = document.getElementById('sortSelect');
+    /**
+     * Search and Sort functionality
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const personList = document.querySelector('.person-list');
+        const personItems = Array.from(document.querySelectorAll('.person-item'));
 
-    let timer;
+        let searchTimer;
 
-    const performSearch = () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-            const query = searchInput.value;
-            const sortOrder = sortSelect.value;
-            fetch(`/search_persons?q=${query}&sort=${sortOrder}`)
-                .then(response => response.text())
-                .then(html => {
-                    tableBody.innerHTML = html;
-                })
-                .catch(error => console.error('Error fetching search results:', error));
-        }, 300);
-    };
+        function performSearch() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                const query = (searchInput.value || '').trim().toLowerCase();
+                const sortOrder = sortSelect.value;
 
-    searchInput.addEventListener('input', performSearch);
-    sortSelect.addEventListener('change', performSearch);
-});
+                // Fetch search results
+                fetch(`/search_persons?q=${query}&sort=${sortOrder}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        personList.innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching search results:', error);
+                    });
+            }, 300);
+        }
+
+        // Event listeners
+        searchInput.addEventListener('input', performSearch);
+        sortSelect.addEventListener('change', performSearch);
+    });
 </script>
 {% endblock %}

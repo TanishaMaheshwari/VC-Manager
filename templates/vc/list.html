@@ -1,298 +1,621 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard{% endblock %}
-
-{% block head %}
-{{ super() }}
-
-<!-- Swiper CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-
-<style>
-.pending-vc-card {
-    transition: transform 0.3s ease-in-out;
-    cursor: pointer;
-}
-</style>
-{% endblock %}
+{% block title %}All VCs{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<style>
+    /* ═══════════════════════════════════════════
+       ALL VCS PAGE SPECIFIC STYLES
+    ═══════════════════════════════════════════ */
 
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h1 class="display-5 fw-bold"
-                    style="background: linear-gradient(135deg, #6366f1, #8b5cf6); 
-                           -webkit-background-clip: text; 
-                           -webkit-text-fill-color: transparent;">
-                    <i class="fas fa-list me-2 ps-3"></i>All VCs
-                </h1>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary btn" onclick="location.href='{{ url_for('vc.create_vc') }}'">
-                        <!-- <i class="fas fa-plus me-2"></i> -->
-                        Create
-                    </button>
-                    <!-- <button class="btn btn-outline-primary" onclick="location.href='{{ url_for('person.persons') }}'">
-                        <i class="fas fa-users me-2"></i>Accounts
-                    </button> -->
-                    <!-- VC search: filter table by VC name -->
-                    <div class="input-group ms-2" style="max-width: 320px;">
-                        <input id="vc-search-input" type="search" class="form-control form-control" placeholder="Search VCs by name">
-                        <button id="vc-search-btn" class="btn btn-outline-secondary btn-sm" type="button">
-                            <i class="fas fa-search"></i>
-                        </button>
+    html {
+        font-size: var(--fs-base);
+    }
+
+    body {
+        font-size: var(--fs-base);
+    }
+
+    /* Page header */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 32px;
+        flex-wrap: nowrap;
+    }
+
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        background: var(--grad-header);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .page-title i {
+        color: var(--accent);
+        flex-shrink: 0;
+    }
+
+    .page-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .page-actions .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: var(--radius-md);
+    }
+
+    .control-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+        align-items: center;
+    }
+
+    .search-box {
+        display: flex;
+        gap: 8px;
+        flex: 1;
+        min-width: 240px;
+    }
+
+    .search-box .form-control {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        flex: 1;
+    }
+
+    .search-box .form-control::placeholder {
+        color: var(--text-muted);
+    }
+
+    .search-box .form-control:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+        color: var(--text);
+    }
+
+    .search-box .btn {
+        background: var(--grad-header);
+        color: #fff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 0.95rem;
+    }
+
+    .search-box .btn:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .search-box .btn:active {
+        transform: translateY(0);
+    }
+
+    .sort-select {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+    }
+
+    .sort-select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+
+    .sort-select:hover {
+        border-color: var(--accent);
+    }
+
+    /* VC List Container */
+    .vc-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* VC List Item */
+    .vc-item {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px 20px;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+    .vc-item:hover {
+        background: var(--surface2);
+        border-color: var(--accent);
+        box-shadow: var(--shadow-md);
+        transform: translateX(4px);
+    }
+
+    .vc-item.completed {
+        opacity: 0.75;
+        border-color: var(--border);
+    }
+
+    /* VC Item Left Section (Main Info) */
+    .vc-item-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .vc-item-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+
+    .vc-badge {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        min-width: 50px;
+        text-align: center;
+    }
+
+    .vc-name {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .vc-meta {
+        display: flex;
+        gap: 16px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    .vc-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .vc-meta-item i {
+        color: var(--accent);
+        font-size: 0.85rem;
+    }
+
+    /* VC Item Right Section (Stats) */
+    .vc-item-stats {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        min-width: fit-content;
+    }
+
+    .vc-stat {
+        text-align: right;
+    }
+
+    .vc-stat-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 4px;
+    }
+
+    .vc-stat-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text);
+    }
+
+    .vc-stat-value.amount {
+        color: var(--accent);
+    }
+
+    .vc-stat-value.due {
+        color: var(--danger);
+    }
+
+    /* Progress bar */
+    .vc-progress {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 120px;
+    }
+
+    .progress-bar-custom {
+        flex: 1;
+        height: 6px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-bar-custom-fill {
+        height: 100%;
+        background: var(--grad-header);
+        transition: width 0.3s ease;
+        border-radius: 3px;
+    }
+
+    .progress-text {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text);
+        min-width: 35px;
+        text-align: right;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 64px 20px;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .empty-state h3 {
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .vc-item-stats {
+            gap: 16px;
+        }
+
+        .vc-stat-value {
+            font-size: 1rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-wrap: nowrap;
+            gap: 12px;
+        }
+
+        .page-title {
+            font-size: 1.3rem;
+            gap: 8px;
+        }
+
+        .page-title i {
+            font-size: 1.2rem;
+        }
+
+        .page-actions {
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        .page-actions .btn {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+
+        .control-bar {
+            flex-direction: column;
+            width: 100%;
+            gap: 12px;
+        }
+
+        .search-box {
+            width: 100%;
+            min-width: auto;
+        }
+
+        .sort-select {
+            width: 100%;
+        }
+
+        .vc-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px;
+        }
+
+        .vc-item-main {
+            width: 100%;
+        }
+
+        .vc-item-stats {
+            width: 100%;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: flex-start;
+        }
+
+        .vc-progress {
+            width: 100%;
+            margin-bottom: 0;
+        }
+
+        .vc-stat {
+            width: 100%;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .vc-stat:last-child {
+            border-bottom: none;
+        }
+
+        .vc-stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0;
+            flex: 1;
+        }
+
+        .vc-stat-value {
+            font-size: 0.9rem;
+            text-align: right;
+        }
+
+        .progress-text {
+            text-align: right;
+        }
+
+        .vc-item:hover {
+            transform: none;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .page-title {
+            font-size: 1.25rem;
+        }
+
+        .vc-item {
+            padding: 12px;
+        }
+
+        .vc-name {
+            font-size: 0.95rem;
+        }
+
+        .vc-meta {
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .vc-stat-label {
+            font-size: 0.7rem;
+        }
+
+        .vc-stat-value {
+            font-size: 0.85rem;
+        }
+
+        .vc-item-stats {
+            gap: 0;
+        }
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-list"></i>All VCs
+        </h1>
+        <button class="btn btn-primary" onclick="location.href='{{ url_for('vc.create_vc') }}'">
+            <i class="fas fa-plus"></i>Create VC
+        </button>
+    </div>
+
+    <!-- Control Bar -->
+    <div class="control-bar">
+        <div class="search-box">
+            <input 
+                id="vc-search-input" 
+                type="search" 
+                class="form-control" 
+                placeholder="Search VCs by name">
+            <button id="vc-search-btn" class="btn" type="button">
+                <i class="fas fa-search"></i>Search
+            </button>
+        </div>
+        
+    </div>
+
+    <!-- VC List -->
+    <div class="vc-list">
+        {% if vcs %}
+            {% for vc in vcs %}
+            {% set completion_ratio = (vc.completed_hand_obj / vc.tenure) if vc.tenure else 0 %}
+            <div class="vc-item {{ 'completed' if completion_ratio == 1 else '' }}" 
+                onclick="location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
+                
+                <!-- Left Section: Main Info -->
+                <div class="vc-item-main">
+                    <!-- Header: Badge + Name -->
+                    <div class="vc-item-header">
+                        <span class="vc-badge">VC {{ vc.vc_number }}</span>
+                        <span class="vc-name">{{ vc.name }}</span>
+                    </div>
+
+                    <!-- Meta Info: Date + Amount + Status -->
+                    <div class="vc-meta">
+                        <div class="vc-meta-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>{{ vc.start_date.strftime('%d %b %Y') }}</span>
+                        </div>
+                        <div class="vc-meta-item">
+                            <i class="fas fa-rupee-sign"></i>
+                            <span>₹{{ "%.0f"|format(vc.amount)|indian_comma }}</span>
+                        </div>
+                        <div class="vc-meta-item">
+                            <i class="fas fa-info-circle"></i>
+                            <span>{{ vc.tenure }} months</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Section: Stats -->
+                <div class="vc-item-stats">
+                    <!-- Progress -->
+                    <div class="vc-progress">
+                        <div class="progress-bar-custom">
+                            <div class="progress-bar-custom-fill" style="width: {{ (completion_ratio * 100) }}%"></div>
+                        </div>
+                        <div class="progress-text">{{ vc.completed_hand_obj }}/{{ vc.tenure }}</div>
+                    </div>
+
+                    <!-- Amount -->
+                    <div class="vc-stat">
+                        <div class="vc-stat-label">Amount</div>
+                        <div class="vc-stat-value amount">₹{{ "%.0f"|format(vc.amount)|indian_comma }}</div>
+                    </div>
+
+                    <!-- Total Due -->
+                    <div class="vc-stat">
+                        <div class="vc-stat-label">Due</div>
+                        <div class="vc-stat-value due">₹{{ "%.0f"|format(vc.total_due_per_vc)|indian_comma }}</div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="vc-stat">
+                        <div class="vc-stat-label">Status</div>
+                        <div class="vc-stat-value">
+                            {% if completion_ratio == 1 %}
+                                <span class="badge bg-success">Done</span>
+                            {% elif vc.total_due_per_vc > 0 %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% else %}
+                                <span class="badge bg-info">Active</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-
-    <!-- Pending VCs Section -->
-    <!-- {% set pending_vcs = vcs|selectattr('status.value', 'equalto', 'pending')|list %}
-    {% if pending_vcs %}
-    <div class="row mt-5">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-hourglass-half me-2"></i>Pending VCs</h5>
-                </div>
-                <div class="card-body"> -->
-                    <!-- Swiper -->
-                    <!-- <div class="swiper mySwiper">
-                        <div class="swiper-wrapper">
-                            {% for vc in pending_vcs %}
-                            <div class="swiper-slide">
-                                <div class="card border-warning pending-vc-card">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">
-                                            <span class="badge bg-warning text-dark">{{ vc.vc_number }}</span>
-                                        </h6>
-                                        <p class="card-text mb-1">{{ vc.name }}</p>
-                                        <small class="text-muted" style="display:block; margin-bottom:0;">{{ vc.start_date.strftime('%d/%m/%Y') }}</small>
-                                        <div class="mt-2">
-                                            <button class="btn btn-sm btn-outline-primary"
-                                                onclick="location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
-                                                View Details
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div> -->
-
-                        <!-- Pagination -->
-                        <!-- <div class="swiper-pagination"></div> -->
-
-                        <!-- Navigation Arrows -->
-                        <!-- <div class="swiper-button-next"></div>
-                        <div class="swiper-button-prev"></div>
-                    </div>
-                </div>
+            {% endfor %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h3>No VCs yet</h3>
+                <p>Create your first VC to get started</p>
+                <button class="btn btn-primary mt-3" onclick="location.href='{{ url_for('vc.create_vc') }}'">
+                    <i class="fas fa-plus"></i>Create VC
+                </button>
             </div>
-        </div>
-    </div>
-    {% endif %} -->
-
-    <!-- Other Sections ... -->
-
-    <!-- Responsive Table -->
-    <div class="modern-table table-responsive mt-4">
-        <table class="table mb-0">
-            <thead class="table-dark">
-                <tr>
-                    <th>VC</th>
-                    <th>Name</th>
-                    <th>Date</th>
-                    <th>Hand</th>
-                    <th>Amount</th>
-                    <!-- <th>Due Count</th> -->
-                    <th>Total Due</th>
-                    <!-- <th>Actions</th> -->
-                </tr>
-            </thead>
-            <tbody>
-                {# Render VCs with completion ratio != 1 first, then render those with ratio == 1 at the end #}
-                {% for vc in vcs %}
-                    {% if vc.tenure and (vc.completed_hand_obj / vc.tenure) != 1 %}
-                    <tr class="clickable" onclick="location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
-                    <td data-label="VC">
-                        <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
-                    </td>
-                    <td data-label="Name">{{ vc.name }}</td>
-                    <td data-label="Date">
-                        <div class="fw-semibold">{{ vc.start_date.strftime('%d-%m-%y') }}</div>
-                        <!-- <div class="fw-semibold">{{ vc.start_date.strftime('%d/%m/%y') }}</div> -->
-                        <!-- <small class="text-muted">{{ vc.start_date.strftime('%B %Y') }}</small> -->
-                    </td>
-                    <td data-label="Hand">
-                        <div class="d-flex align-items-center">
-                            <div class="progress me-2" style="width: 60px; height: 8px;">
-                                <div class="progress-bar bg-secondary"
-                                     style="width: {{ (vc.completed_hand_obj / vc.tenure * 100) }}%"></div>
-                            </div>
-                            <span class="fw-semibold">{{ vc.completed_hand_obj }} / {{ vc.tenure }}</span>
-                        </div>
-                    </td>
-                    <td data-label="Amount">
-                        <span class="fw-bold">₹{{ "%.0f"|format(vc.amount)|indian_comma  }}</span>
-                    </td>
-                    <!-- <td data-label="Due Count">
-                        {% if vc.due_count > 0 %}
-                        <span class="badge bg-warning text-dark px-2 py-2">{{ vc.due_count }}</span>
-                        {% else %}
-                        <span class="badge bg-success">0</span>
-                        {% endif %}
-                    </td> -->
-                    <td data-label="Total Due">
-                        <span class="fw-bold">₹{{ "%.0f"|format(vc.total_due_per_vc)|indian_comma  }}</span>
-                    </td>
-                    <!-- <td data-label="Actions">
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" style="border: none;"
-                                onclick="event.stopPropagation(); location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                           <button class="btn btn-outline-danger"
-                                onclick="event.stopPropagation(); 
-                                        if (confirm('Are you sure you want to delete VC {{ vc.vc_number }}? This action cannot be undone.')) {
-                                            window.location.href='{{ url_for('vc.delete_vc', id=vc.id) }}';
-                                        }">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td> -->
-                </tr>
-                    {% endif %}
-                {% endfor %}
-
-                {# Append VCs where completion ratio == 1 (fully completed) #}
-                {% for vc in vcs %}
-                    {% if vc.tenure and (vc.completed_hand_obj / vc.tenure) == 1 %}
-                    <tr class="clickable" onclick="location.href='{{ url_for('vc.view_vc', id=vc.id) }}'">
-                    <td data-label="VC">
-                        <span class="badge bg-primary fs-6 px-3 py-2">{{ vc.vc_number }}</span>
-                    </td>
-                    <td data-label="Name">{{ vc.name }}</td>
-                    <td data-label="Date">
-                        <div class="fw-semibold">{{ vc.start_date.strftime('%d-%m-%y') }}</div>
-                    </td>
-                    <td data-label="Hand">
-                        <div class="d-flex align-items-center">
-                            <div class="progress me-2" style="width: 60px; height: 8px;">
-                                <div class="progress-bar bg-secondary"
-                                     style="width: {{ (vc.completed_hand_obj / vc.tenure * 100) }}%"></div>
-                            </div>
-                            <span class="fw-semibold">{{ vc.completed_hand_obj }} / {{ vc.tenure }}</span>
-                        </div>
-                    </td>
-                    <td data-label="Amount">
-                        <span class="fw-bold">₹{{ "%.0f"|format(vc.amount)|indian_comma  }}</span>
-                    </td>
-                    <td data-label="Total Due">
-                        <span class="fw-bold">₹{{ "%.0f"|format(vc.total_due_per_vc)|indian_comma  }}</span>
-                    </td>
-                </tr>
-                    {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
+        {% endif %}
     </div>
 
+    <!-- Results Count -->
+    {% if vcs %}
+    <div style="margin-top: 24px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+        Showing <strong>{{ vcs|length }}</strong> VC{{ 's' if vcs|length != 1 else '' }}
+    </div>
+    {% endif %}
 </div>
+
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
-
-<!-- Swiper JS -->
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-
 <script>
-document.addEventListener('DOMContentLoaded', (event) => {
-  const mySwiper = new Swiper('.mySwiper', {
-    slidesPerView: 1,
-    spaceBetween: 10,
-    pagination: {
-      el: '.swiper-pagination',
-      clickable: true,
-    },
-    navigation: {
-      nextEl: '.swiper-button-next',
-      prevEl: '.swiper-button-prev',
-    },
-    breakpoints: {
-      640: {
-        slidesPerView: 1,
-        spaceBetween: 20,
-      },
-      768: {
-        slidesPerView: 2,
-        spaceBetween: 30,
-      },
-      1024: {
-        slidesPerView: 3,
-        spaceBetween: 40,
-        pagination: false, // hide dots on desktop
-      },
-    },
-  });
+    /**
+     * Search and Sort functionality
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('vc-search-input');
+        const searchBtn = document.getElementById('vc-search-btn');
+        const sortSelect = document.getElementById('sortSelect');
+        const vcList = document.querySelector('.vc-list');
 
-  // Hide arrows on mobile
-  function toggleNav() {
-    if (window.innerWidth < 1024) {
-      document.querySelectorAll('.swiper-button-next, .swiper-button-prev')
-        .forEach(btn => btn.style.display = 'none');
-    } else {
-      document.querySelectorAll('.swiper-button-next, .swiper-button-prev')
-        .forEach(btn => btn.style.display = 'block');
-    }
-  }
+        let searchTimer;
 
-  toggleNav();
-  window.addEventListener('resize', toggleNav);
-});
-</script>
+        function performSearch() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                const query = (searchInput.value || '').trim();
+                const sortOrder = sortSelect.value;
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('vc-search-input');
-    const searchBtn = document.getElementById('vc-search-btn');
-    const tableRows = Array.from(document.querySelectorAll('.modern-table tbody tr'));
-
-    function runFilter() {
-        const q = (searchInput.value || '').trim().toLowerCase();
-        if (!q) {
-            tableRows.forEach(r => r.style.display = '');
-            return;
+                // Fetch search results
+                fetch(`/search_vcs?q=${query}&sort=${sortOrder}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        vcList.innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching search results:', error);
+                    });
+            }, 300);
         }
 
-        tableRows.forEach(row => {
-            const nameCell = row.querySelector('td[data-label="Name"]');
-            const nameText = (nameCell && nameCell.textContent || '').toLowerCase();
-            if (nameText.includes(q)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
+        // Event listeners
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('input', performSearch);
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                performSearch();
             }
         });
-    }
-
-    searchBtn.addEventListener('click', runFilter);
-    searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            runFilter();
-        }
-        if (e.key === 'Escape') {
-            searchInput.value = '';
-            runFilter();
-        }
+        sortSelect.addEventListener('change', performSearch);
     });
-});
 </script>
-
-
 {% endblock %}

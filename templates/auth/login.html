@@ -3,58 +3,470 @@
 {% block title %}Login - VC Manager{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card shadow">
-                <div class="card-body p-5">
-                    <div class="text-center mb-4">
-                        <h2 class="fw-bold">
-                            <i class="fas fa-sign-in-alt me-2"></i>Login
-                        </h2>
-                        <p class="text-muted">Access your VC Manager account</p>
-                    </div>
+<style>
+    /* ═══════════════════════════════════════════
+       LOGIN PAGE SPECIFIC STYLES
+    ═══════════════════════════════════════════ */
+    
+    /* Ensure font size is properly inherited */
+    html {
+        font-size: var(--fs-base);
+    }
 
-                    <form method="POST" novalidate>
-                        {{ form.hidden_tag() }}
+    body {
+        font-size: var(--fs-base);
+    }
 
-                        <div class="mb-3">
-                            {{ form.email.label(class="form-label") }}
-                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
-                            {% for error in form.email.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+    .login-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 80px);
+        padding: 32px 16px;
+    }
 
-                        <div class="mb-3">
-                            {{ form.password.label(class="form-label") }}
-                            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
-                            {% for error in form.password.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+    .login-card-wrapper {
+        width: 100%;
+        max-width: 420px;
+        position: relative;
+    }
 
-                        <div class="d-grid mb-3">
-                            {{ form.submit(class="btn btn-primary btn-lg") }}
-                        </div>
-                    </form>
+    /* Decorative background elements */
+    .login-card-wrapper::before {
+        content: '';
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle at 30% 30%, rgba(79,195,247,0.1) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
 
-                    <hr class="my-4">
+    .login-card-wrapper::after {
+        content: '';
+        position: absolute;
+        bottom: -80px;
+        right: -80px;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle at 70% 70%, rgba(21,101,192,0.06) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
 
-                    <div class="text-center">
-                        <p class="mb-0">
-                            Don't have an account?
-                            <a href="{{ url_for('auth.signup') }}" class="fw-bold">Sign up here</a>
-                        </p>
-                    </div>
+    .login-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: 
+            0 20px 60px rgba(0,0,0,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+        padding: 0;
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        transition: all 0.3s cubic-bezier(.22,1,.36,1);
+    }
 
-                    <!-- Google OAuth placeholder -->
-                    <!-- <div class="mt-4">
-                        <a href="{{ url_for('auth.google_login') }}" class="btn btn-outline-secondary w-100">
-                            <i class="fab fa-google me-2"></i>Login with Google
-                        </a>
-                    </div> -->
+    [data-theme="light"] .login-card {
+        box-shadow: 
+            0 20px 60px rgba(26,37,53,0.12),
+            inset 0 1px 0 rgba(255,255,255,0.5);
+    }
+
+    .login-card:hover {
+        box-shadow: 
+            0 30px 80px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+        border-color: var(--accent);
+    }
+
+    /* Card header with gradient */
+    .login-header {
+        background: var(--grad-header);
+        padding: 40px 32px 32px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-header::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% -10%, rgba(255,255,255,0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 100%, rgba(0,0,0,0.1) 0%, transparent 50%);
+        pointer-events: none;
+    }
+
+    .login-icon-badge {
+        width: 64px;
+        height: 64px;
+        background: rgba(255,255,255,0.15);
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        font-size: 1.8rem;
+        color: #fff;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        position: relative;
+        z-index: 1;
+        animation: floatIcon 3s ease-in-out infinite;
+    }
+
+    @keyframes floatIcon {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-8px); }
+    }
+
+    .login-header h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 8px;
+        letter-spacing: -0.02em;
+        position: relative;
+        z-index: 1;
+    }
+
+    .login-header p {
+        color: rgba(255,255,255,0.85);
+        font-size: 0.95rem;
+        font-weight: 500;
+        position: relative;
+        z-index: 1;
+        margin: 0;
+    }
+
+    /* Card body */
+    .login-body {
+        padding: 36px 32px;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .login-body .form-label {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 10px;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .login-body .form-control {
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 13px 16px;
+        font-size: 0.95rem;
+        color: var(--text);
+        font-family: 'DM Sans', sans-serif;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        height: 48px;
+    }
+
+    .login-body .form-control::placeholder {
+        color: var(--text-muted);
+        opacity: 0.6;
+    }
+
+    .login-body .form-control:focus {
+        outline: none;
+        background: var(--surface);
+        border-color: var(--accent);
+        box-shadow: 
+            0 0 0 1px var(--accent),
+            0 0 0 4px var(--accent-glow),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .login-body .form-control.is-invalid {
+        border-color: var(--danger);
+        background: var(--surface2);
+    }
+
+    .login-body .form-control.is-invalid:focus {
+        box-shadow: 
+            0 0 0 1px var(--danger),
+            0 0 0 4px rgba(255,107,107,0.15);
+    }
+
+    .invalid-feedback {
+        font-size: 0.8rem;
+        color: var(--danger);
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 500;
+    }
+
+    .invalid-feedback::before {
+        content: '⚠';
+        font-size: 0.85rem;
+    }
+
+    /* Submit button */
+    .login-submit-btn {
+        width: 100%;
+        height: 50px;
+        background: var(--grad-header);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-md);
+        font-family: 'DM Sans', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        box-shadow: 0 8px 24px rgba(21,101,192,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-submit-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .login-submit-btn:hover {
+        opacity: 0.92;
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(21,101,192,0.4);
+    }
+
+    .login-submit-btn:hover::before {
+        left: 100%;
+    }
+
+    .login-submit-btn:active {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    /* Divider */
+    .login-divider {
+        display: flex;
+        align-items: center;
+        margin: 28px 0;
+        gap: 12px;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+    }
+
+    /* Footer */
+    .login-footer {
+        text-align: center;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        margin-top: 20px;
+    }
+
+    .login-footer p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    .login-footer a {
+        color: var(--accent);
+        font-weight: 600;
+        text-decoration: none;
+        transition: color var(--transition);
+        position: relative;
+    }
+
+    .login-footer a::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--accent);
+        transition: width var(--transition);
+    }
+
+    .login-footer a:hover {
+        color: var(--accent);
+    }
+
+    .login-footer a:hover::after {
+        width: 100%;
+    }
+
+    /* OAuth button (if enabled in future) */
+    .login-oauth-btn {
+        width: 100%;
+        height: 48px;
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        color: var(--text);
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .login-oauth-btn:hover {
+        background: var(--accent-glow);
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: translateY(-1px);
+    }
+
+    /* Responsive */
+    @media (max-width: 576px) {
+        .login-container {
+            min-height: auto;
+            padding: 24px 16px;
+        }
+
+        .login-card {
+            border-radius: var(--radius-md);
+        }
+
+        .login-header {
+            padding: 32px 24px 24px;
+        }
+
+        .login-header h1 {
+            font-size: 1.6rem;
+        }
+
+        .login-body {
+            padding: 24px;
+        }
+
+        .login-icon-badge {
+            width: 56px;
+            height: 56px;
+            font-size: 1.5rem;
+        }
+    }
+</style>
+
+<div class="login-container">
+    <div class="login-card-wrapper">
+        <div class="login-card">
+            <!-- Header with gradient -->
+            <div class="login-header">
+                <div class="login-icon-badge">
+                    <i class="fas fa-chart-line"></i>
                 </div>
+                <h1>Welcome Back</h1>
+                <p>Sign in to your VC Manager account</p>
+            </div>
+
+            <!-- Login form body -->
+            <div class="login-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <!-- Email field -->
+                    <div class="form-group">
+                        <label for="{{ form.email.id }}" class="form-label">
+                            <i class="fas fa-envelope"></i>Email Address
+                        </label>
+                        {{ form.email(
+                            class="form-control" + (" is-invalid" if form.email.errors else ""),
+                            placeholder="name@company.com",
+                            autocomplete="email"
+                        ) }}
+                        {% for error in form.email.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Password field -->
+                    <div class="form-group">
+                        <label for="{{ form.password.id }}" class="form-label">
+                            <i class="fas fa-lock"></i>Password
+                        </label>
+                        {{ form.password(
+                            class="form-control" + (" is-invalid" if form.password.errors else ""),
+                            placeholder="••••••••",
+                            autocomplete="current-password"
+                        ) }}
+                        {% for error in form.password.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Submit button -->
+                    <button type="submit" class="login-submit-btn">
+                        <i class="fas fa-sign-in-alt"></i>Sign In
+                    </button>
+                </form>
+
+                <!-- Divider -->
+                <div class="login-divider">Or</div>
+
+                <!-- Footer -->
+                <div class="login-footer">
+                    <p>
+                        New to VC Manager?
+                        <a href="{{ url_for('auth.signup') }}">Create an account</a>
+                    </p>
+                </div>
+
+                <!-- Google OAuth placeholder (uncomment when ready) -->
+                <!-- <div class="mt-4">
+                    <a href="{{ url_for('auth.google_login') }}" class="login-oauth-btn">
+                        <i class="fab fa-google"></i>Continue with Google
+                    </a>
+                </div> -->
             </div>
         </div>
     </div>

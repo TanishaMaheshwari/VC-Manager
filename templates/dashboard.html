@@ -3,231 +3,613 @@
 {% block title %}Dashboard - VC Manager{% endblock %}
 
 {% block content %}
-<!-- <div class="row mb-4">
-    <div class="col-12">
-        <h1 class="display-4 fw-bold text-center mb-4" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-            <i class="fas fa-tachometer-alt me-3"></i>VC Committee Dashboard
-        </h1>
-    </div>
-</div> -->
+<style>
+    /* ═══════════════════════════════════════════
+       DASHBOARD PAGE SPECIFIC STYLES
+    ═══════════════════════════════════════════ */
+
+    /* Ensure font size is properly inherited from base */
+    html {
+        font-size: var(--fs-base);
+    }
+
+    body {
+        font-size: var(--fs-base);
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .form-section {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+    }
+
+    .form-section:hover {
+        box-shadow: var(--shadow-lg);
+        border-color: var(--accent);
+    }
+
+    .form-section .card-header {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 18px 24px;
+        font-weight: 600;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-section .card-body {
+        padding: 24px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .form-control,
+    .form-select {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 12px 14px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 1rem;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        line-height: 1.6;
+    }
+
+    .form-control::placeholder {
+        color: var(--text-muted);
+        opacity: 0.6;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        outline: none;
+        background: var(--surface);
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+        color: var(--text);
+    }
+
+    .form-control.is-invalid {
+        border-color: var(--danger);
+        background: var(--surface2);
+        color: var(--text);
+    }
+
+    .form-control.is-invalid:focus {
+        box-shadow: 0 0 0 4px rgba(255,107,107,0.15);
+        color: var(--text);
+    }
+
+    .input-group-text {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-right: none;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .input-group .form-control {
+        border-left: none;
+    }
+
+    .form-text {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .text-danger {
+        color: var(--danger);
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-top: 6px;
+    }
+
+    .button-group {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .button-group .btn {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .summary-section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .stat-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 28px 20px;
+        text-align: center;
+        box-shadow: var(--shadow-md);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--accent);
+        background: var(--accent-glow);
+    }
+
+    .stat-number {
+        font-family: 'Space Mono', monospace;
+        font-size: 2.4rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 8px;
+        line-height: 1.1;
+    }
+
+    .stat-label {
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .stat-label i {
+        font-size: 0.9rem;
+    }
+
+    .stat-card small {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        line-height: 1.4;
+        display: block;
+    }
+
+    .stat-card:hover .stat-number {
+        color: var(--accent);
+    }
+
+    .stat-card:hover .stat-label {
+        color: var(--text);
+    }
+
+    .stat-card:hover small {
+        color: var(--text);
+    }
+
+    .modern-table {
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: none;
+        margin: 0;
+        border: 1px solid var(--border);
+    }
+
+    .modern-table table {
+        margin: 0;
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: auto;
+    }
+
+    .modern-table thead {
+        background: var(--grad-header);
+    }
+
+    .modern-table thead th {
+        color: #fff;
+        font-weight: 600;
+        padding: 16px 14px;
+        border: none;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.07em;
+        white-space: normal;
+        text-align: left;
+        display: table-cell;
+    }
+
+    .modern-table thead th i {
+        margin-right: 6px;
+    }
+
+    .modern-table tbody td {
+        padding: 14px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+        color: var(--text);
+        font-size: 0.95rem;
+        transition: background 0.2s;
+        word-break: break-word;
+    }
+
+    .modern-table tbody tr:hover td {
+        background: var(--surface2);
+        color: var(--text);
+    }
+
+    .modern-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .badge {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: var(--radius-sm);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .due-amount {
+        background: var(--danger-bg);
+        color: var(--danger);
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        font-weight: 700;
+        font-family: 'Space Mono', monospace;
+        font-size: 0.95rem;
+        text-align: center;
+        display: inline-block;
+    }
+
+    .person-badge {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: var(--radius-sm);
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        min-height: 40px;
+    }
+
+    /* Modal Styling */
+    .modal-content {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+        background: var(--grad-header);
+        color: #fff;
+        border: none;
+        padding: 20px 24px;
+    }
+
+    .modal-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-close-white {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+
+    .btn-close-white:hover {
+        opacity: 1;
+    }
+
+    .modal-body {
+        padding: 24px;
+        background: var(--surface);
+        color: var(--text);
+    }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: none;
+    }
+
+    /* Modal fade animation */
+    .modal.fade .modal-dialog {
+        transition: transform 0.3s cubic-bezier(.22,1,.36,1), opacity 0.3s cubic-bezier(.22,1,.36,1);
+        transform: scale(0.95) translateY(-20px);
+        opacity: 0;
+    }
+
+    .modal.show .modal-dialog {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+
+    /* Ensure body is scrollable when modal is open */
+    body.modal-open {
+        overflow: auto !important;
+    }
+
+    /* Modal dialog positioning */
+    .modal-dialog {
+        max-width: 800px;
+    }
+
+    /* Modal responsive */
+    @media (max-width: 576px) {
+        .modal-dialog {
+            margin: 0.5rem;
+            max-width: calc(100% - 1rem);
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+        }
+
+        .modal-title {
+            font-size: 1rem;
+        }
+
+        .modal-body {
+            padding: 16px;
+        }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .form-section .card-body {
+            padding: 16px;
+        }
+
+        .button-group {
+            flex-direction: column;
+        }
+
+        .button-group .btn {
+            width: 100%;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+        }
+
+        .modern-table table {
+            font-size: 0.875rem;
+        }
+
+        .modern-table thead th {
+            padding: 12px 8px;
+            font-size: 0.7rem;
+        }
+
+        .modern-table tbody td {
+            padding: 10px 8px;
+        }
+    }
+</style>
 
 <div class="container-fluid">
-    <div class="row">
-        <!-- Payment Form Section -->
-        <div class="col-lg-6 col-md-12 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-money-bill me-2"></i>Record Payment
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST">
-                        {{ form.hidden_tag() }}
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+        
+        <!-- Left Column: Payment Form -->
+        <div class="form-section">
+            <div class="card-header">
+                <i class="fas fa-money-bill-wave"></i>
+                Record Payment
+            </div>
+            
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
 
-                        <!-- VC selection -->
-                        <div class="mb-3">
-                            {{ form.vc_id.label(class="form-label") }}
-                            {{ form.vc_id(class="form-select", id="vc-select") }}
-                            {% for error in form.vc_id.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+                    <!-- VC Selection -->
+                    <div class="form-group">
+                        <label for="{{ form.vc_id.id }}" class="form-label">
+                            <i class="fas fa-building"></i>{{ form.vc_id.label.text }}
+                        </label>
+                        {{ form.vc_id(class="form-select", id="vc-select") }}
+                        {% for error in form.vc_id.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
 
-                        <!-- Hand selection -->
-                        <div class="mb-3">
-                            {{ form.hand_id.label(class="form-label") }}
-                            {{ form.hand_id(class="form-select", id="hand-select") }}
-                            {% for error in form.hand_id.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                            <div class="form-text text-muted">
-                                Select the hand. Each option shows Hand number, winner, and date.
-                            </div>
+                    <!-- Hand Selection -->
+                    <div class="form-group">
+                        <label for="{{ form.hand_id.id }}" class="form-label">
+                            <i class="fas fa-poker-chip"></i>{{ form.hand_id.label.text }}
+                        </label>
+                        {{ form.hand_id(class="form-select", id="hand-select") }}
+                        {% for error in form.hand_id.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i>Select the hand. Each option shows Hand number, winner, and date.
                         </div>
+                    </div>
 
-                        <!-- Person selection -->
-                        <div class="mb-3">
-                            {{ form.person_id.label(class="form-label") }}
-                            {{ form.person_id(class="form-select", id="person-select") }}
-                            {% for error in form.person_id.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+                    <!-- Person Selection -->
+                    <div class="form-group">
+                        <label for="{{ form.person_id.id }}" class="form-label">
+                            <i class="fas fa-user"></i>{{ form.person_id.label.text }}
+                        </label>
+                        {{ form.person_id(class="form-select", id="person-select") }}
+                        {% for error in form.person_id.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
 
-                        <!-- Date (defaults to today) -->
-                        <div class="mb-3">
-                            {{ form.date.label(class="form-label") }}
-                            {# Render an HTML5 datetime-local input so browsers show date + HH:MM (no seconds)
-                               WTForms DateTimeField is configured to use the matching format '%Y-%m-%dT%H:%M'. #}
-                            {% set date_val = form.date.data.strftime('%Y-%m-%dT%H:%M') if form.date.data else '' %}
-                            <input id="payment-date" name="{{ form.date.name }}" type="datetime-local" class="form-control" value="{{ date_val }}">
-                            {% for error in form.date.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                            <div class="form-text text-muted">
-                                Defaults to today, but editable.
-                            </div>
+                    <!-- Date Field -->
+                    <div class="form-group">
+                        <label for="payment-date" class="form-label">
+                            <i class="fas fa-calendar"></i>{{ form.date.label.text }}
+                        </label>
+                        {% set date_val = form.date.data.strftime('%Y-%m-%dT%H:%M') if form.date.data else '' %}
+                        <input 
+                            id="payment-date" 
+                            name="{{ form.date.name }}" 
+                            type="datetime-local" 
+                            class="form-control" 
+                            value="{{ date_val }}">
+                        {% for error in form.date.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i>Defaults to today, but editable.
                         </div>
+                    </div>
 
-                        <!-- Amount (auto-filled contribution) -->
-                        <div class="mb-3">
-                            {{ form.amount.label(class="form-label") }}
-                            <div class="input-group">
-                                <span class="input-group-text">₹</span>
-                                {{ form.amount(class="form-control", id="payment-amount") }}
-                            </div>
-                            {% for error in form.amount.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                            <div class="form-text text-muted">
-                                Auto-filled with actual contribution per person for the selected hand.
-                            </div>
+                    <!-- Amount Field -->
+                    <div class="form-group">
+                        <label for="{{ form.amount.id }}" class="form-label">
+                            <i class="fas fa-rupee-sign"></i>{{ form.amount.label.text }}
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            {{ form.amount(class="form-control", id="payment-amount") }}
                         </div>
+                        {% for error in form.amount.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i>Auto-filled with actual contribution per person for the selected hand.
+                        </div>
+                    </div>
 
-                        <!-- Narration -->
-                        <div class="mb-3">
-                            {{ form.narration.label(class="form-label") }}
-                            {{ form.narration(class="form-control", rows="3") }}
-                            {% for error in form.narration.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+                    <!-- Narration -->
+                    <div class="form-group">
+                        <label for="{{ form.narration.id }}" class="form-label">
+                            <i class="fas fa-note-sticky"></i>{{ form.narration.label.text }}
+                        </label>
+                        {{ form.narration(class="form-control", rows="3") }}
+                        {% for error in form.narration.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
 
-                        <div class="d-flex justify-content-between flex-wrap gap-2">
-                            <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-1"></i>Back
-                            </a>
-                            {{ form.submit(class="btn btn-success") }}
-                        </div>
-                    </form>
-                </div>
+                    <!-- Action Buttons -->
+                    <div class="button-group">
+                        <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i>Back
+                        </a>
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
             </div>
         </div>
-        
-        <!-- Summary Cards Section -->
-        <div class="col-lg-6 col-md-12">
-            <div class="row">
-                <!-- Total Due Card -->
-                <div class="col-12 mb-3">
-                    <div class="stat-card" onclick="showDueDetails()">
-                        <div class="stat-number">₹{{ "%.0f"|format(total_due) }}</div>
-                        <div class="stat-label">
-                            <i class="fas fa-exclamation-triangle me-1"></i>Total Due
-                        </div>
-                        <small class="text-muted mt-2 d-block">
-                            Click to view detailed breakdown by VC and person
-                        </small>
-                    </div>
+
+        <!-- Right Column: Summary Cards -->
+        <div class="summary-section">
+            
+            <!-- Total Due Card -->
+            <div class="stat-card" onclick="showDueDetails()" role="button" tabindex="0">
+                <div class="stat-number">₹{{ "%.0f"|format(total_due) }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-exclamation-triangle"></i>Total Due
                 </div>
-                
-                <!-- Total VC Card -->
-                <div class="col-12 mb-3">
-                    <div class="stat-card" onclick="location.href='{{ url_for('vc.vcs_list') }}'">
-                        <div class="stat-number">{{ total_vcs }}</div>
-                        <div class="stat-label">
-                            <i class="fas fa-building me-1"></i>Total VCs
-                        </div>
-                        <small class="text-muted mt-2 d-block">
-                            Click to view all VC records and details
-                        </small>
-                    </div>
+                <small>Click to view detailed breakdown by VC and person</small>
+            </div>
+
+            <!-- Total VCs Card -->
+            <div class="stat-card" onclick="location.href='{{ url_for('vc.vcs_list') }}'" role="button" tabindex="0">
+                <div class="stat-number">{{ total_vcs }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-building"></i>Total VCs
                 </div>
-                
-                <!-- Total People Card -->
-                <div class="col-12 mb-3">
-                    <div class="stat-card" onclick="location.href='{{ url_for('person.persons') }}'">
-                        <div class="stat-number">{{ total_persons }}</div>
-                        <div class="stat-label">
-                            <i class="fas fa-users me-1"></i>Total People
-                        </div>
-                        <small class="text-muted mt-2 d-block">
-                            Click to manage person accounts and ledgers
-                        </small>
-                    </div>
+                <small>Click to view all VC records and details</small>
+            </div>
+
+            <!-- Total People Card -->
+            <div class="stat-card" onclick="location.href='{{ url_for('person.persons') }}'" role="button" tabindex="0">
+                <div class="stat-number">{{ total_persons }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-users"></i>Total People
                 </div>
+                <small>Click to manage person accounts and ledgers</small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Recent Activity Section
-<div class="row mt-5">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-clock me-2"></i>Recent Activity
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="fw-bold mb-3">
-                            <i class="fas fa-plus-circle me-2 text-success"></i>Recent VCs
-                        </h6>
-                        {% for vc in vcs[:3] %}
-                        <div class="d-flex align-items-center mb-2 p-2 rounded" style="background: var(--secondary-color);">
-                            <div class="me-3">
-                                <span class="badge bg-primary">{{ vc.vc_number }}</span>
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold">{{ vc.name }}</div>
-                                <small class="text-muted">{{ vc.start_date.strftime('%d %b %Y') }}</small>
-                            </div>
-                            <div class="text-end">
-                                <div class="fw-bold">₹{{ "%.0f"|format(vc.amount) }}</div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="fw-bold mb-3">
-                            <i class="fas fa-users me-2 text-info"></i>Active Members
-                        </h6>
-                        {% for person in persons[:3] %}
-                        <div class="d-flex align-items-center mb-2 p-2 rounded" style="background: var(--secondary-color);">
-                            <div class="me-3">
-                                <div class="person-badge" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
-                                    {{ person.short_name }}
-                                </div>
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold">{{ person.name }}</div>
-                                <small class="text-muted">{{ person.email or 'No email' }}</small>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge {{ 'bg-success' if person.total_balance >= 0 else 'bg-danger' }}">
-                                    ₹{{ "%.0f"|format(person.total_balance) }}
-                                </span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div> -->
-
 <!-- Due Details Modal -->
-<div class="modal fade" id="dueDetailsModal" tabindex="-1">
+<div class="modal fade" id="dueDetailsModal" tabindex="-1" aria-labelledby="dueDetailsLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="border-radius: 1rem; border: none;">
-            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; border: none;">
-                <h5 class="modal-title">
-                    <i class="fas fa-chart-pie me-2"></i>Due Amount Breakdown
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dueDetailsLabel">
+                    <i class="fas fa-chart-pie"></i>Due Amount Breakdown
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="modern-table">
-                    <table class="table table-hover mb-0">
+                    <table>
                         <thead>
                             <tr>
-                                <th><i class="fas fa-building me-1"></i>VC Name</th>
-                                <th><i class="fas fa-user me-1"></i>Person</th>
-                                <th><i class="fas fa-dollar-sign me-1"></i>Due Amount</th>
+                                <th>VC Name</th>
+                                <th>Person</th>
+                                <th>Due Amount</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -235,14 +617,12 @@
                                 {% if vc.total_due_per_vc > 0 %}
                                     <tr>
                                         <td>
-                                            <span class="badge bg-primary me-2">{{ vc.vc_number }}</span>
-                                            {{ vc.name }}
+                                            <span class="badge">{{ vc.vc_number }}</span>
+                                            <span>{{ vc.name }}</span>
                                         </td>
                                         <td>
-                                            <div class="person-badge d-inline-block">
-                                                {{ vc.hand_person.short_name if vc.hand_person else 'N/A' }}
-                                            </div>
-                                            {{ vc.hand_person.name if vc.hand_person else 'N/A' }}
+                                            <span class="person-badge">{{ vc.hand_person.short_name if vc.hand_person else 'N/A' }}</span>
+                                            <span>{{ vc.hand_person.name if vc.hand_person else 'N/A' }}</span>
                                         </td>
                                         <td>
                                             <span class="due-amount">₹{{ "%.2f"|format(vc.total_due_per_vc) }}</span>
@@ -257,20 +637,36 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-function showDueDetails() {
-    new bootstrap.Modal(document.getElementById('dueDetailsModal')).show();
-}
+    /**
+     * Show Due Details Modal
+     */
+    function showDueDetails() {
+        const dueDetailsModal = document.getElementById('dueDetailsModal');
+        const modal = new bootstrap.Modal(dueDetailsModal, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        modal.show();
+    }
+
+    /**
+     * Initialize form interactions
+     */
     document.addEventListener("DOMContentLoaded", () => {
         const vcSelect = document.getElementById("vc-select");
         const handSelect = document.getElementById("hand-select");
         const personSelect = document.getElementById("person-select");
         const amountInput = document.getElementById("payment-amount");
 
-        // Load hands for a given VC
+        /**
+         * Load hands for selected VC
+         */
         async function loadHands(vcId) {
             if (!vcId) return;
 
@@ -297,15 +693,16 @@ function showDueDetails() {
                 // Auto-select first hand if exists
                 if (handSelect.options.length > 1) {
                     handSelect.selectedIndex = 1;
-                    handSelect.dispatchEvent(new Event("change")); // triggers person loading
+                    handSelect.dispatchEvent(new Event("change"));
                 }
-
             } catch (err) {
                 console.error("Failed to load hands:", err);
             }
         }
 
-        // Load persons and contribution amount for a given hand
+        /**
+         * Load persons and contribution for selected hand
+         */
         async function loadPersons(handId) {
             if (!handId) return;
 
@@ -328,32 +725,27 @@ function showDueDetails() {
 
                 // Set contribution amount
                 amountInput.value = data.contribution_amount || "";
-
             } catch (err) {
                 console.error("Failed to load pending persons:", err);
             }
         }
 
-        // When VC changes
+        // Event listeners
         vcSelect.addEventListener("change", () => {
-            const vcId = vcSelect.value;
-            loadHands(vcId);
+            loadHands(vcSelect.value);
         });
 
-        // When Hand changes
         handSelect.addEventListener("change", () => {
-            const handId = handSelect.value;
-            loadPersons(handId);
+            loadPersons(handSelect.value);
         });
 
-        // Trigger load on page load: auto-select first pending VC and load its hands
+        // Initialize on page load
         if (!vcSelect.value && vcSelect.options.length > 1) {
-            vcSelect.selectedIndex = 1; // Select first pending VC
+            vcSelect.selectedIndex = 1;
         }
         if (vcSelect.value) {
             loadHands(vcSelect.value);
         }
     });
 </script>
-
 {% endblock %}

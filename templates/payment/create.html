@@ -3,113 +3,407 @@
 {% block title %}Record Payment{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-money-bill me-2"></i>Record Payment
-                </h5>
-            </div>
-            <div class="card-body">
-                <form method="POST">
-                    {{ form.hidden_tag() }}
+<style>
+    /* ═══════════════════════════════════════════
+       RECORD PAYMENT PAGE SPECIFIC STYLES
+    ═══════════════════════════════════════════ */
 
-                    <!-- VC selection -->
-                    <div class="mb-3">
-                        {{ form.vc_id.label(class="form-label") }}
-                        {{ form.vc_id(class="form-select", id="vc-select") }}
-                        {% for error in form.vc_id.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+    html {
+        font-size: var(--fs-base);
+    }
 
-                    <!-- Hand selection -->
-                    <div class="mb-3">
-                        {{ form.hand_id.label(class="form-label") }}
-                        {{ form.hand_id(class="form-select", id="hand-select") }}
-                        {% for error in form.hand_id.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                        <div class="form-text text-muted">
-                            Select the hand. Each option shows Hand number, winner, and date.
+    body {
+        font-size: var(--fs-base);
+    }
+
+    /* Page header */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 32px;
+        flex-wrap: wrap;
+    }
+
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        background: var(--grad-header);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-title i {
+        color: var(--accent);
+    }
+
+    /* Form section */
+    .form-section {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+        padding: 0;
+    }
+
+    .form-section .form-header {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 20px 24px;
+        font-weight: 600;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.1rem;
+    }
+
+    .form-section .form-body {
+        padding: 28px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .form-control,
+    .form-select {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 12px 14px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 1rem;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        line-height: 1.6;
+    }
+
+    .form-control::placeholder {
+        color: var(--text-muted);
+        opacity: 0.6;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        outline: none;
+        background: var(--surface);
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+        color: var(--text);
+    }
+
+    .form-control.is-invalid {
+        border-color: var(--danger);
+        background: var(--surface2);
+        color: var(--text);
+    }
+
+    .form-control.is-invalid:focus {
+        box-shadow: 0 0 0 4px rgba(255,107,107,0.15);
+        color: var(--text);
+    }
+
+    .input-group-text {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-right: none;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .input-group .form-control {
+        border-left: none;
+    }
+
+    .form-text {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .text-danger {
+        color: var(--danger);
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-top: 6px;
+    }
+
+    /* Button group */
+    .button-group {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+        padding-top: 24px;
+        border-top: 1.5px solid var(--border);
+    }
+
+    .button-group .btn {
+        flex: 1;
+        min-width: 120px;
+        padding: 12px 20px;
+        font-size: 0.95rem;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        border: 1.5px solid transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .button-group .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .button-group .btn:active {
+        transform: translateY(0);
+    }
+
+    .btn-secondary {
+        background: var(--surface2);
+        color: var(--text);
+        border-color: var(--border);
+    }
+
+    .btn-secondary:hover {
+        background: var(--border);
+        color: var(--text);
+    }
+
+    .btn-success {
+        background: var(--success);
+        color: #fff;
+    }
+
+    .btn-success:hover {
+        background: var(--success-dark);
+        color: #fff;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+        }
+
+        .form-section .form-body {
+            padding: 20px;
+        }
+
+        .button-group {
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+
+        .button-group .btn {
+            width: 100%;
+            min-width: auto;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .page-title {
+            font-size: 1.25rem;
+        }
+
+        .page-title i {
+            font-size: 1.2rem;
+        }
+
+        .form-section .form-header {
+            padding: 16px 20px;
+            font-size: 1rem;
+        }
+
+        .form-section .form-body {
+            padding: 16px;
+        }
+
+        .form-label {
+            font-size: 0.9rem;
+        }
+
+        .form-control,
+        .form-select {
+            font-size: 0.95rem;
+            padding: 10px 12px;
+        }
+
+        .button-group .btn {
+            padding: 10px 16px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Form Section -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="form-section">
+                <!-- Form Header -->
+                <div class="form-header">
+                    <i class="fas fa-credit-card"></i>
+                    Payment Details
+                </div>
+
+                <!-- Form Body -->
+                <div class="form-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <!-- VC selection -->
+                        <div class="form-group">
+                            <label for="{{ form.vc_id.id }}" class="form-label">
+                                <i class="fas fa-building"></i>{{ form.vc_id.label.text }}
+                            </label>
+                            {{ form.vc_id(class="form-select", id="vc-select") }}
+                            {% for error in form.vc_id.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
                         </div>
-                    </div>
 
-                    <!-- Person selection -->
-                    <div class="mb-3">
-                        {{ form.person_id.label(class="form-label") }}
-                        {{ form.person_id(class="form-select", id="person-select") }}
-                        {% for error in form.person_id.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Date (defaults to today) -->
-                    <div class="mb-3">
-                        {{ form.date.label(class="form-label") }}
-                        {# Render an HTML5 datetime-local input so browsers show date + HH:MM (no seconds)
-                           WTForms DateTimeField is configured to use the matching format '%Y-%m-%dT%H:%M'. #}
-                        {% set date_val = form.date.data.strftime('%Y-%m-%dT%H:%M') if form.date.data else '' %}
-                        <input id="payment-date" name="{{ form.date.name }}" type="datetime-local" class="form-control" value="{{ date_val }}">
-                        {% for error in form.date.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                        <div class="form-text text-muted">
-                            Defaults to today, but editable.
+                        <!-- Hand selection -->
+                        <div class="form-group">
+                            <label for="{{ form.hand_id.id }}" class="form-label">
+                                <i class="fas fa-poker-chip"></i>{{ form.hand_id.label.text }}
+                            </label>
+                            {{ form.hand_id(class="form-select", id="hand-select") }}
+                            {% for error in form.hand_id.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i>Select the hand. Each option shows Hand number, winner, and date.
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Amount (auto-filled contribution) -->
-                    <div class="mb-3">
-                        {{ form.amount.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text">₹</span>
-                            {{ form.amount(class="form-control", id="payment-amount") }}
+                        <!-- Person selection -->
+                        <div class="form-group">
+                            <label for="{{ form.person_id.id }}" class="form-label">
+                                <i class="fas fa-user"></i>{{ form.person_id.label.text }}
+                            </label>
+                            {{ form.person_id(class="form-select", id="person-select") }}
+                            {% for error in form.person_id.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
                         </div>
-                        {% for error in form.amount.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                        <div class="form-text text-muted">
-                            Auto-filled with actual contribution per person for the selected hand.
+
+                        <!-- Date Field -->
+                        <div class="form-group">
+                            <label for="payment-date" class="form-label">
+                                <i class="fas fa-calendar"></i>{{ form.date.label.text }}
+                            </label>
+                            {% set date_val = form.date.data.strftime('%Y-%m-%dT%H:%M') if form.date.data else '' %}
+                            <input 
+                                id="payment-date" 
+                                name="{{ form.date.name }}" 
+                                type="datetime-local" 
+                                class="form-control" 
+                                value="{{ date_val }}">
+                            {% for error in form.date.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i>Defaults to today, but editable.
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Narration -->
-                    <div class="mb-3">
-                        {{ form.narration.label(class="form-label") }}
-                        {{ form.narration(class="form-control", rows="3") }}
-                        {% for error in form.narration.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+                        <!-- Amount Field -->
+                        <div class="form-group">
+                            <label for="{{ form.amount.id }}" class="form-label">
+                                <i class="fas fa-rupee-sign"></i>{{ form.amount.label.text }}
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                {{ form.amount(class="form-control", id="payment-amount") }}
+                            </div>
+                            {% for error in form.amount.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i>Auto-filled with actual contribution per person for the selected hand.
+                            </div>
+                        </div>
 
-                    <div class="d-flex justify-content-between flex-wrap gap-2">
-                        <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-1"></i>Back
-                        </a>
-                        {{ form.submit(class="btn btn-success") }}
-                    </div>
-                </form>
+                        <!-- Narration -->
+                        <div class="form-group">
+                            <label for="{{ form.narration.id }}" class="form-label">
+                                <i class="fas fa-note-sticky"></i>{{ form.narration.label.text }}
+                            </label>
+                            {{ form.narration(class="form-control", rows="3") }}
+                            {% for error in form.narration.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="button-group">
+                            <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i>Back
+                            </a>
+                            {{ form.submit(class="btn btn-success") }}
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- JS to handle dynamic updates -->
- <script>
+<script>
     document.addEventListener("DOMContentLoaded", () => {
         const vcSelect = document.getElementById("vc-select");
         const handSelect = document.getElementById("hand-select");
         const personSelect = document.getElementById("person-select");
         const amountInput = document.getElementById("payment-amount");
 
-        // Load hands for a given VC
+        /**
+         * Load hands for a given VC
+         */
         async function loadHands(vcId) {
             if (!vcId) return;
 
             try {
                 const res = await fetch(`/api/vc/${vcId}/details`);
+                if (!res.ok) throw new Error(`API error: ${res.status}`);
                 const data = await res.json();
 
                 // Reset dropdowns
@@ -118,9 +412,9 @@
                 amountInput.value = "";
 
                 // Only include hands that have a winner
-                const handsWithWinner = data.hands.filter(h => h.winner_name);
+                const handsWithWinner = data.hands.filter(h => h.winner_name && h.winner_name !== "Pending");
                 handsWithWinner.forEach(h => {
-                    const handDate = new Date(h.date).toLocaleDateString();
+                    const handDate = h.date ? new Date(h.date).toLocaleDateString() : 'N/A';
                     const opt = document.createElement("option");
                     opt.value = h.id;
                     opt.textContent = `Hand ${h.hand_number} - Winner: ${h.winner_name} - Date: ${handDate}`;
@@ -132,18 +426,20 @@
                     handSelect.selectedIndex = 1;
                     handSelect.dispatchEvent(new Event("change")); // triggers person loading
                 }
-
             } catch (err) {
                 console.error("Failed to load hands:", err);
             }
         }
 
-        // Load persons and contribution amount for a given hand
+        /**
+         * Load persons and contribution for selected hand
+         */
         async function loadPersons(handId) {
             if (!handId) return;
 
             try {
                 const res = await fetch(`/api/hand/${handId}/details`);
+                if (!res.ok) throw new Error(`API error: ${res.status}`);
                 const data = await res.json();
 
                 // Reset persons and amount
@@ -160,27 +456,23 @@
 
                 // Set contribution amount
                 amountInput.value = data.contribution_amount || "";
-
             } catch (err) {
                 console.error("Failed to load pending persons:", err);
             }
         }
 
-        // When VC changes
+        // Event listeners
         vcSelect.addEventListener("change", () => {
-            const vcId = vcSelect.value;
-            loadHands(vcId);
+            loadHands(vcSelect.value);
         });
 
-        // When Hand changes
         handSelect.addEventListener("change", () => {
-            const handId = handSelect.value;
-            loadPersons(handId);
+            loadPersons(handSelect.value);
         });
 
-        // Trigger load on page load: auto-select first pending VC and load its hands
+        // Initialize on page load
         if (!vcSelect.value && vcSelect.options.length > 1) {
-            vcSelect.selectedIndex = 1; // Select first pending VC
+            vcSelect.selectedIndex = 1;
         }
         if (vcSelect.value) {
             loadHands(vcSelect.value);

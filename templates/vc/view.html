@@ -4,372 +4,485 @@
 
 {% block content %}
 <style>
-    /* Base hand row styling */
-.hand-row {
-    border-bottom: 1px solid #eee;
-    transition: all 0.2s ease-in-out;
-}
+    /* ═══════════════════════════════════════════
+       VC DETAIL PAGE SPECIFIC STYLES
+    ═══════════════════════════════════════════ */
 
-.hand-row:hover {
-    background: #f9f9f9;
-    transform: scale(1.01);
-}
+    html {
+        font-size: var(--fs-base);
+    }
 
-.hand-row.active {
-    background: #e9f7ef;
-    border-left: 4px solid #28a745;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
+    body {
+        font-size: var(--fs-base);
+    }
 
-/* Mobile card style */
-@media (max-width: 768px) {
+    /* Page header */
+    .vc-header {
+        flex: 1;
+    }
+
+    .vc-title {
+        font-size: 2rem;
+        font-weight: 700;
+        background: var(--grad-header);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 12px;
+    }
+
+    .vc-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        font-size: 0.95rem;
+        color: var(--text-muted);
+    }
+
+    .vc-meta span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .action-buttons .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: var(--radius-md);
+    }
+
+    /* Hand timeline container */
+    .hand-timeline {
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        border: 1.5px solid var(--border);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+
+    .hand-timeline .card-header {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 16px 20px;
+        text-align: center;
+        border: none;
+    }
+
+    .hand-timeline .card-header h5 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    /* Hand row styling */
     .hand-row {
-        display: block !important;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        margin-bottom: 1rem;
-        padding: 1rem;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        color: var(--text);
+    }
+
+    .hand-row:last-child {
+        border-bottom: none;
+    }
+
+    .hand-row:not(.header-row) {
+        cursor: pointer;
+    }
+
+    .hand-row:not(.header-row):hover {
+        background: var(--surface2);
+        transform: translateX(4px);
+    }
+
+    .hand-row.active {
+        background: var(--accent-glow);
+        border-left: 4px solid var(--accent);
+        padding-left: 12px;
+    }
+
+    /* Header row styling */
+    .header-row {
+        background: var(--grad-header);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        padding: 16px;
     }
 
     .hand-row > div {
         display: flex;
-        justify-content: space-between;
-        padding: 0.25rem 0;
-        font-size: 0.9rem;
+        align-items: center;
+        font-size: 0.95rem;
     }
 
-    .hand-row > div::before {
-        content: attr(data-label);
+    /* Badge styling */
+    .badge {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        font-size: 0.8rem;
         font-weight: 600;
-        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
     }
 
-    .header-row {
-        display: none !important; /* hide header on mobile */
-    }
-}
-/* Stack buttons on mobile */
-@media (max-width: 768px) {
-    .action-buttons {
-        flex-direction: column !important;
-        width: 100%;
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+        .vc-header {
+            margin-bottom: 16px;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+            text-align: center;
+        }
     }
 
-    .action-buttons .btn {
-        width: 100%;
-        text-align: center;
-    }
-}
-/* Gradient title (moved from inline) */
-.vc-title {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
+    @media (max-width: 768px) {
+        .vc-title {
+            font-size: 1.5rem;
+        }
 
-/* Meta info responsive */
-.vc-meta {
-    gap: 0.5rem; /* spacing between items */
-}
+        .vc-meta {
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            flex-direction: column;
+        }
 
-/* On mobile: stack vertically */
-@media (max-width: 768px) {
-    .vc-meta {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.25rem;
-    }
-}
-/* Stack buttons on mobile */
-@media (max-width: 768px) {
-    .action-buttons,
-    .quick-actions {
-        flex-direction: column !important;
-        width: 100%;
+        .hand-row {
+            display: block;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            background: var(--surface);
+        }
+
+        .hand-row > div {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .hand-row > div::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-right: 8px;
+        }
+
+        .header-row {
+            display: none !important;
+        }
+
+        .hand-row.active {
+            background: var(--accent-glow);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius-md);
+        }
+
+        .action-buttons {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+        }
+
+        .hand-timeline .card-header h5 {
+            font-size: 1rem;
+        }
     }
 
-    .action-buttons .btn,
-    .quick-actions .btn {
-        width: 100%;
-        text-align: center;
+    /* Modal Styling (Design System) */
+    .modal-backdrop {
+        background-color: rgba(0, 0, 0, 0.5);
     }
-}
 
-/* Custom Modal Styles (for delete confirmation) */
-.custom-modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1050;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease-out;
-}
-.custom-modal-backdrop.show {
-    opacity: 1;
-    visibility: visible;
-}
-.custom-modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    max-width: 400px;
-    width: 90%;
-    transform: translateY(-50px);
-    transition: transform 0.3s ease-out;
-}
-.custom-modal-backdrop.show .custom-modal-content {
-    transform: translateY(0);
-}
+    .modal-content {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+        background: var(--grad-header);
+        color: #fff;
+        border: none;
+        padding: 20px 24px;
+    }
+
+    .modal-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-close-white {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+
+    .btn-close-white:hover {
+        opacity: 1;
+    }
+
+    .modal-body {
+        padding: 24px;
+        background: var(--surface);
+        color: var(--text);
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    .modal-body p {
+        margin-bottom: 12px;
+    }
+
+    .modal-body p:last-child {
+        margin-bottom: 0;
+    }
+
+    .modal-footer {
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 16px 24px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .modal-footer .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: var(--radius-md);
+    }
+
+    /* Modal animations */
+    .modal.fade .modal-dialog {
+        transition: transform 0.3s cubic-bezier(.22,1,.36,1), opacity 0.3s cubic-bezier(.22,1,.36,1);
+        transform: scale(0.95) translateY(-20px);
+        opacity: 0;
+    }
+
+    .modal.show .modal-dialog {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+
+    /* Ensure body scrolls when modal open */
+    body.modal-open {
+        overflow: auto !important;
+    }
 </style>
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center ps-5">
-            <div class="vc-header">
-            <h1 class="display-6 fw-bold vc-title">
-                VC {{ vc.vc_number }} - {{ vc.name }}
-            </h1>
-            <div class="vc-meta text-muted fs-5 d-flex flex-wrap">
-                <span>{{ vc.start_date.strftime('%d %B %Y') }}</span>
-                <span class="mx-3 d-none d-md-inline">|</span>
 
-                <span>₹{{ "%.0f"|format(vc.amount)|indian_comma }}</span>
-                <span class="mx-3 d-none d-md-inline">|</span>
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-4">
+                <!-- Left: Title and Meta Info -->
+                <div class="vc-header">
+                    <h1 class="vc-title">
+                        VC {{ vc.vc_number }} - {{ vc.name }}
+                    </h1>
+                    <div class="vc-meta">
+                        <span>
+                            <i class="fas fa-calendar-alt"></i>
+                            {{ vc.start_date.strftime('%d %B %Y') }}
+                        </span>
+                        <span>
+                            <i class="fas fa-rupee-sign"></i>
+                            ₹{{ "%.0f"|format(vc.amount)|indian_comma }}
+                        </span>
+                        <span>
+                            <i class="fas fa-hourglass-half"></i>
+                            {{ vc.tenure }} Months
+                        </span>
+                    </div>
+                </div>
 
-                <span>{{ vc.tenure }} Months</span>
-            </div>
-            </div>
-
-            <div class="d-flex gap-2 flex-wrap action-buttons">
-                <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-2"></i>Back to VCs
-                </a>
-                <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
-                    <i class="fas fa-trash me-2"></i>Delete VC
-                </button>
-                <!-- <div class="d-flex flex-wrap gap-2 quick-actions">
-                    <button class="btn btn-success" onclick="location.href='{{ url_for('payment.create_payment') }}?vc_id={{ vc.id }}'">
-                        <i class="fas fa-plus me-2"></i>Add Payment
+                <!-- Right: Action Buttons -->
+                <div class="action-buttons">
+                    <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i>Back to VCs
+                    </a>
+                    <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
+                        <i class="fas fa-trash"></i>Delete VC
                     </button>
-                    <button class="btn btn-info" onclick="location.href='{{ url_for('ledger.create_ledger_entry') }}?vc_id={{ vc.id }}'">
-                        <i class="fas fa-book me-2"></i>Add Ledger Entry
-                    </button>
-                </div> -->
-                <!-- Updated Delete Button to use custom confirmation function -->
-                <!-- <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
-                    <i class="fas fa-trash me-2"></i>Delete VC
-                </button> -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hands Timeline -->
+    <div class="row">
+        <div class="col-12">
+            <div class="hand-timeline">
+                <!-- Timeline Header -->
+                <div class="card-header">
+                    <h5>
+                        <i class="fas fa-timeline"></i>Hands Timeline - VC {{ vc.vc_number }}
+                    </h5>
+                </div>
+
+                <!-- Table Header Row -->
+                <div class="hand-row header-row">
+                    <div style="flex:1">Hand</div>
+                    <div style="flex:1.5">Date</div>
+                    <div style="flex:1.5">Min. Interest</div>
+                    <div style="flex:1.5">Earned Interest</div>
+                    <div style="flex:1.5">Bid Price</div>
+                    <div style="flex:2">Contribution/Person</div>
+                    <div style="flex:1">Payout</div>
+                </div>
+
+                <!-- Timeline Data Rows -->
+                {% for hand in hands %}
+                <div class="hand-row {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
+                    onclick="location.href='{{ url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'">
+
+                    <div style="flex:1" data-label="Hand">
+                        <strong>{{ hand.hand_number }}</strong>
+                    </div>
+                    <div style="flex:1.5" data-label="Date">
+                        {{ hand.date.strftime('%d/%m/%Y') }}
+                    </div>
+                    <div style="flex:1.5" data-label="Min. Interest">
+                        ₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }}
+                    </div>
+                    <div style="flex:1.5" data-label="Earned Interest">
+                        {% if hand.hand_distributions %}
+                            ₹{{ "%.0f"|format(vc.amount - hand.total_paid)|indian_comma }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </div>
+                    <div style="flex:1.5" data-label="Bid Price">
+                        {% if hand.hand_distributions %}
+                            ₹{{ "%.0f"|format(hand.total_paid)|indian_comma }}
+                        {% else %}
+                            ₹{{ "%.0f"|format(hand.projected_payout)|indian_comma }}
+                        {% endif %}
+                    </div>
+                    <div style="flex:2" data-label="Contribution/Person">
+                        {% if hand.hand_distributions %}
+                            ₹{{ "%.0f"|format(hand.total_paid / vc.members|length)|indian_comma }}
+                        {% else %}
+                            ₹{{ "%.0f"|format(hand.projected_payout / vc.members|length)|indian_comma }}
+                        {% endif %}
+                    </div>
+                    <div style="flex:1" data-label="Payout">
+                        {% if hand.winner_short_name %}
+                            <span class="badge">{{ hand.winner_short_name }}</span>
+                        {% else %}
+                            <span class="badge {{ 'bg-success' if hand.hand_number == vc.current_hand else 'bg-secondary' }}">
+                                {{ 'Open' if hand.hand_number == vc.current_hand else 'Pending' }}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- VC Status Card -->
-<!-- <div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-3">
-                        <div class="stat-number text-primary">{{ vc.current_hand }}</div>
-                        <div class="stat-label">Current Hand</div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-number text-success">₹{{ "%.0f"|format(vc.total_paid)|indian_comma }}</div>
-                        <div class="stat-label">Total Paid</div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-number text-danger">₹{{ "%.0f"|format(vc.total_due_per_vc)|indian_comma }}</div>
-                        <div class="stat-label">Total Due</div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-number">
-                            <span class="status-badge status-{{ vc.status.value }}">{{ vc.status.value.title() }}</span>
-                        </div>
-                        <div class="stat-label">Status</div>
-                    </div>
-                </div>
+<!-- Delete Confirmation Modal (Bootstrap) -->
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-        </div>
-    </div>
-</div> -->
-
-<!-- Hands Timeline -->
-<div class="container mx-auto p-4">
-    <div class="bg-white p-6 rounded-lg shadow-lg">
-        <!-- <h1 class="text-3xl font-bold text-gray-800 mb-4">{{ vc.name }} (#{{ vc.vc_number }})</h1>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700 mb-6">
-            <div>
-                <p><strong>Amount:</strong> ₹{{ vc.amount | indian_comma }}</p>
-                <p><strong>Tenure:</strong> {{ vc.tenure }} hands</p>
-                <p><strong>Start Date:</strong> {{ vc.start_date.strftime('%d-%m-%Y') }}</p>
-                <p><strong>Current Hand:</strong> {{ vc.current_hand }}</p>
+            <div class="modal-body">
+                <p>Are you absolutely sure you want to delete <strong>VC <span id="vcNumberPlaceholder" class="fw-bold"></span></strong>?</p>
+                <p style="color: var(--danger); font-weight: 600; margin-top: 16px;">
+                    <i class="fas fa-times-circle"></i> This action cannot be undone. All associated ledgers will be closed.
+                </p>
             </div>
-            <div>
-                <p><strong>Minimum Interest:</strong> {{ vc.min_interest }}%</p>
-                <p><strong>Members:</strong> {{ vc.members|map(attribute='name')|join(', ') }}</p>
-                <p><strong>Status:</strong> <span class="badge badge-{{ vc.status.name.lower() }}">{{ vc.status.name.capitalize() }}</span></p>
-            </div>
-        </div> -->
-
-        <!-- <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Hands Timeline</h2> -->
-        <div class="row">
-            <div class="col-12">
-                <div class="hand-timeline">
-                    <!-- Timeline Header -->
-                    <div class="card-header text-center py-2">
-                        <h5 class="mb-0">
-                            <i class="fas fa-timeline me-2"></i>Hands Timeline - VC {{ vc.vc_number }}
-                        </h5>
-                    </div>
-
-                    <!-- Header Row -->
-                    <div class="hand-row header-row d-flex justify-content-between align-items-center px-2 py-1" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; font-weight: 600; font-size: 0.9rem;">
-                        <div style="flex:1">Hand</div>
-                        <div style="flex:2">Date</div>
-                        <div style="flex:2">Min. Interest</div>
-                        <div style="flex:2">Earned Interest</div>
-                        <div style="flex:2">Bid Price</div>
-                        <div style="flex:2">Contribution per Person</div>
-                        <div style="flex:1">Payout</div>
-                    </div>
-
-                    <!-- Timeline Rows -->
-                    {% for hand in hands %}
-                    <div class="hand-row d-flex justify-content-between align-items-center px-2 py-3 {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
-                        onclick="location.href='{{ url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'">
-
-                        <div style="flex:1" data-label="Hand">{{ hand.hand_number }}</div>
-                        <div style="flex:2" data-label="Date">{{ hand.date.strftime('%d/%m/%Y') }}</div>
-                        <div style="flex:2" data-label="Min. Interest">₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }}</div>
-                        <div style="flex:2" data-label="Earned Interest">
-                            {% if hand.hand_distributions %}
-                                ₹{{ "%.0f"|format(vc.amount - hand.total_paid)|indian_comma }}
-                            {% else %}
-                                <!-- ₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }} -->
-                                 -
-                            {% endif %}
-                        </div>
-                        <div style="flex:2" data-label="Bid Price">
-                            {% if hand.hand_distributions %}
-                                ₹{{ "%.0f"|format(hand.total_paid)|indian_comma }}
-                            {% else %}
-                                ₹{{ "%.0f"|format(hand.projected_payout)|indian_comma }}
-                            {% endif %}
-                        </div>
-                        <div style="flex:2" data-label="Contribution/Person">
-                            {% if hand.hand_distributions %}
-                                ₹{{ "%.0f"|format(hand.total_paid / vc.members|length)|indian_comma }}
-                            {% else %}
-                                ₹{{ "%.0f"|format(hand.projected_payout / vc.members|length)|indian_comma }}
-                            {% endif %}
-                        </div>
-                        <div style="flex:1" data-label="Payout">
-                            {% if hand.winner_short_name %}
-                                <span class="badge bg-primary fw-bold">{{ hand.winner_short_name }}</span>
-                            {% else %}
-                                <span class="badge {{ 'bg-success' if hand.hand_number == vc.current_hand else 'bg-secondary' }}">
-                                    {{ 'Open' if hand.hand_number == vc.current_hand else 'Pending' }}
-                                </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteButton">Delete Permanently</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Instructions Card -->
-<!-- <div class="row mt-4">
-    <div class="col-12">
-        <div class="alert alert-info">
-            <h6 class="alert-heading">
-                <i class="fas fa-info-circle me-2"></i>How to Use This Timeline
-            </h6>
-            <div class="row">
-                <div class="col-md-6">
-                    <ul class="mb-0">
-                        <li><strong>Green highlighted row</strong> shows the current active hand</li>
-                        <li><strong>Click on any hand row</strong> to view detailed distribution</li>
-                        <li><strong>Each hand represents one month</strong> of the VC tenure</li>
-                    </ul>
-                </div>
-                <div class="col-md-6">
-                    <ul class="mb-0">
-                        <li><strong>Contribution</strong> is the amount due for that month</li>
-                        <li><strong>Paid</strong> shows actual payments received</li>
-                        <li><strong>Balance</strong> shows total VC amount</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</div> -->
-
-<!-- Custom Delete Confirmation Modal -->
-<div id="deleteConfirmationModal" class="custom-modal-backdrop">
-    <div class="custom-modal-content">
-        <h5 class="mb-3 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion</h5>
-        <p>Are you absolutely sure you want to delete <strong>VC <span id="vcNumberPlaceholder" class="fw-bold"></span></strong>?</p>
-        <p class="text-danger fw-bold">This action cannot be undone. All associated ledgers will be closed.</p>
-        <div class="d-flex justify-content-end gap-2 mt-4">
-            <button class="btn btn-secondary" onclick="hideDeleteConfirmation()">Cancel</button>
-            <button class="btn btn-danger" id="confirmDeleteButton">Delete Permanently</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-let deleteUrl = '';
+    /**
+     * Delete Confirmation Modal
+     */
+    let deleteUrl = '';
 
-function showDeleteConfirmation(url, vcNumber) {
-    deleteUrl = url;
-    document.getElementById('vcNumberPlaceholder').innerText = vcNumber;
-    document.getElementById('deleteConfirmationModal').classList.add('show');
-}
+    function showDeleteConfirmation(url, vcNumber) {
+        deleteUrl = url;
+        document.getElementById('vcNumberPlaceholder').innerText = vcNumber;
+        
+        const modalElement = document.getElementById('deleteConfirmationModal');
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        modal.show();
+    }
 
-function hideDeleteConfirmation() {
-    document.getElementById('deleteConfirmationModal').classList.remove('show');
-}
-
-document.getElementById('confirmDeleteButton').addEventListener('click', function() {
-    hideDeleteConfirmation();
-    // Create a form and submit as POST to the delete URL
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = deleteUrl;
-    document.body.appendChild(form);
-    form.submit();
-});
-
-
-function markAsCompleted(vcId) {
-    // Note: The original function used a simple confirm() which is replaced by a custom modal pattern if implemented fully.
-    // For now, this placeholder remains but is not used in the UI.
-    alert('Functionality to mark VC as completed is not yet implemented in the backend.');
-}
-
-// Add smooth hover effects
-document.addEventListener('DOMContentLoaded', function() {
-    const handRows = document.querySelectorAll('.hand-row');
-    handRows.forEach((row, index) => {
-        if (index > 0) { // Skip header row
-            row.style.animationDelay = `${index * 0.05}s`;
-            row.classList.add('fade-in');
+    document.getElementById('confirmDeleteButton').addEventListener('click', function() {
+        if (deleteUrl) {
+            // Create form and submit
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = deleteUrl;
+            document.body.appendChild(form);
+            form.submit();
         }
     });
-});
+
+    /**
+     * Hand row animation on load
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        const handRows = document.querySelectorAll('.hand-row:not(.header-row)');
+        handRows.forEach((row, index) => {
+            row.style.animationDelay = `${index * 0.05}s`;
+        });
+    });
 </script>
 {% endblock %}

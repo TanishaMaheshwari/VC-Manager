@@ -3,269 +3,643 @@
 {% block title %}{{ person.name }} - Personal Ledger{% endblock %}
 
 {% block content %}
-<div class="container-fluid my-3">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="display-6 fw-bold" style="background: linear-gradient(135deg, #1e293b, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        <i class="fas fa-book me-3"></i>Personal Ledger
-                    </h1>
-                    <p class="text-muted fs-5">
-                        <span class="person-badge me-2">{{ person.short_name }}</span>
-                        {{ person.name }}
-                    </p>
+<style>
+    html { font-size: var(--fs-base); }
+    body { font-size: var(--fs-base); }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+    }
+
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        background: var(--grad-header);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-title i { color: var(--accent); }
+
+    .header-subtitle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text-muted);
+        font-size: 1rem;
+    }
+
+    .person-badge {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .page-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .page-actions .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .page-actions .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-success { background: var(--success); color: #fff; }
+
+    /* Tabs */
+    .tabs-container {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .tab-navigation {
+        display: flex;
+        background: var(--surface2);
+        border-bottom: 2px solid var(--border);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-button {
+        flex: 1;
+        min-width: 140px;
+        padding: 14px 16px;
+        background: transparent;
+        color: var(--text-muted);
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-bottom: 3px solid transparent;
+        white-space: nowrap;
+    }
+
+    .tab-button:hover { color: var(--text); background: var(--surface); }
+    .tab-button.active { color: #fff; background: var(--grad-header); border-bottom: 3px solid var(--accent); }
+
+    .tab-content {
+        display: none;
+        padding: 28px;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    .tab-content.active { display: block; }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Overview */
+    .account-summary {
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .balance-display { display: flex; flex-direction: column; align-items: flex-start; }
+    .balance-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .balance-value { font-size: 2.4rem; font-weight: 700; font-family: 'Space Mono', monospace; }
+    .balance-value.positive { color: var(--success); }
+    .balance-value.negative { color: var(--danger); }
+    .balance-status { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+    }
+
+    .stat-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px;
+        text-align: center;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+    }
+
+    .stat-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+    .stat-icon { font-size: 1.4rem; margin-bottom: 8px; color: var(--accent); }
+    .stat-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .stat-value { font-size: 1.6rem; font-weight: 700; color: var(--text); font-family: 'Space Mono', monospace; }
+
+    /* Recent Entries */
+    .recent-entries { background: var(--surface2); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+    .section-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .section-title i { color: var(--accent); }
+
+    .entry-item {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 14px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+    }
+
+    .entry-item:last-child { margin-bottom: 0; }
+    .entry-item:hover { background: var(--surface2); border-color: var(--accent); }
+
+    .entry-info { display: flex; flex-direction: column; flex: 1; }
+    .entry-date { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2px; }
+    .entry-narration { font-weight: 600; color: var(--text); font-size: 0.95rem; }
+    .entry-amount { display: flex; flex-direction: column; align-items: flex-end; min-width: 100px; }
+    .entry-amount-value { font-weight: 700; font-family: 'Space Mono', monospace; font-size: 0.95rem; }
+    .entry-balance { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+
+    .view-all-link { display: inline-block; margin-top: 16px; color: var(--accent); font-weight: 600; text-decoration: none; transition: all 0.28s; cursor: pointer; }
+
+    /* Ledger Filter */
+    .ledger-filter {
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 12px;
+        align-items: flex-end;
+    }
+
+    .filter-group { display: flex; flex-direction: column; }
+    .filter-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .filter-select, .filter-input {
+        background: var(--surface);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        font-family: 'DM Sans', sans-serif;
+        transition: all 0.28s;
+    }
+
+    .filter-select:focus, .filter-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+
+    .filter-btn {
+        background: var(--grad-header);
+        color: #fff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.28s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .filter-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+    /* Ledger Card View (Mobile) */
+    .ledger-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .ledger-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        transition: all 0.28s;
+    }
+
+    .ledger-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1.5px solid var(--border);
+    }
+
+    .card-date { display: flex; flex-direction: column; }
+    .card-date-main { font-weight: 700; color: var(--text); font-size: 0.95rem; }
+    .card-time { font-size: 0.75rem; color: var(--text-muted); }
+
+    .card-narration {
+        flex: 1;
+        margin-left: 12px;
+    }
+
+    .card-narration-text { font-weight: 600; color: var(--text); font-size: 0.95rem; margin-bottom: 4px; }
+    .card-vc-badge { display: inline-block; background: var(--grad-header); color: #fff; padding: 3px 8px; border-radius: var(--radius-sm); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+
+    .card-amounts {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+        text-align: center;
+    }
+
+    .card-amount-item { display: flex; flex-direction: column; }
+    .card-amount-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+    .card-amount-value { font-weight: 700; font-family: 'Space Mono', monospace; font-size: 0.95rem; }
+
+    /* Empty State */
+    .empty-state { text-align: center; padding: 64px 24px; color: var(--text-muted); }
+    .empty-state i { font-size: 3rem; color: var(--text-muted); margin-bottom: 16px; opacity: 0.5; }
+    .empty-state h3 { color: var(--text); margin-bottom: 8px; }
+    .empty-state .btn { padding: 10px 18px; font-size: 0.95rem; border-radius: var(--radius-md); margin-top: 16px; }
+
+    /* Actions */
+    .actions-section {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+    }
+
+    .action-btn {
+        padding: 12px 14px;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.28s;
+        border: 1.5px solid transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .action-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .action-btn.btn-success { background: var(--success); color: #fff; }
+    .action-btn.btn-info { background: var(--primary); color: #fff; }
+    .action-btn.btn-primary { background: var(--accent); color: #fff; }
+    .action-btn.btn-warning { background: #f59e0b; color: #fff; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+        .page-title { font-size: 1.5rem; }
+        .page-actions { width: 100%; }
+        .page-actions .btn { flex: 1; min-width: 100px; }
+
+        .tab-button { min-width: 110px; padding: 12px 10px; font-size: 0.8rem; gap: 4px; }
+        .tab-button i { font-size: 0.9rem; }
+        .tab-content { padding: 18px; }
+
+        .account-summary { padding: 18px; margin-bottom: 18px; }
+        .balance-value { font-size: 1.8rem; }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .stat-card { padding: 14px; }
+        .stat-value { font-size: 1.3rem; }
+
+        .recent-entries { padding: 18px; }
+        .entry-item { padding: 12px; margin-bottom: 10px; }
+
+        .filter-row { grid-template-columns: 1fr; gap: 10px; }
+        .filter-btn { width: 100%; }
+
+        .card-amounts { gap: 8px; }
+        .card-amount-value { font-size: 0.9rem; }
+
+        .actions-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 480px) {
+        .page-title { font-size: 1.25rem; }
+        .page-title i { font-size: 1.2rem; }
+        .header-subtitle { flex-direction: column; align-items: flex-start; font-size: 0.9rem; }
+        .page-actions { flex-direction: column; width: 100%; }
+        .page-actions .btn { width: 100%; padding: 8px 12px; font-size: 0.85rem; }
+
+        .tab-button { min-width: 95px; font-size: 0.75rem; padding: 10px 8px; gap: 3px; }
+        .tab-button i { font-size: 0.85rem; }
+        .tab-content { padding: 14px; }
+
+        .account-summary { padding: 14px; margin-bottom: 16px; }
+        .balance-value { font-size: 1.6rem; }
+        .stats-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+        .stat-card { padding: 12px; }
+        .stat-label { font-size: 0.75rem; }
+        .stat-value { font-size: 1.2rem; }
+
+        .recent-entries { padding: 14px; }
+        .entry-item { padding: 10px; margin-bottom: 8px; flex-direction: column; align-items: flex-start; }
+        .entry-amount { align-items: flex-start; width: 100%; min-width: auto; }
+        .entry-date, .entry-balance { font-size: 0.8rem; }
+        .entry-narration { font-size: 0.9rem; }
+
+        .filter-row { grid-template-columns: 1fr; gap: 8px; }
+        .filter-label { font-size: 0.8rem; }
+        .filter-select, .filter-input { font-size: 0.85rem; padding: 8px 10px; }
+        .filter-btn { width: 100%; padding: 8px 12px; font-size: 0.8rem; }
+
+        .card-header { flex-direction: column; align-items: flex-start; }
+        .card-narration { margin-left: 0; margin-top: 8px; }
+        .card-amounts { margin-top: 12px; }
+        .card-amount-value { font-size: 0.85rem; }
+
+        .actions-grid { grid-template-columns: 1fr; }
+        .action-btn { width: 100%; padding: 10px 12px; font-size: 0.8rem; }
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <div class="header-subtitle">
+                <span class="person-badge">{{ person.short_name }}</span>
+                <h1>{{ person.name }}</h1>
+            </div>
+        </div>
+        <div class="page-actions">
+            <a href="{{ url_for('person.persons') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>Back
+            </a>
+            <a href="{{ url_for('payment.record_payment') }}?person_id={{ person.id }}" class="btn btn-success">
+                <i class="fas fa-plus"></i>Add Payment
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-container">
+        <div class="tab-navigation">
+            <button class="tab-button active" onclick="switchTab('overview')">
+                <i class="fas fa-chart-pie"></i>Overview
+            </button>
+            <button class="tab-button" onclick="switchTab('recent')">
+                <i class="fas fa-history"></i>Recent
+            </button>
+            <button class="tab-button" onclick="switchTab('statements')">
+                <i class="fas fa-file-alt"></i>Statements
+            </button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="account-summary">
+                <div class="balance-display">
+                    <div class="balance-label">Current Balance</div>
+                    <div class="balance-value {{ 'positive' if person.ledger_balance >= 0 else 'negative' }}">
+                        ₹{{ "%.0f"|format(person.ledger_balance) }}
+                    </div>
+                    <div class="balance-status">
+                        {{ 'Credit (Amount due)' if person.ledger_balance >= 0 else 'Debit (Amount owed)' }}
+                    </div>
                 </div>
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('person.persons') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Persons
-                    </a>
-                    <a href="{{ url_for('payment.record_payment') }}?person_id={{ person.id }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Add Payment
-                    </a>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-list"></i></div>
+                        <div class="stat-label">Total Entries</div>
+                        <div class="stat-value">{{ entries|length }}</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-minus-circle"></i></div>
+                        <div class="stat-label">Total Debits</div>
+                        <div class="stat-value" style="color: var(--danger);">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-plus-circle"></i></div>
+                        <div class="stat-label">Total Credits</div>
+                        <div class="stat-value" style="color: var(--success);">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-history"></i></div>
+                        <div class="stat-label">Last Updated</div>
+                        <div class="stat-value" style="font-size: 1rem;">{{ entries[0].date.strftime('%d/%m/%Y') if entries else 'N/A' }}</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Filter Options -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-filter me-2"></i>Filter Ledger Entries
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Filter by VC</label>
-                            <select name="vc_id" class="form-select">
-                                <option value="">All VCs</option>
-                                {% for vc in person.ledger_entries|map(attribute='vc')|unique|list %}
-                                    {% if vc %}
-                                        <option value="{{ vc.id }}" {{ 'selected' if request.args.get('vc_id') == vc.id|string else '' }}>
-                                            VC {{ vc.vc_number }} - {{ vc.name }}
-                                        </option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
+
+        <!-- Recent Entries Tab (Last 10 - Simple Layout) -->
+        <div id="recent" class="tab-content">
+            <div class="recent-entries">
+                {% if entries %}
+                    {% for entry in entries[:10] %}
+                    <div class="entry-item">
+                        <div class="entry-info">
+                            <div class="entry-date">{{ entry.date.strftime('%d/%m/%Y %I:%M %p') }}</div>
+                            <div class="entry-narration">{{ entry.narration }}</div>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">From Date</label>
-                            <input type="date" name="from_date" class="form-control" value="{{ request.args.get('from_date', '') }}">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">To Date</label>
-                            <input type="date" name="to_date" class="form-control" value="{{ request.args.get('to_date', '') }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-search me-1"></i>Filter
-                                </button>
+                        <div class="entry-amount">
+                            <div class="entry-amount-value">
+                                {% if entry.debit > 0 %}
+                                    <span style="color: var(--danger);">-₹{{ "%.0f"|format(entry.debit) }}</span>
+                                {% elif entry.credit > 0 %}
+                                    <span style="color: var(--success);">+₹{{ "%.0f"|format(entry.credit) }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="entry-balance {{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
+                                Bal: ₹{{ "%.0f"|format(entry.balance) }}
                             </div>
                         </div>
-                    </form>
-                </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state" style="padding: 32px 0;">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No entries found</h3>
+                        <a href="{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>Add First Entry
+                        </a>
+                    </div>
+                {% endif %}
             </div>
         </div>
-    </div>
-    
-    <!-- Ledger Book -->
-    <div class="row">
-        <div class="col-12">
-            <div class="ledger-container">
-                <div class="ledger-header">
-                    <div class="ledger-title">
-                        <i class="fas fa-book-open me-2"></i>Ledger as Khata Book - {{ person.short_name }} Shared
+
+        <!-- Statements Tab (Filter + PDF + Ledger) -->
+        <div id="statements" class="tab-content">
+            <div style="text-align: center; padding: 16px 0; margin-bottom: 20px;">
+                <button class="action-btn btn-primary" style="margin: 0 auto; display: inline-flex;" onclick="exportLedger({{ person.id }})">
+                    <i class="fas fa-download"></i>Download PDF
+                </button>
+            </div>
+
+            <div class="ledger-filter">
+                <form method="GET" class="filter-row">
+                    <div class="filter-group">
+                        <label class="filter-label"><i class="fas fa-building"></i>VC</label>
+                        <select name="vc_id" class="filter-select">
+                            <option value="">All VCs</option>
+                            {% for vc in person.ledger_entries|map(attribute='vc')|unique|list %}
+                                {% if vc %}
+                                    <option value="{{ vc.id }}" {{ 'selected' if request.args.get('vc_id') == vc.id|string else '' }}>
+                                        VC {{ vc.vc_number }} - {{ vc.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="ledger-info">
-                        <div>
-                            <strong>Account Name:</strong><br>
-                            {{ person.name }}
+
+                    <div class="filter-group">
+                        <label class="filter-label"><i class="fas fa-calendar-alt"></i>From</label>
+                        <input type="date" name="from_date" class="filter-input" value="{{ request.args.get('from_date', '') }}">
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label"><i class="fas fa-calendar-alt"></i>To</label>
+                        <input type="date" name="to_date" class="filter-input" value="{{ request.args.get('to_date', '') }}">
+                    </div>
+
+                    <button type="submit" class="filter-btn">
+                        <i class="fas fa-search"></i>Filter
+                    </button>
+                </form>
+            </div>
+
+            <div class="recent-entries">
+                {% if entries %}
+                    {% for entry in entries %}
+                    <div class="entry-item">
+                        <div class="entry-info">
+                            <div class="entry-date">{{ entry.date.strftime('%d/%m/%Y %I:%M %p') }}</div>
+                            <div class="entry-narration">{{ entry.narration }}</div>
                         </div>
-                        <div>
-                            <strong>Date of Balance:</strong><br>
-                            {{ entries[0].date.strftime('%d/%m/%Y') if entries else 'N/A' }}
+                        <div class="entry-amount">
+                            <div class="entry-amount-value">
+                                {% if entry.debit > 0 %}
+                                    <span style="color: var(--danger);">-₹{{ "%.0f"|format(entry.debit) }}</span>
+                                {% elif entry.credit > 0 %}
+                                    <span style="color: var(--success);">+₹{{ "%.0f"|format(entry.credit) }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="entry-balance {{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
+                                Bal: ₹{{ "%.0f"|format(entry.balance) }}
+                            </div>
                         </div>
-                        <div>
-                            <strong>Balance (+/-):</strong><br>
-                            <span class="{{ 'text-success' if person.ledger_balance >= 0 else 'text-danger' }}">
-                                ₹{{ "%.0f"|format(person.ledger_balance) }}
-                            </span>
-                        </div>
                     </div>
-                </div>
-    
-                <!-- Ledger Header Row -->
-                <div class="ledger-row" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; font-weight: 600;">
-                    <div><i class="fas fa-calendar me-1"></i>Date</div>
-                    <div><i class="fas fa-comment me-1"></i>Narration</div>
-                    <div><i class="fas fa-minus-circle me-1"></i>Dr</div>
-                    <div><i class="fas fa-plus-circle me-1"></i>Cr</div>
-                    <div><i class="fas fa-balance-scale me-1"></i>Bal</div>
-                </div>
-    
-                <!-- Ledger Entries -->
-                {% for entry in entries %}
-                <div class="ledger-row">
-                    <div>
-                        <div class="fw-semibold">{{ entry.date.strftime('%d/%m/%Y') }}</div>
-                        <small class="text-muted">{{ entry.date.strftime('%I:%M %p') }}</small>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state" style="padding: 32px 0;">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No entries found</h3>
                     </div>
-                    <div>
-                        <div class="fw-semibold">{{ entry.narration }}</div>
-                        {% if entry.vc %}
-                            <small class="text-muted">
-                                <span class="badge bg-success">active</span>
-                                <!-- {{ entry.vc.name }} -->
-                            </small>
-                        {% endif %}
-                    </div>
-                    <div>
-                        {% if entry.debit > 0 %}
-                            <span class="amount-debit fw-bold">₹{{ "%.0f"|format(entry.debit) }}</span>
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
-                    </div>
-                    <div>
-                        {% if entry.credit > 0 %}
-                            <span class="amount-credit fw-bold">₹{{ "%.0f"|format(entry.credit) }}</span>
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <span class="fw-bold {{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
-                            ₹{{ "%.0f"|format(entry.balance) }}
-                        </span>
-                    </div>
-                </div>
-                {% endfor %}
-    
-                {% if not entries %}
-                <div class="text-center py-5">
-                    <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No ledger entries found</h5>
-                    <p class="text-muted">Start by adding the first entry to this person's ledger.</p>
-                    <a href="{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Add First Entry
-                    </a>
-                </div>
                 {% endif %}
             </div>
         </div>
     </div>
-    
-    <!-- Account Summary -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-3">
-                            <div class="stat-number text-info">{{ entries|length }}</div>
-                            <div class="stat-label">Total Entries</div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-number text-danger">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
-                            <div class="stat-label">Total Debits</div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-number text-success">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
-                            <div class="stat-label">Total Credits</div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-number {{ 'text-success' if person.ledger_balance >= 0 else 'text-danger' }}">
-                                ₹{{ "%.0f"|format(person.ledger_balance) }}
-                            </div>
-                            <div class="stat-label">Current Balance</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Quick Actions -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-bolt me-2"></i>Quick Actions
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-success" onclick="location.href='{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}'">
-                            <i class="fas fa-plus me-2"></i>Add Ledger Entry
-                        </button>
-                        <button class="btn btn-info" onclick="location.href='{{ url_for('person.edit_person', id=person.id) }}'">
-                            <i class="fas fa-edit me-2"></i>Edit Person Details
-                        </button>
-                        <button class="btn btn-primary" onclick="exportLedger({{ person.id }})">
-                            <i class="fas fa-download me-2"></i>Export Ledger
-                        </button>
-                        <button class="btn btn-warning" onclick="closeLedger({{ person.id }})">
-                            <i class="fas fa-lock me-2"></i>Close Ledger
-                        </button>
-                        <!-- <button class="btn btn-outline-primary" onclick="printLedger()">
-                            <i class="fas fa-print me-2"></i>Print Ledger
-                        </button> -->
-                    </div>
-                </div>
-            </div>
+
+    <!-- Actions -->
+    <div class="actions-section">
+        <div class="actions-grid">
+            <a href="{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}" class="action-btn btn-success">
+                <i class="fas fa-plus"></i>Add Entry
+            </a>
+            <a href="{{ url_for('person.edit_person', id=person.id) }}" class="action-btn btn-info">
+                <i class="fas fa-edit"></i>Edit Details
+            </a>
+            <button class="action-btn btn-primary" onclick="exportLedger({{ person.id }})">
+                <i class="fas fa-download"></i>Export
+            </button>
+            <button class="action-btn btn-warning" onclick="closeLedger({{ person.id }})">
+                <i class="fas fa-lock"></i>Close Ledger
+            </button>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-function addDebitEntry(personId) {
-    location.href = `{{ url_for('ledger.create_ledger_entry') }}?person_id=${personId}&type=debit`;
-}
-function exportLedger(personId) {
-    const params = new URLSearchParams(window.location.search);
-    window.open(`/ledger/${personId}/pdf?${params.toString()}`, '_blank');
-}
-
-function closeLedger(personId) {
-    if (confirm('Are you sure you want to close this ledger? All existing entries will be deleted and replaced with a closing entry.')) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/ledger/${personId}/close`;
-        document.body.appendChild(form);
-        form.submit();
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        event.target.closest('.tab-button').classList.add('active');
     }
-}
 
-// function printLedger() {
-//     window.print();
-// }
+    function exportLedger(personId) {
+        const params = new URLSearchParams(window.location.search);
+        window.open(`/ledger/${personId}/pdf?${params.toString()}`, '_blank');
+    }
 
-// Add animations
-document.addEventListener('DOMContentLoaded', function() {
-    const ledgerRows = document.querySelectorAll('.ledger-row');
-    ledgerRows.forEach((row, index) => {
-        if (index > 0) { // Skip header row
-            row.style.animationDelay = `${index * 0.05}s`;
-            row.classList.add('fade-in');
+    function closeLedger(personId) {
+        if (confirm('Are you sure? This action cannot be undone.')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/ledger/${personId}/close`;
+            document.body.appendChild(form);
+            form.submit();
         }
-    });
-});
+    }
 
-document.querySelector('form').addEventListener('submit', function(e) {
-        const from = document.querySelector('[name="from_date"]').value;
-        const to   = document.querySelector('[name="to_date"]').value;
-        if (from && to && to < from) {
-            e.preventDefault();
-            alert('To Date cannot be earlier than From Date.');
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterForm = document.querySelector('.ledger-filter form');
+        if (filterForm) {
+            filterForm.addEventListener('submit', function(e) {
+                const from = this.querySelector('[name="from_date"]').value;
+                const to = this.querySelector('[name="to_date"]').value;
+                if (from && to && to < from) {
+                    e.preventDefault();
+                    alert('To Date cannot be earlier than From Date.');
+                }
+            });
         }
     });
 </script>

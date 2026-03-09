@@ -1,451 +1,682 @@
 {% extends "base.html" %}
 
-{% block title %}VC {{ vc.vc_number }} - Hand {{ hand.hand_number }} Distribution{% endblock %}
+{% block title %}{{ person.name }} - Personal Ledger{% endblock %}
 
 {% block content %}
 <style>
-    /* Make contribution card visually larger than payout */
-.contribution-section {
-  min-height: 3x; /* 👈 not valid, so use calc instead */
-  min-height: calc(3 * 120px); /* assuming payout ~120px tall */
-  padding: 2rem;
-  font-size: 1.1rem; /* slightly larger text */
-}
+    html { font-size: var(--fs-base); }
+    body { font-size: var(--fs-base); }
 
-/* Contribution rows spacing */
-.contribution-section .distribution-row {
-  padding: 1.2rem 1rem;
-}
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+    }
+
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        background: var(--grad-header);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-title i { color: var(--accent); }
+
+    .header-subtitle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text-muted);
+        font-size: 1rem;
+    }
+
+    .person-badge {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .page-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .page-actions .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .page-actions .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-success { background: var(--success); color: #fff; }
+
+    /* Tabs */
+    .tabs-container {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .tab-navigation {
+        display: flex;
+        background: var(--surface2);
+        border-bottom: 2px solid var(--border);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-button {
+        flex: 1;
+        min-width: 140px;
+        padding: 14px 16px;
+        background: transparent;
+        color: var(--text-muted);
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-bottom: 3px solid transparent;
+        white-space: nowrap;
+    }
+
+    .tab-button:hover { color: var(--text); background: var(--surface); }
+    .tab-button.active { color: #fff; background: var(--grad-header); border-bottom: 3px solid var(--accent); }
+
+    .tab-content {
+        display: none;
+        padding: 28px;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    .tab-content.active { display: block; }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Overview */
+    .account-summary {
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .balance-display { display: flex; flex-direction: column; align-items: flex-start; }
+    .balance-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .balance-value { font-size: 2.4rem; font-weight: 700; font-family: 'Space Mono', monospace; }
+    .balance-value.positive { color: var(--success); }
+    .balance-value.negative { color: var(--danger); }
+    .balance-status { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+    }
+
+    .stat-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px;
+        text-align: center;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+    }
+
+    .stat-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+    .stat-icon { font-size: 1.4rem; margin-bottom: 8px; color: var(--accent); }
+    .stat-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .stat-value { font-size: 1.6rem; font-weight: 700; color: var(--text); font-family: 'Space Mono', monospace; }
+
+    /* Recent Entries */
+    .recent-entries { background: var(--surface2); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+    .section-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .section-title i { color: var(--accent); }
+
+    .entry-item {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 14px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+    }
+
+    .entry-item:last-child { margin-bottom: 0; }
+    .entry-item:hover { background: var(--surface2); border-color: var(--accent); }
+
+    .entry-info { display: flex; flex-direction: column; flex: 1; }
+    .entry-date { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2px; }
+    .entry-narration { font-weight: 600; color: var(--text); font-size: 0.95rem; }
+    .entry-amount { display: flex; flex-direction: column; align-items: flex-end; min-width: 100px; }
+    .entry-amount-value { font-weight: 700; font-family: 'Space Mono', monospace; font-size: 0.95rem; }
+    .entry-balance { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+
+    .view-all-link { display: inline-block; margin-top: 16px; color: var(--accent); font-weight: 600; text-decoration: none; transition: all 0.28s; cursor: pointer; }
+
+    /* Ledger Filter */
+    .ledger-filter {
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 12px;
+        align-items: flex-end;
+    }
+
+    .filter-group { display: flex; flex-direction: column; }
+    .filter-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .filter-select, .filter-input {
+        background: var(--surface);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        font-family: 'DM Sans', sans-serif;
+        transition: all 0.28s;
+    }
+
+    .filter-select:focus, .filter-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+
+    .filter-btn {
+        background: var(--grad-header);
+        color: #fff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.28s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .filter-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+    /* Ledger Card View (Mobile) */
+    .ledger-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .ledger-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        transition: all 0.28s;
+    }
+
+    .ledger-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1.5px solid var(--border);
+    }
+
+    .card-date { display: flex; flex-direction: column; }
+    .card-date-main { font-weight: 700; color: var(--text); font-size: 0.95rem; }
+    .card-time { font-size: 0.75rem; color: var(--text-muted); }
+
+    .card-narration {
+        flex: 1;
+        margin-left: 12px;
+    }
+
+    .card-narration-text { font-weight: 600; color: var(--text); font-size: 0.95rem; margin-bottom: 4px; }
+    .card-vc-badge { display: inline-block; background: var(--grad-header); color: #fff; padding: 3px 8px; border-radius: var(--radius-sm); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+
+    .card-amounts {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+        text-align: center;
+    }
+
+    .card-amount-item { display: flex; flex-direction: column; }
+    .card-amount-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+    .card-amount-value { font-weight: 700; font-family: 'Space Mono', monospace; font-size: 0.95rem; }
+
+    /* Empty State */
+    .empty-state { text-align: center; padding: 64px 24px; color: var(--text-muted); }
+    .empty-state i { font-size: 3rem; color: var(--text-muted); margin-bottom: 16px; opacity: 0.5; }
+    .empty-state h3 { color: var(--text); margin-bottom: 8px; }
+    .empty-state .btn { padding: 10px 18px; font-size: 0.95rem; border-radius: var(--radius-md); margin-top: 16px; }
+
+    /* Actions */
+    .actions-section {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+    }
+
+    .action-btn {
+        padding: 12px 14px;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.28s;
+        border: 1.5px solid transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .action-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .action-btn.btn-success { background: var(--success); color: #fff; }
+    .action-btn.btn-info { background: var(--primary); color: #fff; }
+    .action-btn.btn-primary { background: var(--accent); color: #fff; }
+    .action-btn.btn-warning { background: #f59e0b; color: #fff; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+        .page-title { font-size: 1.5rem; }
+        .page-actions { width: 100%; }
+        .page-actions .btn { flex: 1; min-width: 100px; }
+
+        .tab-button { min-width: 110px; padding: 12px 10px; font-size: 0.8rem; gap: 4px; }
+        .tab-button i { font-size: 0.9rem; }
+        .tab-content { padding: 18px; }
+
+        .account-summary { padding: 18px; margin-bottom: 18px; }
+        .balance-value { font-size: 1.8rem; }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .stat-card { padding: 14px; }
+        .stat-value { font-size: 1.3rem; }
+
+        .recent-entries { padding: 18px; }
+        .entry-item { padding: 12px; margin-bottom: 10px; }
+
+        .filter-row { grid-template-columns: 1fr; gap: 10px; }
+        .filter-btn { width: 100%; }
+
+        .card-amounts { gap: 8px; }
+        .card-amount-value { font-size: 0.9rem; }
+
+        .actions-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 480px) {
+        .page-title { font-size: 1.25rem; }
+        .page-title i { font-size: 1.2rem; }
+        .header-subtitle { flex-direction: column; align-items: flex-start; font-size: 0.9rem; }
+        .page-actions { flex-direction: column; width: 100%; }
+        .page-actions .btn { width: 100%; padding: 8px 12px; font-size: 0.85rem; }
+
+        .tab-button { min-width: 95px; font-size: 0.75rem; padding: 10px 8px; gap: 3px; }
+        .tab-button i { font-size: 0.85rem; }
+        .tab-content { padding: 14px; }
+
+        .account-summary { padding: 14px; margin-bottom: 16px; }
+        .balance-value { font-size: 1.6rem; }
+        .stats-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+        .stat-card { padding: 12px; }
+        .stat-label { font-size: 0.75rem; }
+        .stat-value { font-size: 1.2rem; }
+
+        .recent-entries { padding: 14px; }
+        .entry-item { padding: 10px; margin-bottom: 8px; flex-direction: column; align-items: flex-start; }
+        .entry-amount { align-items: flex-start; width: 100%; min-width: auto; }
+        .entry-date, .entry-balance { font-size: 0.8rem; }
+        .entry-narration { font-size: 0.9rem; }
+
+        .filter-row { grid-template-columns: 1fr; gap: 8px; }
+        .filter-label { font-size: 0.8rem; }
+        .filter-select, .filter-input { font-size: 0.85rem; padding: 8px 10px; }
+        .filter-btn { width: 100%; padding: 8px 12px; font-size: 0.8rem; }
+
+        .card-header { flex-direction: column; align-items: flex-start; }
+        .card-narration { margin-left: 0; margin-top: 8px; }
+        .card-amounts { margin-top: 12px; }
+        .card-amount-value { font-size: 0.85rem; }
+
+        .actions-grid { grid-template-columns: 1fr; }
+        .action-btn { width: 100%; padding: 10px 12px; font-size: 0.8rem; }
+    }
 </style>
-<div class="row mb-4">
-  <div class="col-12">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <h1 class="display-6 fw-bold"
-            style="background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          <i class="fas fa-hand-paper me-3"></i>Hand Distribution - {{ hand.hand_number }}
-        </h1>
-        <p class="text-muted fs-5">
-          <span class="badge bg-primary me-2">VC: {{ vc.name }}</span>
-          {{ hand.date.strftime('%d %B %Y') }}
-        </p>
-      </div>
-      <a href="{{ url_for('vc.view_vc', id=vc.id) }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back to VC Timeline
-      </a>
-    </div>
-  </div>
-</div>
 
-<!-- Hand Summary -->
-<!-- <div class="row mb-4">
-  <div class="col-12">
-    <div class="card">
-      <div class="card-body">
-        <div class="row text-center">
-          <div class="col-md-3">
-            <div class="stat-number text-primary">{{ hand.hand_number }}</div>
-            <div class="stat-label">Hand Number</div>
-          </div>
-          <div class="col-md-3">
-            <div class="stat-number text-success">{{ "%.0f"|format(hand.contribution_amount) }}</div>
-            <div class="stat-label">Expected Amount</div>
-          </div>
-          <div class="col-md-3">
-            <div class="stat-number text-info">{{ "%.0f"|format(hand.total_paid) }}</div>
-            <div class="stat-label">Total Collected</div>
-          </div>
-          <div class="col-md-3">
-            <div class="stat-number text-warning">
-              {{ "%.0f"|format(hand.due_amount_for_month) }}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title"><i class="fas fa-book"></i>Personal Ledger</h1>
+            <div class="header-subtitle">
+                <span class="person-badge">{{ person.short_name }}</span>
+                <span>{{ person.name }}</span>
             </div>
-            <div class="stat-label">Remaining Due</div>
-          </div>
         </div>
-      </div>
+        <div class="page-actions">
+            <a href="{{ url_for('person.persons') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>Back
+            </a>
+            <a href="{{ url_for('payment.record_payment') }}?person_id={{ person.id }}" class="btn btn-success">
+                <i class="fas fa-plus"></i>Add Payment
+            </a>
+        </div>
     </div>
-  </div>
-</div> -->
 
-<!-- Distribution Table -->
-<div class="row">
-  <div class="col-12">
-    <!-- <div class="distribution-card"> -->
-
-      <!-- <div class="distribution-header">
-        <div class="d-flex justify-content-between align-items-center">
-          <div><i class="fas fa-building me-2"></i>VC {{ vc.vc_number }}</div>
-          <div><i class="fas fa-calendar me-2"></i>{{ hand.hand_number }}TH HAND</div>
-          <div><i class="fas fa-clock me-2"></i>{{ hand.date.strftime('%d-%m-%y') }}</div>
-        </div>
-      </div> -->
-
-      <!-- Payout Section -->
-      <!-- <h3 class="mb-3">Payout</h3> -->
-      <div class="distribution-card mb-4">
-        {% if payout %}
-            <div class="distribution-row highlight">
-                <div>
-                    <div class="hand-number">1</div>
-                </div>
-                <div>
-                    <div class="person-badge">{{ payout.person.short_name }}</div>
-                </div>
-                <div>
-                    <span class="fw-bold fs-5 text-danger">
-                    {{ "%.0f"|format(payout.amount - hand.actual_contribution_per_person) }}
-                    </span>
-                </div>
-                <div>
-                    <div class="fw-semibold">{{ payout.person.name }}</div>
-                    <small class="text-muted">Winning bid price: {{ payout.amount }}</small>
-                </div>
-                <div>
-                    <span class="badge bg-warning text-dark">
-                    <i class="fas fa-star me-1"></i>Payout
-                    </span>
-                </div>
-                <div>
-                    <!-- <button class="btn btn-sm btn-outline-secondary" onclick="editPayout({{ payout.id }}, '{{ payout.person.short_name }}', {{ payout.amount }})">
-                    <i class="fas fa-edit"></i>
-                    </button> -->
-                </div>
-            </div>
-        {% else %}
-          <div class="text-center py-5">
-            <i class="fas fa-star fa-2x text-muted mb-3"></i>
-            <h5 class="text-muted">No payout recorded yet</h5>
-            <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#handDistributionModal">
-              <i class="fas fa-hand-holding-dollar me-2"></i>Add Payout
+    <!-- Tabs -->
+    <div class="tabs-container">
+        <div class="tab-navigation">
+            <button class="tab-button active" onclick="switchTab('overview')">
+                <i class="fas fa-chart-pie"></i>Overview
             </button>
-          </div>
-        {% endif %}
-      </div>
-
-      <!-- Contributions Section -->
-      <!-- <h3 class="mb-3">Contributions</h3> -->
-      <!-- Contributions Section -->
-        <div class="distribution-card contribution-section">
-        {% if contributions %}
-          {# Group contributions by person to avoid duplicate rows when multiple Contribution records exist #}
-          {% for group in contributions|groupby('person_id') %}
-            {% set person_id = group.grouper %}
-            {# Skip the payout person if present by wrapping body in an if (Jinja may not support 'continue') #}
-            {% if not (payout and person_id == payout.person_id) %}
-              {% set entries = group.list %}
-              {% set total_amount = entries|sum(attribute='amount') %}
-              {% set latest = entries|last %}
-              {# Determine paid status: ledger_map OR any contribution entry marked paid #}
-              {% set is_paid = ledger_map.get(person_id) or (entries|selectattr('paid')|list|length > 0) %}
-
-              <div class="distribution-row" style="cursor:pointer"
-                onclick="window.location.href='{{ url_for('ledger.person_ledger', person_id=person_id) }}'">
-                <div><div class="hand-number">{{ loop.index }}</div></div>
-                <div><div class="person-badge">{{ latest.person.short_name }}</div></div>
-                <div><span class="fw-bold fs-5 text-success">₹{{ "%.0f"|format(total_amount) }}</span></div>
-                <div><div class="fw-semibold">{{ latest.person.name }}</div></div>
-                <div>
-                  {% if ledger_map.get(person_id) %}
-                    <div class="fw-semibold">{{ ledger_map[person_id].date.strftime('%d/%m/%Y') }}</div>
-                    <small class="text-muted">{{ ledger_map[person_id].date.strftime('%I:%M %p') }}</small>
-                  {% else %}
-                    <div class="fw-semibold">{{ latest.date.strftime('%d/%m/%Y') }}</div>
-                    <small class="text-muted">{{ latest.date.strftime('%I:%M %p') }}</small>
-                  {% endif %}
-                </div>
-                <div>
-                  {% if is_paid %}
-                    <span class="badge bg-success">Paid</span>
-                  {% else %}
-                    <span class="badge bg-secondary">To be Paid</span>
-                  {% endif %}
-                </div>
-              </div>
-            {% endif %}
-          {% endfor %}
-        {% else %}
-            <div class="text-center py-5">
-            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-            <h5 class="text-muted">No contributions recorded yet</h5>
-            <!-- <button class="btn btn-primary"
-                    onclick="location.href='{{ url_for('payment.create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
-                <i class="fas fa-plus me-2"></i>Add First Contribution
-            </button> -->
-            </div>
-        {% endif %}
+            <button class="tab-button" onclick="switchTab('ledger')">
+                <i class="fas fa-book-open"></i>Ledger
+            </button>
+            <button class="tab-button" onclick="switchTab('statements')">
+                <i class="fas fa-file-alt"></i>Statements
+            </button>
         </div>
 
-    <!-- </div> -->
-  </div>
-</div>
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="account-summary">
+                <div class="balance-display">
+                    <div class="balance-label">Current Balance</div>
+                    <div class="balance-value {{ 'positive' if person.ledger_balance >= 0 else 'negative' }}">
+                        ₹{{ "%.0f"|format(person.ledger_balance) }}
+                    </div>
+                    <div class="balance-status">
+                        {{ 'Credit (Amount due)' if person.ledger_balance >= 0 else 'Debit (Amount owed)' }}
+                    </div>
+                </div>
 
-<!-- Hand Distribution Modal -->
-<div class="modal fade" id="handDistributionModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Distribute Hand #{{ hand.hand_number }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-list"></i></div>
+                        <div class="stat-label">Total Entries</div>
+                        <div class="stat-value">{{ entries|length }}</div>
+                    </div>
 
-      <form method="POST" action="{{ url_for('vc.distribute_hand', vc_id=vc.id) }}">
-        <input type="hidden" name="hand_id" value="{{ hand.id }}"> <!-- Hidden field for hand_id -->
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-minus-circle"></i></div>
+                        <div class="stat-label">Total Debits</div>
+                        <div class="stat-value" style="color: var(--danger);">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
+                    </div>
 
-        <div class="modal-body">
-            <!-- Winning Bid Price -->
-            <div class="mb-3">
-                <label for="bid_price" class="form-label">Winning Bid Price (₹)</label>
-                <input type="number" class="form-control" id="bid_price" name="bid_price"
-                    placeholder="Enter final bid amount" required step="0.01">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-plus-circle"></i></div>
+                        <div class="stat-label">Total Credits</div>
+                        <div class="stat-value" style="color: var(--success);">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-history"></i></div>
+                        <div class="stat-label">Last Updated</div>
+                        <div class="stat-value" style="font-size: 1rem;">{{ entries[0].date.strftime('%d/%m/%Y') if entries else 'N/A' }}</div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Winners -->
-            <div class="mb-3">
-                <label class="form-label">Select Winner(s)</label>
-                <select class="form-select" name="winners" multiple required id="winnerSelect">
-                    {% for member in members %}
-                    <option value="{{ member.id }}" 
-                            {% if not member_eligibility[member.id]['is_eligible'] %}
-                            disabled 
-                            title="{{ member.name }} has already won a hand."
-                            {% endif %}
-                            >
-                        {{ member.name }}
-                    </option>
+            <div class="recent-entries">
+                <h3 class="section-title"><i class="fas fa-clock"></i>Recent Entries</h3>
+
+                {% if entries %}
+                    {% for entry in entries[:5] %}
+                    <div class="entry-item">
+                        <div class="entry-info">
+                            <div class="entry-date">{{ entry.date.strftime('%d/%m/%Y %I:%M %p') }}</div>
+                            <div class="entry-narration">{{ entry.narration }}</div>
+                        </div>
+                        <div class="entry-amount">
+                            <div class="entry-amount-value">
+                                {% if entry.debit > 0 %}
+                                    <span style="color: var(--danger);">-₹{{ "%.0f"|format(entry.debit) }}</span>
+                                {% elif entry.credit > 0 %}
+                                    <span style="color: var(--success);">+₹{{ "%.0f"|format(entry.credit) }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="entry-balance {{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
+                                Bal: ₹{{ "%.0f"|format(entry.balance) }}
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
-                </select>
-                <!-- <div class="form-text">Hold CTRL (or tap multiple on mobile) to select up to 2 winners.</div> -->
-            </div>
 
-
-            <!-- Narration (optional) -->
-            <div class="mb-3">
-                <label for="narration" class="form-label">Narration</label>
-                <input type="text" class="form-control" id="narration" name="narration"
-                    placeholder="e.g. Hand distributed at auction">
+                    <a class="view-all-link" onclick="switchTab('ledger')">
+                        <i class="fas fa-arrow-right"></i>View All Entries
+                    </a>
+                {% else %}
+                    <div class="empty-state" style="padding: 32px 0;">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No entries yet</h3>
+                    </div>
+                {% endif %}
             </div>
         </div>
 
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Confirm Distribution</button>
+        <!-- Ledger Tab -->
+        <div id="ledger" class="tab-content">
+            <div class="ledger-filter">
+                <form method="GET" class="filter-row">
+                    <div class="filter-group">
+                        <label class="filter-label"><i class="fas fa-building"></i>VC</label>
+                        <select name="vc_id" class="filter-select">
+                            <option value="">All VCs</option>
+                            {% for vc in person.ledger_entries|map(attribute='vc')|unique|list %}
+                                {% if vc %}
+                                    <option value="{{ vc.id }}" {{ 'selected' if request.args.get('vc_id') == vc.id|string else '' }}>
+                                        VC {{ vc.vc_number }} - {{ vc.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label"><i class="fas fa-calendar-alt"></i>From</label>
+                        <input type="date" name="from_date" class="filter-input" value="{{ request.args.get('from_date', '') }}">
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label"><i class="fas fa-calendar-alt"></i>To</label>
+                        <input type="date" name="to_date" class="filter-input" value="{{ request.args.get('to_date', '') }}">
+                    </div>
+
+                    <button type="submit" class="filter-btn">
+                        <i class="fas fa-search"></i>Filter
+                    </button>
+                </form>
+            </div>
+
+            <!-- Card View (responsive) -->
+            <div class="ledger-cards">
+                {% if entries %}
+                    {% for entry in entries %}
+                    <div class="ledger-card">
+                        <div class="card-header">
+                            <div class="card-date">
+                                <div class="card-date-main">{{ entry.date.strftime('%d/%m/%Y') }}</div>
+                                <div class="card-time">{{ entry.date.strftime('%I:%M %p') }}</div>
+                            </div>
+                            <div class="card-narration">
+                                <div class="card-narration-text">{{ entry.narration }}</div>
+                                {% if entry.vc %}
+                                    <div class="card-vc-badge">VC {{ entry.vc.vc_number }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="card-amounts">
+                            <div class="card-amount-item">
+                                <div class="card-amount-label">Debit</div>
+                                <div class="card-amount-value" style="color: var(--danger);">
+                                    {% if entry.debit > 0 %}
+                                        ₹{{ "%.0f"|format(entry.debit) }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-amount-item">
+                                <div class="card-amount-label">Credit</div>
+                                <div class="card-amount-value" style="color: var(--success);">
+                                    {% if entry.credit > 0 %}
+                                        ₹{{ "%.0f"|format(entry.credit) }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-amount-item">
+                                <div class="card-amount-label">Balance</div>
+                                <div class="card-amount-value {{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
+                                    ₹{{ "%.0f"|format(entry.balance) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-book-open"></i>
+                        <h3>No ledger entries found</h3>
+                        <a href="{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>Add First Entry
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-    </form>
 
-
+        <!-- Statements Tab -->
+        <div id="statements" class="tab-content">
+            <div style="text-align: center; padding: 48px 24px; color: var(--text-muted);">
+                <i class="fas fa-file-pdf" style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;"></i>
+                <h3 style="color: var(--text); margin-bottom: 8px;">Export Statements</h3>
+                <p>Download account statements in PDF format</p>
+                <button class="action-btn btn-primary" style="margin-top: 16px;" onclick="exportLedger({{ person.id }})">
+                    <i class="fas fa-download"></i>Download PDF
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
-<!-- Legend and Notes -->
-<!-- <div class="row mt-4">
-  <div class="col-md-6">
-    <div class="alert alert-warning">
-      <h6 class="alert-heading">
-        <i class="fas fa-lightbulb me-2"></i>Legend
-      </h6>
-      <ul class="mb-0">
-        <li><strong>Yellow highlighted rows:</strong> Show the members who took the VC money for this hand</li>
-        <li><strong>Red amounts:</strong> Negative amounts (money taken out)</li>
-        <li><strong>Green amounts:</strong> Positive amounts (money paid in)</li>
-      </ul>
-    </div>
-  </div>
-  <div class="col-md-6">
-    <div class="alert alert-info">
-      <h6 class="alert-heading">
-        <i class="fas fa-info-circle me-2"></i>Quick Stats
-      </h6>
-      <ul class="mb-0">
-        <li><strong>Total Participants:</strong> {{ distributions|length }}</li>
-        <li>
-          <strong>VC Money Takers:</strong>
-          {% set takers = distributions|selectattr('is_vc_money_taken')|list %}
-          {% if takers %}
-            {% for payout in vc_payouts %}
-              <div class="person-badge">{{ payout.person.short_name }}</div>
-              <div class="amount">{{ payout.amount }}</div>
-            {% endfor %}
-          {% else %}
-            None
-          {% endif %}
-        </li>
-        <li><strong>Payments Made:</strong> {{ distributions|rejectattr('is_vc_money_taken')|list|length }}</li>
-      </ul>
-    </div>
-  </div>
-</div> -->
-
-<!-- Action Buttons -->
-<!-- <div class="row mt-4">
-  <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h6 class="mb-0">
-          <i class="fas fa-tools me-2"></i>Hand Management Actions
-        </h6>
-      </div>
-      <div class="card-body">
-        <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-success"
-                  onclick="location.href='{{ url_for('payment.create_payment') }}?vc_id={{ vc.id }}&hand_id={{ hand.id }}'">
-            <i class="fas fa-plus me-2"></i>Add Payment
-          </button>
-          <button class="btn btn-info"
-                  onclick="location.href='{{ url_for('ledger.create_ledger_entry') }}?vc_id={{ vc.id }}'">
-            <i class="fas fa-book me-2"></i>Add Ledger Entry
-          </button>
-          <button class="btn btn-warning" onclick="editHandDetails({{ hand.id }})">
-            <i class="fas fa-edit me-2"></i>Edit Hand Details
-          </button>
-          <button class="btn btn-primary" onclick="sendReminders({{ hand.id }})">
-            <i class="fas fa-bell me-2"></i>Send Reminders
-          </button>
-          <button class="btn btn-outline-secondary" onclick="exportHandData({{ hand.id }})">
-            <i class="fas fa-download me-2"></i>Export Data
-          </button>
-          {% if not payout_recorded %}
-            <button type="button" class="btn btn-dark"
-                    data-bs-toggle="modal" data-bs-target="#handDistributionModal">
-              <i class="fas fa-hand-holding-dollar me-2"></i>Distribute Hand
+    <!-- Actions -->
+    <div class="actions-section">
+        <div class="actions-grid">
+            <a href="{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}" class="action-btn btn-success">
+                <i class="fas fa-plus"></i>Add Entry
+            </a>
+            <a href="{{ url_for('person.edit_person', id=person.id) }}" class="action-btn btn-info">
+                <i class="fas fa-edit"></i>Edit Details
+            </a>
+            <button class="action-btn btn-primary" onclick="exportLedger({{ person.id }})">
+                <i class="fas fa-download"></i>Export
             </button>
-          {% endif %}
+            <button class="action-btn btn-warning" onclick="closeLedger({{ person.id }})">
+                <i class="fas fa-lock"></i>Close Ledger
+            </button>
         </div>
-      </div>
     </div>
-  </div>
-</div> -->
-<!-- Edit Payout Modal -->
-<div class="modal fade" id="editPayoutModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="editPayoutForm" method="POST" action="{{ url_for('hand.edit_payout', vc_id=vc.id, hand_id=hand.id) }}">
-        <div class="modal-header">
-          <h5 class="modal-title">Edit Payout</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" name="payout_id" id="editPayoutId">
-
-          <div class="mb-3">
-            <label class="form-label">Winner</label>
-            <select name="person_id" id="editPayoutPerson" class="form-select">
-              {% for member in vc.members %}
-                <option value="{{ member.id }}">{{ member.name }} ({{ member.short_name }})</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Winning Bid Price</label>
-            <input type="number" step="0.01" name="amount" id="editPayoutAmount" class="form-control">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
 </div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const distributeBtn = document.getElementById('distributeBtn');
-  const distributeForm = document.getElementById('handDistributionForm');
-  const errorMessage = document.getElementById('errorMessage');
-  const firstWinnerSelect = document.getElementById('firstWinner');
-  const modal = new bootstrap.Modal(document.getElementById('handDistributionModal'));
-
-  // Handle form submission
-  distributeBtn.addEventListener('click', function() {
-    const firstWinnerId = document.getElementById('firstWinner').value;
-    const secondWinnerId = document.getElementById('secondWinner').value;
-    const handNumber = document.querySelector('input[name="hand_number"]').value;
-
-    if (!firstWinnerId) {
-      errorMessage.style.display = 'block';
-      errorMessage.textContent = 'Please select a first winner.';
-      return;
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        event.target.closest('.tab-button').classList.add('active');
     }
 
-    const formData = new FormData();
-    formData.append('first_winner', firstWinnerId);
-    formData.append('hand_number', handNumber);
-    if (secondWinnerId) {
-      formData.append('second_winner', secondWinnerId);
+    function exportLedger(personId) {
+        const params = new URLSearchParams(window.location.search);
+        window.open(`/ledger/${personId}/pdf?${params.toString()}`, '_blank');
     }
 
-    fetch('/vc/{{ vc.id }}/distribute-hand', {
-      method: 'POST',
-      body: formData,
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        alert(data.message);
-        modal.hide();
-        location.reload();
-      } else {
-        errorMessage.style.display = 'block';
-        errorMessage.textContent = data.message;
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      errorMessage.style.display = 'block';
-      errorMessage.textContent = 'An unexpected error occurred. Please try again.';
+    function closeLedger(personId) {
+        if (confirm('Are you sure? This action cannot be undone.')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/ledger/${personId}/close`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterForm = document.querySelector('.ledger-filter form');
+        if (filterForm) {
+            filterForm.addEventListener('submit', function(e) {
+                const from = this.querySelector('[name="from_date"]').value;
+                const to = this.querySelector('[name="to_date"]').value;
+                if (from && to && to < from) {
+                    e.preventDefault();
+                    alert('To Date cannot be earlier than From Date.');
+                }
+            });
+        }
     });
-  });
-});
-
-function editHandDetails(handId) {
-  alert('Hand editing feature coming soon!');
-}
-
-function sendReminders(handId) {
-  if (confirm('Send payment reminders to all participants?')) {
-    alert('Reminders sent successfully!');
-  }
-}
-
-function exportHandData(handId) {
-  window.open(`/hand/${handId}/export`, '_blank');
-}
-
-function editPayout(id, shortName, amount) {
-  document.getElementById("editPayoutId").value = id;
-  document.getElementById("editPayoutAmount").value = amount;
-  let select = document.getElementById("editPayoutPerson");
-  for (let i = 0; i < select.options.length; i++) {
-    if (select.options[i].text.includes(shortName)) {
-      select.selectedIndex = i;
-      break;
-    }
-  }
-  new bootstrap.Modal(document.getElementById("editPayoutModal")).show();
-}
-
-// Add animations
-document.addEventListener('DOMContentLoaded', function() {
-  const distributionRows = document.querySelectorAll('.distribution-row');
-  distributionRows.forEach((row, index) => {
-    row.style.animationDelay = `${index * 0.1}s`;
-    row.classList.add('fade-in');
-  });
-
-document.getElementById("winnerSelect").addEventListener("change", function () {
-    let selected = Array.from(this.selectedOptions);
-    if (selected.length > 1) {
-      // Deselect the last one
-      selected[selected.length - 1].selected = false;
-      alert("You can select only 1 winners.");
-    }
-  });
-
-});
 </script>
 {% endblock %}

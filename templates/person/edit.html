@@ -1,61 +1,363 @@
 {% extends "base.html" %}
 
-{% block title %}Edit {{ person.name }}{% endblock %}
+{% block title %}Edit {{ person.name }} - VC Manager{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-6 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-user-edit me-2"></i>Edit Person: {{ person.name }}
-                </h5>
+
+<style>
+/* ═══ PAGE LAYOUT ═══ */
+.edit-wrap {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px 16px 60px;
+    min-height: calc(100vh - 64px);
+}
+
+/* ═══ CARD ═══ */
+.edit-card {
+    width: 100%;
+    max-width: 520px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    animation: slideUp 0.45s cubic-bezier(.22,1,.36,1) both;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ CARD HEADER ═══ */
+.edit-header {
+    background: var(--grad-header);
+    padding: 28px 36px 24px;
+    position: relative;
+    overflow: hidden;
+}
+.edit-header::before {
+    content: '';
+    position: absolute;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    top: -50px; right: -40px;
+    pointer-events: none;
+}
+.edit-header::after {
+    content: '';
+    position: absolute;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    bottom: -20px; left: 24px;
+    pointer-events: none;
+}
+
+.header-icon {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; color: #fff;
+    margin-bottom: 14px;
+    backdrop-filter: blur(4px);
+}
+
+.edit-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.2rem, 2.5vw, 1.55rem);
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.edit-subtitle {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.65);
+}
+
+/* ═══ FORM BODY ═══ */
+.edit-body {
+    padding: 32px 36px 36px;
+}
+
+/* ═══ FIELD GROUPS ═══ */
+.field-group {
+    margin-bottom: 20px;
+    animation: fadeField 0.4s ease both;
+}
+.field-group:nth-child(1) { animation-delay: 0.06s; }
+.field-group:nth-child(2) { animation-delay: 0.11s; }
+.field-group:nth-child(3) { animation-delay: 0.16s; }
+.field-group:nth-child(4) { animation-delay: 0.21s; }
+
+@keyframes fadeField {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.field-optional {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    font-weight: 500;
+}
+
+/* ═══════════════════════════════════════
+   INPUT TEXT COLOR
+   Dark mode  → white (#e8edf5)
+   Light mode → slate gray (#374151)
+═══════════════════════════════════════ */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    color: #e8edf5;
+    caret-color: #4fc3f7;          /* cursor matches accent */
+}
+
+[data-theme="light"] .form-control,
+[data-theme="light"] .form-select {
+    color: #374151;
+    caret-color: #2563eb;
+}
+
+/* Keep autofill readable in both themes */
+[data-theme="dark"] .form-control:-webkit-autofill,
+[data-theme="dark"] .form-control:-webkit-autofill:focus {
+    -webkit-text-fill-color: #e8edf5;
+    -webkit-box-shadow: 0 0 0 1000px #1d2c40 inset;
+    transition: background-color 5000s;
+}
+[data-theme="light"] .form-control:-webkit-autofill,
+[data-theme="light"] .form-control:-webkit-autofill:focus {
+    -webkit-text-fill-color: #374151;
+    -webkit-box-shadow: 0 0 0 1000px #f8fafd inset;
+    transition: background-color 5000s;
+}
+
+/* ═══════════════════════════════════════
+   VALIDATION STATES
+   Invalid border + shake animation
+═══════════════════════════════════════ */
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: var(--danger) !important;
+    box-shadow: 0 0 0 4px rgba(255,107,107,0.13) !important;
+    background-image: none;        /* remove Bootstrap's icon */
+    padding-right: 14px;           /* restore normal padding */
+    animation: fieldShake 0.38s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes fieldShake {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-5px); }
+    40%      { transform: translateX(5px); }
+    60%      { transform: translateX(-3px); }
+    80%      { transform: translateX(3px); }
+}
+
+/* ── Error message pill ── */
+.field-error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 7px;
+    padding: 7px 12px;
+    background: var(--danger-bg);
+    border: 1px solid rgba(255,107,107,0.25);
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--danger);
+    animation: errorFade 0.3s ease both;
+}
+
+@keyframes errorFade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.field-error i {
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+
+/* ═══ FOOTER ACTIONS ═══ */
+.edit-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    animation: fadeField 0.4s 0.28s ease both;
+}
+
+.btn-back {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 11px 20px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem; font-weight: 600;
+    text-decoration: none;
+    transition: background var(--transition), border-color var(--transition),
+                color var(--transition), transform 0.15s;
+}
+.btn-back:hover {
+    background: var(--surface3);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateX(-2px);
+}
+
+.btn-save {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 11px 28px;
+    border-radius: var(--radius-md);
+    border: none;
+    background: var(--grad-header);
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.925rem; font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 16px var(--accent-glow);
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    letter-spacing: 0.02em;
+}
+.btn-save:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--accent-glow);
+}
+.btn-save:active { transform: translateY(0); }
+
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 520px) {
+    .edit-header { padding: 22px 22px 20px; }
+    .edit-body   { padding: 24px 22px 28px; }
+    .edit-actions { flex-direction: column-reverse; }
+    .btn-back, .btn-save { width: 100%; justify-content: center; }
+}
+</style>
+
+<div class="edit-wrap">
+    <div class="edit-card">
+
+        <!-- Header -->
+        <div class="edit-header">
+            <div class="header-icon" aria-hidden="true">
+                <i class="fas fa-user-edit"></i>
             </div>
-            <div class="card-body">
-                <form method="POST">
-                    {{ form.hidden_tag() }}
-                    
-                    <div class="mb-3">
-                        {{ form.name.label(class="form-label") }}
-                        {{ form.name(class="form-control") }}
-                        {% for error in form.name.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.short_name.label(class="form-label") }}
-                        {{ form.short_name(class="form-control") }}
-                        {% for error in form.short_name.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.phone.label(class="form-label") }}
-                        {{ form.phone(class="form-control") }}
-                        {% for error in form.phone.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.phone2.label(class="form-label") }}
-                        {{ form.phone2(class="form-control") }}
-                        {% for error in form.phone2.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('person.persons') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-1"></i>Back
-                        </a>
-                        {{ form.submit(class="btn btn-primary") }}
-                    </div>
-                </form>
-            </div>
+            <h1 class="edit-title">Edit Person</h1>
+            <p class="edit-subtitle">Updating details for <strong style="color:#fff;">{{ person.name }}</strong></p>
         </div>
+
+        <!-- Form -->
+        <div class="edit-body">
+            <form method="POST" novalidate aria-label="Edit person form">
+                {{ form.hidden_tag() }}
+
+                <!-- Full Name -->
+                <div class="field-group">
+                    {{ form.name.label(class="form-label") }}
+                    {{ form.name(
+                        class="form-control" + (" is-invalid" if form.name.errors else ""),
+                        placeholder="Full name",
+                        autocomplete="name",
+                        **{"aria-required": "true",
+                           "aria-invalid": "true" if form.name.errors else "false",
+                           "aria-describedby": "name-error" if form.name.errors else ""}) }}
+                    {% for error in form.name.errors %}
+                        <div class="field-error" id="name-error" role="alert">
+                            <i class="fas fa-circle-exclamation"></i>{{ error }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Short Name -->
+                <div class="field-group">
+                    <label class="form-label">
+                        {{ form.short_name.label.text }}
+                        <span class="field-optional">optional</span>
+                    </label>
+                    {{ form.short_name(
+                        class="form-control" + (" is-invalid" if form.short_name.errors else ""),
+                        placeholder="Nickname or abbreviation",
+                        **{"aria-invalid": "true" if form.short_name.errors else "false",
+                           "aria-describedby": "short-name-error" if form.short_name.errors else ""}) }}
+                    {% for error in form.short_name.errors %}
+                        <div class="field-error" id="short-name-error" role="alert">
+                            <i class="fas fa-circle-exclamation"></i>{{ error }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Primary Phone -->
+                <div class="field-group">
+                    {{ form.phone.label(class="form-label") }}
+                    {{ form.phone(
+                        class="form-control" + (" is-invalid" if form.phone.errors else ""),
+                        placeholder="+91 00000 00000",
+                        autocomplete="tel",
+                        inputmode="tel",
+                        **{"aria-required": "true",
+                           "aria-invalid": "true" if form.phone.errors else "false",
+                           "aria-describedby": "phone-error" if form.phone.errors else ""}) }}
+                    {% for error in form.phone.errors %}
+                        <div class="field-error" id="phone-error" role="alert">
+                            <i class="fas fa-circle-exclamation"></i>{{ error }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Secondary Phone -->
+                <div class="field-group">
+                    <label class="form-label">
+                        {{ form.phone2.label.text }}
+                        <span class="field-optional">optional</span>
+                    </label>
+                    {{ form.phone2(
+                        class="form-control" + (" is-invalid" if form.phone2.errors else ""),
+                        placeholder="Alternate number",
+                        autocomplete="tel",
+                        inputmode="tel",
+                        **{"aria-invalid": "true" if form.phone2.errors else "false",
+                           "aria-describedby": "phone2-error" if form.phone2.errors else ""}) }}
+                    {% for error in form.phone2.errors %}
+                        <div class="field-error" id="phone2-error" role="alert">
+                            <i class="fas fa-circle-exclamation"></i>{{ error }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Actions -->
+                <div class="edit-actions">
+                    <a href="{{ url_for('person.persons') }}" class="btn-back">
+                        <i class="fas fa-arrow-left"></i>Back
+                    </a>
+                    {{ form.submit(class="btn-save") }}
+                </div>
+
+            </form>
+        </div>
+
     </div>
 </div>
+
 {% endblock %}
