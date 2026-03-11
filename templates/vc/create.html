@@ -1,22 +1,136 @@
 {% extends "base.html" %}
-
 {% block title %}Create VC{% endblock %}
 
 {% block content %}
+<style>
+.member-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+}
+
+/* Each member tile */
+.member-tile {
+    position: relative;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface2);
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.member-tile:hover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+}
+.member-tile.selected {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+}
+
+.member-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Slot badge — right side of tile */
+.slot-badge {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.member-tile.selected .slot-badge {
+    display: flex;
+}
+
+.slot-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+.slot-btn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+.slot-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.slot-count {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 16px;
+    text-align: center;
+}
+
+/* Slot summary bar */
+.slot-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: var(--surface2);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+.slot-summary strong {
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+}
+.slot-mismatch { color: var(--danger) !important; }
+.slot-match    { color: var(--success) !important; }
+
+/* Search */
+#memberSearch {
+    max-width: 340px;
+}
+</style>
 
 <div class="row">
     <div class="col-md-10 mx-auto">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-plus me-2"></i>Create New VC
-                </h5>
+                <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Create New VC</h5>
             </div>
             <div class="card-body">
-                <form method="POST">
-                     {{ form.hidden_tag() }}
+                <form method="POST" id="createVCForm">
+                    {{ form.hidden_tag() }}
 
-                    <!-- Display auto-generated VC Number -->
+                    <!-- Hidden field carries slot JSON -->
+                    <input type="hidden" name="member_slots" id="memberSlotsInput" value="{}">
+
+                    <!-- VC Number + Name -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">VC Number</label>
@@ -31,9 +145,7 @@
                         </div>
                     </div>
 
-
-
-                    <!-- Name -->
+                    <!-- Start Date + Tenure -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             {{ form.start_date.label(class="form-label") }}
@@ -48,14 +160,10 @@
                             {% for error in form.tenure.errors %}
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
-                            <!-- <small class="text-muted">Number of hands will be created automatically</small>
-                            <div class="text-warning small mt-1" id="tenureWarning" style="display:none;">
-                                Number of selected members must be equal to the tenure.
-                            </div> -->
                         </div>
                     </div>
 
-                    <!-- Amount & Min Interest -->
+                    <!-- Amount + Min Interest -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             {{ form.amount.label(class="form-label") }}
@@ -79,42 +187,52 @@
                         </div>
                     </div>
 
-                    <!-- Narration -->
-                    <!-- <div class="mb-3">
-                        {{ form.narration.label(class="form-label") }}
-                        {{ form.narration(class="form-control", rows="3") }}
-                        {% for error in form.narration.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div> -->
-
-                    <!-- Members Selection with Search and Show/Hide -->
+                    <!-- Members -->
                     <div class="mb-3">
-                        {{ form.members.label(class="form-label fw-bold") }}
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-users me-1"></i>Members
+                            <span style="font-weight:400;color:var(--text-muted);font-size:0.8rem;">
+                                — click to select, use +/– to set slots
+                            </span>
+                        </label>
 
-                        <!-- Search input -->
-                        <input type="text" class="form-control mb-2" id="memberSearch" placeholder="Search members by name">
+                        <input type="text" class="form-control mb-3"
+                               id="memberSearch" placeholder="Search members…">
 
-                        <div class="row" id="membersContainer">
+                        <div class="member-grid" id="memberGrid">
                             {% for subfield in form.members %}
-                                <div class="col-md-4 col-sm-6 mb-2 member-item {% if loop.index > 5 %}d-none extra-member{% endif %}">
-                                    <div class="form-check">
-                                        {{ subfield(class="form-check-input") }}
-                                        <label class="form-check-label">{{ subfield.label.text }}</label>
-                                    </div>
+                            <div class="member-tile"
+                                 data-id="{{ subfield.data }}"
+                                 data-name="{{ subfield.label.text }}"
+                                 onclick="toggleMember(event, this)">
+
+                                <!-- Hidden checkbox for form submission -->
+                                {{ subfield(class="d-none member-checkbox") }}
+
+                                <span class="member-name">{{ subfield.label.text }}</span>
+
+                                <div class="slot-badge" onclick="event.stopPropagation()">
+                                    <button type="button" class="slot-btn slot-dec"
+                                            onclick="changeSlots(this, -1)" disabled>–</button>
+                                    <span class="slot-count">1</span>
+                                    <button type="button" class="slot-btn slot-inc"
+                                            onclick="changeSlots(this, +1)">+</button>
                                 </div>
+                            </div>
                             {% endfor %}
                         </div>
 
-                        {% if form.members.choices|length > 6 %}
-                        <div class="mb-2">
-                            <button type="button" class="btn btn-link p-0" id="toggleMembers">See All</button>
+                        <!-- Live summary -->
+                        <div class="slot-summary" id="slotSummary">
+                            <i class="fas fa-info-circle"></i>
+                            <span id="summaryText">No members selected.</span>
                         </div>
-                        {% endif %}
 
-                        <!-- <small class="text-muted">Select between 10 and 25 members</small> -->
                         {% for error in form.members.errors %}
-                            <div class="text-danger small">{{ error }}</div>
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                        {% for error in form.tenure.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
                         {% endfor %}
                     </div>
 
@@ -125,81 +243,128 @@
                         </a>
                         {{ form.submit(class="btn btn-primary") }}
                     </div>
-
                 </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- JS for live search + toggle -->
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    const searchInput = document.getElementById("memberSearch");
-    const members = document.querySelectorAll(".member-item");
-    const toggleBtn = document.getElementById("toggleMembers");
-    const tenureInput = document.getElementById("tenureInput");
-    const memberCheckboxes = document.querySelectorAll(".member-item input[type='checkbox']");
-    const warning = document.getElementById("tenureWarning");
-    const form = document.querySelector("form");
-    let showingAll = false;
+// Map: person_id (string) → slot count
+const slotMap = {};
 
-    function validateTenure() {
-        const tenure = parseInt(tenureInput.value) || 0;
-        let selectedCount = 0;
-        memberCheckboxes.forEach(cb => { if(cb.checked) selectedCount++; });
+function toggleMember(event, tile) {
+    // Ignore clicks on the +/– buttons (they call stopPropagation)
+    const checkbox = tile.querySelector('.member-checkbox');
+    const id       = tile.dataset.id;
 
-        if (selectedCount !== tenure) {
-            warning.style.display = "block";
-            return false;
+    if (tile.classList.contains('selected')) {
+        // Deselect
+        tile.classList.remove('selected');
+        checkbox.checked = false;
+        tile.querySelector('.slot-count').textContent = '1';
+        tile.querySelector('.slot-dec').disabled = true;
+        delete slotMap[id];
+    } else {
+        // Select with 1 slot
+        tile.classList.add('selected');
+        checkbox.checked = true;
+        slotMap[id] = 1;
+    }
+
+    syncHiddenField();
+    updateSummary();
+}
+
+function changeSlots(btn, delta) {
+    const tile  = btn.closest('.member-tile');
+    const id    = tile.dataset.id;
+    const span  = tile.querySelector('.slot-count');
+    const decBtn = tile.querySelector('.slot-dec');
+
+    let count = parseInt(span.textContent) + delta;
+    if (count < 1) count = 1;
+
+    span.textContent    = count;
+    slotMap[id]         = count;
+    decBtn.disabled     = (count <= 1);
+
+    syncHiddenField();
+    updateSummary();
+}
+
+function syncHiddenField() {
+    document.getElementById('memberSlotsInput').value = JSON.stringify(slotMap);
+}
+
+function updateSummary() {
+    const tenure    = parseInt(document.getElementById('tenureInput').value) || 0;
+    const totalSlots = Object.values(slotMap).reduce((a, b) => a + b, 0);
+    const members   = Object.keys(slotMap).length;
+    const txt       = document.getElementById('summaryText');
+
+    if (members === 0) {
+        txt.innerHTML = 'No members selected.';
+        txt.className = '';
+        return;
+    }
+
+    let parts = Object.entries(slotMap).map(([id, s]) => {
+        const tile = document.querySelector(`.member-tile[data-id="${id}"]`);
+        const name = tile ? tile.dataset.name : `#${id}`;
+        return `${name}${s > 1 ? ` ×${s}` : ''}`;
+    });
+
+    let matchClass = '';
+    let matchNote  = '';
+    if (tenure > 0) {
+        if (totalSlots === tenure) {
+            matchClass = 'slot-match';
+            matchNote  = ' ✓ matches tenure';
         } else {
-            warning.style.display = "none";
-            return true;
+            matchClass = 'slot-mismatch';
+            matchNote  = ` ✗ need ${tenure} total (${totalSlots > tenure ? totalSlots - tenure + ' too many' : tenure - totalSlots + ' more'})`;
         }
     }
 
-    // Check on change of tenure or member selection
-    tenureInput.addEventListener("input", validateTenure);
-    memberCheckboxes.forEach(cb => cb.addEventListener("change", validateTenure));
+    txt.innerHTML = `<strong>${totalSlots}</strong> total slot${totalSlots !== 1 ? 's' : ''}: ${parts.join(', ')}<span class="${matchClass}">${matchNote}</span>`;
+}
 
-    // Prevent form submission if invalid
-    form.addEventListener("submit", function(e) {
-        if(!validateTenure()) {
-            e.preventDefault();
-            alert("Please make sure the number of selected members equals the tenure.");
+// Re-run summary when tenure changes
+document.getElementById('tenureInput').addEventListener('input', updateSummary);
+
+// Member search
+document.getElementById('memberSearch').addEventListener('input', function () {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.member-tile').forEach(tile => {
+        tile.style.display = tile.dataset.name.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+
+// Restore state on validation error (form re-render with data)
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.member-checkbox:checked').forEach(cb => {
+        const tile = cb.closest('.member-tile');
+        if (tile) {
+            tile.classList.add('selected');
+            slotMap[tile.dataset.id] = 1;
         }
     });
 
-    // Live search
-    searchInput.addEventListener("input", function() {
-        const filter = searchInput.value.toLowerCase();
-        members.forEach(function(member) {
-            const label = member.querySelector("label").innerText.toLowerCase();
-            if(label.includes(filter)) {
-                member.style.display = "block";
-            } else {
-                member.style.display = "none";
+    // Restore slots from hidden field if present (re-render after failed submit)
+    try {
+        const saved = JSON.parse(document.getElementById('memberSlotsInput').value || '{}');
+        Object.entries(saved).forEach(([id, s]) => {
+            const tile = document.querySelector(`.member-tile[data-id="${id}"]`);
+            if (tile && tile.classList.contains('selected')) {
+                slotMap[id] = s;
+                tile.querySelector('.slot-count').textContent = s;
+                tile.querySelector('.slot-dec').disabled = (s <= 1);
             }
         });
-    });
+    } catch (e) {}
 
-    // Show/Hide extra members
-    if(toggleBtn) {
-        toggleBtn.addEventListener("click", function() {
-            const extraMembers = document.querySelectorAll(".extra-member");
-            showingAll = !showingAll;
-            extraMembers.forEach(function(member) {
-                if(showingAll) {
-                    member.classList.remove("d-none");
-                } else {
-                    member.classList.add("d-none");
-                }
-            });
-            toggleBtn.innerText = showingAll ? "Show Less" : "See All";
-        });
-    }
+    updateSummary();
 });
 </script>
-
-
 {% endblock %}

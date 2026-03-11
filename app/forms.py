@@ -1,6 +1,7 @@
 """Forms for VC-Manager application"""
+import json
 from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, TextAreaField, SelectField, DateTimeField, SubmitField, IntegerField, DateField
+from wtforms import HiddenField, StringField, FloatField, TextAreaField, SelectField, DateTimeField, SubmitField, IntegerField, DateField
 from wtforms import SelectMultipleField
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import DataRequired, Email, Optional, NumberRange, ValidationError
@@ -11,26 +12,30 @@ class MultiCheckboxField(SelectMultipleField):
     option_widget = CheckboxInput()
 
 class VCForm(FlaskForm):
-    # vc_number is now automated
-    name = StringField("Name", validators=[DataRequired()])
-    start_date = DateField("Start Date", format='%Y-%m-%d', validators=[DataRequired()], default=datetime.now())
-    amount = FloatField("Amount", validators=[DataRequired(), NumberRange(min=1)])
-    min_interest = FloatField("Minimum Interest", validators=[DataRequired(), NumberRange(min=0)])
-    tenure = IntegerField("Tenure", validators=[DataRequired()])
-    narration = TextAreaField("Narration")
+    name         = StringField("Name",           validators=[DataRequired()])
+    start_date   = DateField("Start Date",       format='%Y-%m-%d', validators=[DataRequired()], default=datetime.now)
+    amount       = FloatField("Amount",          validators=[DataRequired(), NumberRange(min=1)])
+    min_interest = FloatField("Minimum Interest",validators=[DataRequired(), NumberRange(min=0)])
+    tenure       = IntegerField("Tenure",        validators=[DataRequired()])
+    narration    = TextAreaField("Narration")
+    members      = MultiCheckboxField("Members", coerce=int)
 
-    # Use the custom MultiCheckboxField
-    members = MultiCheckboxField("Members", coerce=int)
+    # Hidden field carries slot counts as JSON: {"<person_id>": <slots>, ...}
+    member_slots = HiddenField("Member Slots", default="{}")
 
     submit = SubmitField("Create")
 
-    def validate_tenure(self, field):
-        if len(self.members.data) != field.data:
-            raise ValidationError("Tenure (number of hands) must be equal to the number of members.")
+    def _get_slot_map(self):
+        """Parse member_slots JSON → {person_id(int): slots(int)}."""
+        try:
+            raw = json.loads(self.member_slots.data or '{}')
+            return {int(k): max(1, int(v)) for k, v in raw.items()}
+        except (ValueError, TypeError):
+            return {}
 
     def validate_members(self, field):
         if not field.data or len(field.data) < 1:
-            raise ValidationError("Please select at least one member")
+            raise ValidationError("Please select at least one member.")
 
 class PersonForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])

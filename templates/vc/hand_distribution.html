@@ -1,682 +1,583 @@
 {% extends "base.html" %}
 
-{% block title %}{{ person.name }} - Personal Ledger{% endblock %}
+{% block title %}VC {{ vc.vc_number }} - Hand {{ hand.hand_number }} Distribution{% endblock %}
 
 {% block content %}
 <style>
-    html { font-size: var(--fs-base); }
-    body { font-size: var(--fs-base); }
+.page-header {
+    margin-bottom: 32px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
 
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 24px;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-    }
+.page-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 700;
+    background: var(--grad-success);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+}
 
-    .page-title {
-        font-size: 2rem;
-        font-weight: 700;
-        background: var(--grad-header);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
+.page-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.9rem; color: var(--text-muted); }
+.vc-badge  { background: var(--grad-header); color: #fff; padding: 4px 12px; border-radius: 30px; font-size: 0.8rem; font-weight: 600; }
 
-    .page-title i { color: var(--accent); }
+.section-label {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-muted);
+}
+.section-label i { color: var(--accent); font-size: 0.8rem; }
 
-    .header-subtitle {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        color: var(--text-muted);
-        font-size: 1rem;
-    }
+/* Payout rows */
+.payout-row {
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 52px 90px 1fr auto 140px;
+    gap: 16px;
+    align-items: center;
+    background: linear-gradient(135deg, var(--warning-bg), transparent);
+    border-left: 4px solid var(--warning);
+    transition: background var(--transition);
+    cursor: pointer;
+}
+.payout-row:hover { background: var(--warning-bg); }
+.payout-row.operator-row { background: linear-gradient(135deg, rgba(99,102,241,0.08), transparent); border-left-color: #6366f1; }
+.payout-row.operator-row:hover { background: rgba(99,102,241,0.12); }
 
-    .person-badge {
-        background: var(--grad-header);
-        color: #fff;
-        padding: 6px 12px;
-        border-radius: var(--radius-sm);
-        font-weight: 600;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
+/* Contribution rows */
+.contrib-row {
+    padding: 16px 24px;
+    display: grid;
+    grid-template-columns: 52px 90px 1fr 160px 140px;
+    gap: 16px;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    transition: background var(--transition);
+    cursor: pointer;
+}
+.contrib-row:hover { background: var(--surface2); }
+.contrib-row:last-child { border-bottom: none; }
 
-    .page-actions {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
+.row-index {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface3); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace; font-size: 0.78rem; font-weight: 700;
+    color: var(--text-muted); flex-shrink: 0;
+}
+.payout-row  .row-index { background: var(--grad-header); color: #fff; border: none; }
+.operator-row .row-index { background: #6366f1; color: #fff; border: none; }
 
-    .page-actions .btn {
-        padding: 10px 18px;
-        font-size: 0.95rem;
-        border-radius: var(--radius-md);
-        font-weight: 600;
-        transition: all 0.28s cubic-bezier(.4,0,.2,1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        cursor: pointer;
-    }
+.person-chip {
+    background: var(--grad-header); color: #fff;
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 0.8rem; font-weight: 700;
+    text-align: center; white-space: nowrap;
+}
+.person-chip.operator-chip { background: #6366f1; }
 
-    .page-actions .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-    .btn-secondary { background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); }
-    .btn-success { background: var(--success); color: #fff; }
+.amount-display { font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 700; }
+.amount-display.payout-amt   { color: var(--danger); }
+.amount-display.contrib-amt  { color: var(--success); }
+.amount-display.operator-amt { color: #6366f1; }
 
-    /* Tabs */
-    .tabs-container {
-        background: var(--surface);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-md);
-        overflow: hidden;
-        margin-bottom: 24px;
-    }
+.person-name { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+.person-sub  { font-size: 0.75rem; color: var(--text-muted); }
 
-    .tab-navigation {
-        display: flex;
-        background: var(--surface2);
-        border-bottom: 2px solid var(--border);
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
+.date-cell .date-main { font-weight: 600; font-size: 0.85rem; color: var(--text); }
+.date-cell .date-time  { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
 
-    .tab-button {
-        flex: 1;
-        min-width: 140px;
-        padding: 14px 16px;
-        background: transparent;
-        color: var(--text-muted);
-        border: none;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.28s cubic-bezier(.4,0,.2,1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        border-bottom: 3px solid transparent;
-        white-space: nowrap;
-    }
+.pay-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 30px;
+    font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+}
+.pay-badge.paid     { background: var(--success-bg); color: var(--success); }
+.pay-badge.pending  { background: var(--surface3);   color: var(--text-muted); }
+.pay-badge.payout   { background: var(--warning-bg); color: var(--warning); }
+.pay-badge.operator { background: rgba(99,102,241,0.15); color: #6366f1; }
 
-    .tab-button:hover { color: var(--text); background: var(--surface); }
-    .tab-button.active { color: #fff; background: var(--grad-header); border-bottom: 3px solid var(--accent); }
+.empty-state { padding: 48px 24px; text-align: center; color: var(--text-muted); }
+.empty-state i  { font-size: 2.5rem; margin-bottom: 14px; opacity: 0.4; display: block; }
+.empty-state h5 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); }
 
-    .tab-content {
-        display: none;
-        padding: 28px;
-        animation: fadeIn 0.3s ease-in;
-    }
+.dist-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+    box-shadow: var(--shadow-md); margin-bottom: 20px;
+}
 
-    .tab-content.active { display: block; }
+/* Winner rows inside modals */
+.winner-row {
+    display: grid; grid-template-columns: 1fr 160px 36px;
+    gap: 10px; align-items: center;
+    margin-bottom: 10px; padding: 10px 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+.btn-remove-winner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: none; background: var(--danger); color: #fff;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; flex-shrink: 0; transition: opacity 0.2s;
+}
+.btn-remove-winner:hover { opacity: 0.8; }
 
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
+.btn-add-winner {
+    border: 1.5px dashed var(--accent); background: transparent; color: var(--accent);
+    border-radius: var(--radius-md); padding: 8px 14px; cursor: pointer;
+    font-weight: 600; font-size: 0.85rem; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+}
+.btn-add-winner:hover { background: var(--accent); color: #fff; }
 
-    /* Overview */
-    .account-summary {
-        background: var(--surface2);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 24px;
-        margin-bottom: 24px;
-    }
+.payout-type-toggle { display: flex; gap: 10px; margin-bottom: 20px; }
+.payout-type-btn {
+    flex: 1; padding: 10px 14px; border-radius: var(--radius-md);
+    border: 2px solid var(--border); background: var(--surface2);
+    color: var(--text-muted); font-weight: 600; font-size: 0.9rem;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.payout-type-btn.active          { border-color: var(--accent); background: var(--accent); color: #fff; }
+.payout-type-btn.operator.active { border-color: #6366f1; background: #6366f1; color: #fff; }
 
-    .balance-display { display: flex; flex-direction: column; align-items: flex-start; }
-    .balance-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-    .balance-value { font-size: 2.4rem; font-weight: 700; font-family: 'Space Mono', monospace; }
-    .balance-value.positive { color: var(--success); }
-    .balance-value.negative { color: var(--danger); }
-    .balance-status { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-        margin-top: 24px;
-    }
-
-    .stat-card {
-        background: var(--surface);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 18px;
-        text-align: center;
-        transition: all 0.28s cubic-bezier(.4,0,.2,1);
-    }
-
-    .stat-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
-    .stat-icon { font-size: 1.4rem; margin-bottom: 8px; color: var(--accent); }
-    .stat-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-    .stat-value { font-size: 1.6rem; font-weight: 700; color: var(--text); font-family: 'Space Mono', monospace; }
-
-    /* Recent Entries */
-    .recent-entries { background: var(--surface2); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
-    .section-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
-    .section-title i { color: var(--accent); }
-
-    .entry-item {
-        background: var(--surface);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-md);
-        padding: 14px;
-        margin-bottom: 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.28s cubic-bezier(.4,0,.2,1);
-    }
-
-    .entry-item:last-child { margin-bottom: 0; }
-    .entry-item:hover { background: var(--surface2); border-color: var(--accent); }
-
-    .entry-info { display: flex; flex-direction: column; flex: 1; }
-    .entry-date { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2px; }
-    .entry-narration { font-weight: 600; color: var(--text); font-size: 0.95rem; }
-    .entry-amount { display: flex; flex-direction: column; align-items: flex-end; min-width: 100px; }
-    .entry-amount-value { font-weight: 700; font-family: 'Space Mono', monospace; font-size: 0.95rem; }
-    .entry-balance { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
-
-    .view-all-link { display: inline-block; margin-top: 16px; color: var(--accent); font-weight: 600; text-decoration: none; transition: all 0.28s; cursor: pointer; }
-
-    /* Ledger Filter */
-    .ledger-filter {
-        background: var(--surface2);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 16px;
-        margin-bottom: 16px;
-    }
-
-    .filter-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr auto;
-        gap: 12px;
-        align-items: flex-end;
-    }
-
-    .filter-group { display: flex; flex-direction: column; }
-    .filter-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .filter-select, .filter-input {
-        background: var(--surface);
-        color: var(--text);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-md);
-        padding: 10px 12px;
-        font-size: 0.9rem;
-        font-family: 'DM Sans', sans-serif;
-        transition: all 0.28s;
-    }
-
-    .filter-select:focus, .filter-input:focus {
-        outline: none;
-        border-color: var(--accent);
-        box-shadow: 0 0 0 4px var(--accent-glow);
-    }
-
-    .filter-btn {
-        background: var(--grad-header);
-        color: #fff;
-        border: none;
-        padding: 10px 16px;
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.28s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    .filter-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-
-    /* Ledger Card View (Mobile) */
-    .ledger-cards {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .ledger-card {
-        background: var(--surface);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 16px;
-        transition: all 0.28s;
-    }
-
-    .ledger-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
-
-    .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 12px;
-        padding-bottom: 12px;
-        border-bottom: 1.5px solid var(--border);
-    }
-
-    .card-date { display: flex; flex-direction: column; }
-    .card-date-main { font-weight: 700; color: var(--text); font-size: 0.95rem; }
-    .card-time { font-size: 0.75rem; color: var(--text-muted); }
-
-    .card-narration {
-        flex: 1;
-        margin-left: 12px;
-    }
-
-    .card-narration-text { font-weight: 600; color: var(--text); font-size: 0.95rem; margin-bottom: 4px; }
-    .card-vc-badge { display: inline-block; background: var(--grad-header); color: #fff; padding: 3px 8px; border-radius: var(--radius-sm); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
-
-    .card-amounts {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 12px;
-        text-align: center;
-    }
-
-    .card-amount-item { display: flex; flex-direction: column; }
-    .card-amount-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
-    .card-amount-value { font-weight: 700; font-family: 'Space Mono', monospace; font-size: 0.95rem; }
-
-    /* Empty State */
-    .empty-state { text-align: center; padding: 64px 24px; color: var(--text-muted); }
-    .empty-state i { font-size: 3rem; color: var(--text-muted); margin-bottom: 16px; opacity: 0.5; }
-    .empty-state h3 { color: var(--text); margin-bottom: 8px; }
-    .empty-state .btn { padding: 10px 18px; font-size: 0.95rem; border-radius: var(--radius-md); margin-top: 16px; }
-
-    /* Actions */
-    .actions-section {
-        background: var(--surface);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 16px;
-        box-shadow: var(--shadow-md);
-    }
-
-    .actions-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 12px;
-    }
-
-    .action-btn {
-        padding: 12px 14px;
-        border-radius: var(--radius-md);
-        font-weight: 600;
-        font-size: 0.9rem;
-        transition: all 0.28s;
-        border: 1.5px solid transparent;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        cursor: pointer;
-        text-decoration: none;
-    }
-
-    .action-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-    .action-btn.btn-success { background: var(--success); color: #fff; }
-    .action-btn.btn-info { background: var(--primary); color: #fff; }
-    .action-btn.btn-primary { background: var(--accent); color: #fff; }
-    .action-btn.btn-warning { background: #f59e0b; color: #fff; }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-        .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
-        .page-title { font-size: 1.5rem; }
-        .page-actions { width: 100%; }
-        .page-actions .btn { flex: 1; min-width: 100px; }
-
-        .tab-button { min-width: 110px; padding: 12px 10px; font-size: 0.8rem; gap: 4px; }
-        .tab-button i { font-size: 0.9rem; }
-        .tab-content { padding: 18px; }
-
-        .account-summary { padding: 18px; margin-bottom: 18px; }
-        .balance-value { font-size: 1.8rem; }
-        .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
-        .stat-card { padding: 14px; }
-        .stat-value { font-size: 1.3rem; }
-
-        .recent-entries { padding: 18px; }
-        .entry-item { padding: 12px; margin-bottom: 10px; }
-
-        .filter-row { grid-template-columns: 1fr; gap: 10px; }
-        .filter-btn { width: 100%; }
-
-        .card-amounts { gap: 8px; }
-        .card-amount-value { font-size: 0.9rem; }
-
-        .actions-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    @media (max-width: 480px) {
-        .page-title { font-size: 1.25rem; }
-        .page-title i { font-size: 1.2rem; }
-        .header-subtitle { flex-direction: column; align-items: flex-start; font-size: 0.9rem; }
-        .page-actions { flex-direction: column; width: 100%; }
-        .page-actions .btn { width: 100%; padding: 8px 12px; font-size: 0.85rem; }
-
-        .tab-button { min-width: 95px; font-size: 0.75rem; padding: 10px 8px; gap: 3px; }
-        .tab-button i { font-size: 0.85rem; }
-        .tab-content { padding: 14px; }
-
-        .account-summary { padding: 14px; margin-bottom: 16px; }
-        .balance-value { font-size: 1.6rem; }
-        .stats-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
-        .stat-card { padding: 12px; }
-        .stat-label { font-size: 0.75rem; }
-        .stat-value { font-size: 1.2rem; }
-
-        .recent-entries { padding: 14px; }
-        .entry-item { padding: 10px; margin-bottom: 8px; flex-direction: column; align-items: flex-start; }
-        .entry-amount { align-items: flex-start; width: 100%; min-width: auto; }
-        .entry-date, .entry-balance { font-size: 0.8rem; }
-        .entry-narration { font-size: 0.9rem; }
-
-        .filter-row { grid-template-columns: 1fr; gap: 8px; }
-        .filter-label { font-size: 0.8rem; }
-        .filter-select, .filter-input { font-size: 0.85rem; padding: 8px 10px; }
-        .filter-btn { width: 100%; padding: 8px 12px; font-size: 0.8rem; }
-
-        .card-header { flex-direction: column; align-items: flex-start; }
-        .card-narration { margin-left: 0; margin-top: 8px; }
-        .card-amounts { margin-top: 12px; }
-        .card-amount-value { font-size: 0.85rem; }
-
-        .actions-grid { grid-template-columns: 1fr; }
-        .action-btn { width: 100%; padding: 10px 12px; font-size: 0.8rem; }
-    }
+@media (max-width: 768px) {
+    .payout-row, .contrib-row { grid-template-columns: 1fr; gap: 8px; padding: 16px; text-align: center; }
+    .row-index { margin: 0 auto; }
+    .page-header { flex-direction: column; }
+    .winner-row { grid-template-columns: 1fr; }
+    .payout-type-toggle { flex-direction: column; }
+}
 </style>
 
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="page-header">
-        <div>
-            <h1 class="page-title"><i class="fas fa-book"></i>Personal Ledger</h1>
-            <div class="header-subtitle">
-                <span class="person-badge">{{ person.short_name }}</span>
-                <span>{{ person.name }}</span>
-            </div>
-        </div>
-        <div class="page-actions">
-            <a href="{{ url_for('person.persons') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i>Back
-            </a>
-            <a href="{{ url_for('payment.record_payment') }}?person_id={{ person.id }}" class="btn btn-success">
-                <i class="fas fa-plus"></i>Add Payment
-            </a>
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-hand-paper me-2" style="-webkit-text-fill-color:var(--success);"></i>
+            Hand {{ hand.hand_number }} Distribution
+        </h1>
+        <div class="page-meta">
+            <span class="vc-badge">{{ vc.name }}</span>
+            <span><i class="fas fa-calendar-alt me-1"></i>{{ hand.date.strftime('%d %B %Y') }}</span>
         </div>
     </div>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if not payout_recorded %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#handDistributionModal">
+            <i class="fas fa-hand-holding-dollar"></i>Add Payout
+        </button>
+        {% endif %}
+        <a href="{{ url_for('vc.view_vc', id=vc.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>Back to Timeline
+        </a>
+    </div>
+</div>
 
-    <!-- Tabs -->
-    <div class="tabs-container">
-        <div class="tab-navigation">
-            <button class="tab-button active" onclick="switchTab('overview')">
-                <i class="fas fa-chart-pie"></i>Overview
-            </button>
-            <button class="tab-button" onclick="switchTab('ledger')">
-                <i class="fas fa-book-open"></i>Ledger
-            </button>
-            <button class="tab-button" onclick="switchTab('statements')">
-                <i class="fas fa-file-alt"></i>Statements
-            </button>
-        </div>
+<!-- PAYOUT CARD -->
+<div class="dist-card">
+    <div class="section-label"><i class="fas fa-star"></i>Payout — Winner(s)</div>
 
-        <!-- Overview Tab -->
-        <div id="overview" class="tab-content active">
-            <div class="account-summary">
-                <div class="balance-display">
-                    <div class="balance-label">Current Balance</div>
-                    <div class="balance-value {{ 'positive' if person.ledger_balance >= 0 else 'negative' }}">
-                        ₹{{ "%.0f"|format(person.ledger_balance) }}
+    {% if distributions %}
+        {% for dist in distributions %}
+            {% if dist.is_operator_taken %}
+            <div class="payout-row operator-row" onclick="openEditModal()" title="Click to edit">
+                <div class="row-index">⚙</div>
+                <div><div class="person-chip operator-chip">OPERATOR</div></div>
+                <div>
+                    <div class="person-name">Operator</div>
+                    <div class="person-sub">Kept by operator — no member payout</div>
+                </div>
+                <div>
+                    <div class="amount-display operator-amt">₹{{ "%.0f"|format(dist.amount) }}</div>
+                    <div class="person-sub" style="margin-top:4px;">Full pool retained</div>
+                </div>
+                <div><span class="pay-badge operator"><i class="fas fa-cog"></i>Operator</span></div>
+            </div>
+            {% else %}
+            <div class="payout-row" onclick="openEditModal()" title="Click to edit">
+                <div class="row-index">★</div>
+                <div><div class="person-chip">{{ dist.person.short_name }}</div></div>
+                <div>
+                    <div class="person-name">{{ dist.person.name }}</div>
+                    <div class="person-sub">Winning bid: ₹{{ "%.0f"|format(dist.amount) }}</div>
+                </div>
+                <div>
+                    <div class="amount-display payout-amt">
+                        –₹{{ "%.0f"|format(dist.amount - hand.actual_contribution_per_person) }}
                     </div>
-                    <div class="balance-status">
-                        {{ 'Credit (Amount due)' if person.ledger_balance >= 0 else 'Debit (Amount owed)' }}
+                    <div class="person-sub" style="margin-top:4px;">Net after contribution</div>
+                </div>
+                <div><span class="pay-badge payout"><i class="fas fa-star"></i>Winner</span></div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-star"></i>
+        <h5>No payout recorded yet</h5>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#handDistributionModal">
+            <i class="fas fa-hand-holding-dollar"></i>Add Payout
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- CONTRIBUTIONS CARD -->
+<div class="dist-card">
+    <div class="section-label"><i class="fas fa-users"></i>Contributions — All Members</div>
+
+    {% if contributions %}
+        {% set winner_ids = distributions | selectattr('is_operator_taken', 'equalto', false) | map(attribute='person_id') | list %}
+        {% for group in contributions|groupby('person_id') %}
+            {% set person_id    = group.grouper %}
+            {% set entries      = group.list %}
+            {% set total_amount = entries|sum(attribute='amount') %}
+            {% set latest       = entries|last %}
+            {% set is_paid      = ledger_map.get(person_id) or (entries|selectattr('paid')|list|length > 0) %}
+
+            <div class="contrib-row fade-in"
+                 onclick="window.location.href='{{ url_for('ledger.person_ledger', person_id=person_id) }}'">
+                <div class="row-index">{{ loop.index }}</div>
+                <div><div class="person-chip">{{ latest.person.name }}</div></div>
+                <div>
+                    <div class="person-name">
+                        <!-- {{ latest.person.name }} -->
+                        {% if person_id in winner_ids %}
+                            <span class="pay-badge payout ms-1" style="font-size:0.65rem;">
+                                <i class="fas fa-star"></i>Winner
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="person-sub">{{ entries|length }} contribution{{ 's' if entries|length > 1 }}</div>
+                </div>
+                <div class="date-cell">
+                    {% if ledger_map.get(person_id) %}
+                        <div class="date-main">{{ ledger_map[person_id].date.strftime('%d/%m/%Y') }}</div>
+                        <div class="date-time">{{ ledger_map[person_id].date.strftime('%I:%M %p') }}</div>
+                    {% else %}
+                        <div class="date-main">{{ latest.date.strftime('%d/%m/%Y') }}</div>
+                        <div class="date-time">{{ latest.date.strftime('%I:%M %p') }}</div>
+                    {% endif %}
+                </div>
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                    <div class="amount-display contrib-amt">₹{{ "%.0f"|format(total_amount) }}</div>
+                    {% if is_paid %}
+                        <span class="pay-badge paid"><i class="fas fa-check-circle"></i>Paid</span>
+                    {% else %}
+                        <span class="pay-badge pending"><i class="fas fa-clock"></i>Pending</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <h5>No contributions recorded yet</h5>
+        </div>
+    {% endif %}
+</div>
+
+
+<!-- ══ ADD PAYOUT MODAL ══ -->
+<div class="modal fade" id="handDistributionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-hand-holding-dollar me-2"></i>Distribute Hand #{{ hand.hand_number }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('hand.create_payout', hand_id=hand.id) }}">
+                <input type="hidden" name="payout_type" id="addPayoutType" value="person">
+                <div class="modal-body">
+
+                    <div class="payout-type-toggle">
+                        <button type="button" class="payout-type-btn active" id="btnPerson"
+                                onclick="setPayoutType('person', this)">
+                            <i class="fas fa-user"></i>Person(s) Win
+                        </button>
+                        <button type="button" class="payout-type-btn operator" id="btnOperator"
+                                onclick="setPayoutType('operator', this)">
+                            <i class="fas fa-cog"></i>Operator Keeps
+                        </button>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-rupee-sign"></i>
+                            <span id="bidPriceLabel">Total Winning Bid (₹)</span>
+                        </label>
+                        <input type="number" class="form-control" name="bid_price"
+                               placeholder="Enter total payout amount" required step="0.01" min="1">
+                        <div class="form-text">Projected: ₹{{ "%.0f"|format(hand.projected_payout) }}</div>
+                    </div>
+
+                    <div id="personSection">
+                        <label class="form-label"><i class="fas fa-trophy"></i>Winners &amp; Amounts</label>
+                        <div id="winnerRows">
+                            <div class="winner-row">
+                                <select class="form-select" name="winners[]" required>
+                                    <option value="" disabled selected>— Choose winner —</option>
+                                    {% for member in members %}
+                                      <option value="{{ member.id }}">
+                                          {{ member.name }}
+                                          {% if member_eligibility[member.id]['win_info'] %}
+                                              ({{ member_eligibility[member.id]['win_info'] }})
+                                          {% endif %}
+                                      </option>
+                                    {% endfor %}
+                                </select>
+                                <input type="number" class="form-control" name="amounts[]"
+                                       placeholder="Amount (₹)" step="0.01" min="1" required>
+                                <button type="button" class="btn-remove-winner" onclick="removeWinnerRow(this)" style="visibility:hidden;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-add-winner" onclick="addWinnerRow()">
+                            <i class="fas fa-plus"></i>Add Another Winner
+                        </button>
+                        <div class="mt-3 p-3" style="background:var(--surface2);border-radius:var(--radius-md);font-size:0.85rem;color:var(--text-muted);">
+                            <i class="fas fa-info-circle me-1"></i>For a split payout, add multiple winners. Total amounts should equal the bid price.
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label"><i class="fas fa-comment-alt"></i>Narration <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                        <input type="text" class="form-control" name="narration" placeholder="e.g. Hand distributed at auction">
                     </div>
                 </div>
-
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-list"></i></div>
-                        <div class="stat-label">Total Entries</div>
-                        <div class="stat-value">{{ entries|length }}</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-minus-circle"></i></div>
-                        <div class="stat-label">Total Debits</div>
-                        <div class="stat-value" style="color: var(--danger);">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-plus-circle"></i></div>
-                        <div class="stat-label">Total Credits</div>
-                        <div class="stat-value" style="color: var(--success);">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-history"></i></div>
-                        <div class="stat-label">Last Updated</div>
-                        <div class="stat-value" style="font-size: 1rem;">{{ entries[0].date.strftime('%d/%m/%Y') if entries else 'N/A' }}</div>
-                    </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="fas fa-times"></i>Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i>Confirm Distribution</button>
                 </div>
-            </div>
-
-            <div class="recent-entries">
-                <h3 class="section-title"><i class="fas fa-clock"></i>Recent Entries</h3>
-
-                {% if entries %}
-                    {% for entry in entries[:5] %}
-                    <div class="entry-item">
-                        <div class="entry-info">
-                            <div class="entry-date">{{ entry.date.strftime('%d/%m/%Y %I:%M %p') }}</div>
-                            <div class="entry-narration">{{ entry.narration }}</div>
-                        </div>
-                        <div class="entry-amount">
-                            <div class="entry-amount-value">
-                                {% if entry.debit > 0 %}
-                                    <span style="color: var(--danger);">-₹{{ "%.0f"|format(entry.debit) }}</span>
-                                {% elif entry.credit > 0 %}
-                                    <span style="color: var(--success);">+₹{{ "%.0f"|format(entry.credit) }}</span>
-                                {% endif %}
-                            </div>
-                            <div class="entry-balance {{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
-                                Bal: ₹{{ "%.0f"|format(entry.balance) }}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-
-                    <a class="view-all-link" onclick="switchTab('ledger')">
-                        <i class="fas fa-arrow-right"></i>View All Entries
-                    </a>
-                {% else %}
-                    <div class="empty-state" style="padding: 32px 0;">
-                        <i class="fas fa-inbox"></i>
-                        <h3>No entries yet</h3>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Ledger Tab -->
-        <div id="ledger" class="tab-content">
-            <div class="ledger-filter">
-                <form method="GET" class="filter-row">
-                    <div class="filter-group">
-                        <label class="filter-label"><i class="fas fa-building"></i>VC</label>
-                        <select name="vc_id" class="filter-select">
-                            <option value="">All VCs</option>
-                            {% for vc in person.ledger_entries|map(attribute='vc')|unique|list %}
-                                {% if vc %}
-                                    <option value="{{ vc.id }}" {{ 'selected' if request.args.get('vc_id') == vc.id|string else '' }}>
-                                        VC {{ vc.vc_number }} - {{ vc.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="filter-group">
-                        <label class="filter-label"><i class="fas fa-calendar-alt"></i>From</label>
-                        <input type="date" name="from_date" class="filter-input" value="{{ request.args.get('from_date', '') }}">
-                    </div>
-
-                    <div class="filter-group">
-                        <label class="filter-label"><i class="fas fa-calendar-alt"></i>To</label>
-                        <input type="date" name="to_date" class="filter-input" value="{{ request.args.get('to_date', '') }}">
-                    </div>
-
-                    <button type="submit" class="filter-btn">
-                        <i class="fas fa-search"></i>Filter
-                    </button>
-                </form>
-            </div>
-
-            <!-- Card View (responsive) -->
-            <div class="ledger-cards">
-                {% if entries %}
-                    {% for entry in entries %}
-                    <div class="ledger-card">
-                        <div class="card-header">
-                            <div class="card-date">
-                                <div class="card-date-main">{{ entry.date.strftime('%d/%m/%Y') }}</div>
-                                <div class="card-time">{{ entry.date.strftime('%I:%M %p') }}</div>
-                            </div>
-                            <div class="card-narration">
-                                <div class="card-narration-text">{{ entry.narration }}</div>
-                                {% if entry.vc %}
-                                    <div class="card-vc-badge">VC {{ entry.vc.vc_number }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="card-amounts">
-                            <div class="card-amount-item">
-                                <div class="card-amount-label">Debit</div>
-                                <div class="card-amount-value" style="color: var(--danger);">
-                                    {% if entry.debit > 0 %}
-                                        ₹{{ "%.0f"|format(entry.debit) }}
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="card-amount-item">
-                                <div class="card-amount-label">Credit</div>
-                                <div class="card-amount-value" style="color: var(--success);">
-                                    {% if entry.credit > 0 %}
-                                        ₹{{ "%.0f"|format(entry.credit) }}
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="card-amount-item">
-                                <div class="card-amount-label">Balance</div>
-                                <div class="card-amount-value {{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
-                                    ₹{{ "%.0f"|format(entry.balance) }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-book-open"></i>
-                        <h3>No ledger entries found</h3>
-                        <a href="{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}" class="btn btn-primary">
-                            <i class="fas fa-plus"></i>Add First Entry
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Statements Tab -->
-        <div id="statements" class="tab-content">
-            <div style="text-align: center; padding: 48px 24px; color: var(--text-muted);">
-                <i class="fas fa-file-pdf" style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;"></i>
-                <h3 style="color: var(--text); margin-bottom: 8px;">Export Statements</h3>
-                <p>Download account statements in PDF format</p>
-                <button class="action-btn btn-primary" style="margin-top: 16px;" onclick="exportLedger({{ person.id }})">
-                    <i class="fas fa-download"></i>Download PDF
-                </button>
-            </div>
+            </form>
         </div>
     </div>
+</div>
 
-    <!-- Actions -->
-    <div class="actions-section">
-        <div class="actions-grid">
-            <a href="{{ url_for('ledger.create_ledger_entry') }}?person_id={{ person.id }}" class="action-btn btn-success">
-                <i class="fas fa-plus"></i>Add Entry
-            </a>
-            <a href="{{ url_for('person.edit_person', id=person.id) }}" class="action-btn btn-info">
-                <i class="fas fa-edit"></i>Edit Details
-            </a>
-            <button class="action-btn btn-primary" onclick="exportLedger({{ person.id }})">
-                <i class="fas fa-download"></i>Export
-            </button>
-            <button class="action-btn btn-warning" onclick="closeLedger({{ person.id }})">
-                <i class="fas fa-lock"></i>Close Ledger
-            </button>
+
+<!-- ══ EDIT PAYOUT MODAL ══ -->
+<div class="modal fade" id="editPayoutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('hand.edit_payout', vc_id=vc.id, hand_id=hand.id) }}">
+                <input type="hidden" name="payout_type" id="editPayoutType" value="person">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-pen me-2"></i>Edit Payout — Hand #{{ hand.hand_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+
+                    <div class="payout-type-toggle">
+                        <button type="button" class="payout-type-btn active" id="editBtnPerson"
+                                onclick="setEditPayoutType('person', this)">
+                            <i class="fas fa-user"></i>Person(s) Win
+                        </button>
+                        <button type="button" class="payout-type-btn operator" id="editBtnOperator"
+                                onclick="setEditPayoutType('operator', this)">
+                            <i class="fas fa-cog"></i>Operator Keeps
+                        </button>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label"><i class="fas fa-rupee-sign"></i>Total Payout Amount (₹)</label>
+                        <input type="number" class="form-control" id="editBidPrice" name="bid_price" step="0.01" min="1" required>
+                    </div>
+
+                    <div id="editPersonSection">
+                        <label class="form-label"><i class="fas fa-trophy"></i>Winners &amp; Amounts</label>
+                        <div id="editWinnerRows"></div>
+                        <button type="button" class="btn-add-winner" onclick="addEditWinnerRow()">
+                            <i class="fas fa-plus"></i>Add Another Winner
+                        </button>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label"><i class="fas fa-comment-alt"></i>Narration <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                        <input type="text" class="form-control" name="narration" placeholder="e.g. Updated distribution">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="fas fa-times"></i>Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i>Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 {% endblock %}
 
+
 {% block scripts %}
 <script>
-    function switchTab(tabName) {
-        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        document.getElementById(tabName).classList.add('active');
-        event.target.closest('.tab-button').classList.add('active');
-    }
+const MEMBERS = [
+    {% for member in members %}
+    {
+        id: {{ member.id }},
+        name: "{{ member.name }}",
+        shortName: "{{ member.short_name }}",
+        winInfo: "{{ member_eligibility[member.id]['win_info'] or '' }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
 
-    function exportLedger(personId) {
-        const params = new URLSearchParams(window.location.search);
-        window.open(`/ledger/${personId}/pdf?${params.toString()}`, '_blank');
-    }
+const DISTRIBUTIONS = [
+    {% for d in distributions %}
+    { isOperator: {{ 'true' if d.is_operator_taken else 'false' }}, personId: {{ d.person_id if d.person_id else 'null' }}, amount: {{ d.amount }} }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
 
-    function closeLedger(personId) {
-        if (confirm('Are you sure? This action cannot be undone.')) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/ledger/${personId}/close`;
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const filterForm = document.querySelector('.ledger-filter form');
-        if (filterForm) {
-            filterForm.addEventListener('submit', function(e) {
-                const from = this.querySelector('[name="from_date"]').value;
-                const to = this.querySelector('[name="to_date"]').value;
-                if (from && to && to < from) {
-                    e.preventDefault();
-                    alert('To Date cannot be earlier than From Date.');
-                }
-            });
-        }
+/* Stagger animations */
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.contrib-row, .payout-row').forEach((row, i) => {
+        row.style.animationDelay = `${i * 0.06}s`;
     });
+});
+
+/* ── Member options HTML ── */
+function buildMemberOptions(selectedId) {
+    return MEMBERS.map(m => {
+        const label = m.winInfo ? `${m.name} (${m.winInfo})` : m.name;
+        const sel   = m.id === selectedId ? 'selected' : '';
+        return `<option value="${m.id}" ${sel}>${label}</option>`;
+    }).join('');
+}
+
+/* ── ADD modal: payout type ── */
+function setPayoutType(type, btn) {
+    document.getElementById('addPayoutType').value = type;
+    document.querySelectorAll('#handDistributionModal .payout-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const sec = document.getElementById('personSection');
+    const inputs = sec.querySelectorAll('[name="winners[]"],[name="amounts[]"]');
+    if (type === 'operator') {
+        sec.style.display = 'none';
+        inputs.forEach(el => el.removeAttribute('required'));
+        document.getElementById('bidPriceLabel').textContent = 'Operator Payout Amount (₹)';
+    } else {
+        sec.style.display = 'block';
+        inputs.forEach(el => el.setAttribute('required','required'));
+        document.getElementById('bidPriceLabel').textContent = 'Total Winning Bid (₹)';
+    }
+}
+
+// ── Auto-fill first winner amount from bid price (Add modal) ──
+document.addEventListener('DOMContentLoaded', function () {
+    const bidInput = document.querySelector('[name="bid_price"]');
+    if (bidInput) {
+        bidInput.addEventListener('input', function () {
+            const firstAmount = document.querySelector('#winnerRows .winner-row:first-child [name="amounts[]"]');
+            if (firstAmount) {
+                firstAmount.value = this.value;
+            }
+        });
+    }
+});
+
+/* ── ADD modal: winner rows ── */
+let winnerRowCount = 1;
+
+function addWinnerRow(selectedId, amount) {
+    const c = document.getElementById('winnerRows');
+    const d = document.createElement('div');
+    d.className = 'winner-row';
+    d.innerHTML = `
+        <select class="form-select" name="winners[]" required>
+            <option value="" disabled ${selectedId ? '' : 'selected'}>— Choose winner —</option>
+            ${buildMemberOptions(selectedId)}
+        </select>
+        <input type="number" class="form-control" name="amounts[]" placeholder="Amount (₹)" step="0.01" min="1" required value="${amount || ''}">
+        <button type="button" class="btn-remove-winner" onclick="removeWinnerRow(this)"><i class="fas fa-times"></i></button>`;
+    c.appendChild(d);
+    syncRemoveBtns('#winnerRows');
+}
+
+function removeWinnerRow(btn) {
+    btn.closest('.winner-row').remove();
+    syncRemoveBtns('#winnerRows');
+}
+
+function syncRemoveBtns(containerSel) {
+    const rows = document.querySelectorAll(containerSel + ' .winner-row');
+    rows.forEach(r => { r.querySelector('.btn-remove-winner').style.visibility = rows.length > 1 ? 'visible' : 'hidden'; });
+}
+
+/* ── EDIT modal ── */
+function openEditModal() {
+    // Reset edit rows
+    document.getElementById('editWinnerRows').innerHTML = '';
+
+    if (!DISTRIBUTIONS.length) return;
+
+    if (DISTRIBUTIONS[0].isOperator) {
+        setEditPayoutType('operator', document.getElementById('editBtnOperator'));
+        document.getElementById('editBidPrice').value = DISTRIBUTIONS[0].amount;
+    } else {
+        setEditPayoutType('person', document.getElementById('editBtnPerson'));
+        const total = DISTRIBUTIONS.reduce((s, d) => s + d.amount, 0);
+        document.getElementById('editBidPrice').value = total.toFixed(2);
+        DISTRIBUTIONS.forEach(d => addEditWinnerRow(d.personId, d.amount));
+    }
+
+    new bootstrap.Modal(document.getElementById('editPayoutModal')).show();
+}
+
+function setEditPayoutType(type, btn) {
+    document.getElementById('editPayoutType').value = type;
+    document.querySelectorAll('#editPayoutModal .payout-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const sec = document.getElementById('editPersonSection');
+    const inputs = document.querySelectorAll('#editWinnerRows [name="winners[]"],[name="amounts[]"]');
+    if (type === 'operator') {
+        sec.style.display = 'none';
+        inputs.forEach(el => el.removeAttribute('required'));
+    } else {
+        sec.style.display = 'block';
+        inputs.forEach(el => el.setAttribute('required','required'));
+        if (!document.querySelectorAll('#editWinnerRows .winner-row').length) addEditWinnerRow();
+    }
+}
+
+// ── Auto-fill first winner amount from bid price (Edit modal) ──
+document.getElementById('editBidPrice').addEventListener('input', function () {
+    const firstAmount = document.querySelector('#editWinnerRows .winner-row:first-child [name="amounts[]"]');
+    if (firstAmount) {
+        firstAmount.value = this.value;
+    }
+});
+
+function addEditWinnerRow(selectedId, amount) {
+    const c = document.getElementById('editWinnerRows');
+    const d = document.createElement('div');
+    d.className = 'winner-row';
+    d.innerHTML = `
+        <select class="form-select" name="winners[]" required>
+            <option value="" disabled ${selectedId ? '' : 'selected'}>— Choose winner —</option>
+            ${buildMemberOptions(selectedId)}
+        </select>
+        <input type="number" class="form-control" name="amounts[]" placeholder="Amount (₹)" step="0.01" min="1" required value="${amount || ''}">
+        <button type="button" class="btn-remove-winner" onclick="removeEditWinnerRow(this)"><i class="fas fa-times"></i></button>`;
+    c.appendChild(d);
+    syncRemoveBtns('#editWinnerRows');
+}
+
+function removeEditWinnerRow(btn) {
+    btn.closest('.winner-row').remove();
+    syncRemoveBtns('#editWinnerRows');
+}
 </script>
 {% endblock %}

@@ -2,8 +2,11 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import current_user
 from datetime import datetime, timezone
+
+from flask_wtf import FlaskForm
 from app import db
-from app.models.vc import VC, VCHand, HandDistribution, PaymentStatus
+from app.models import vc
+from app.models.vc import VC, VCHand, HandDistribution, PaymentStatus, vc_members
 from app.models.payment import Payment
 from app.models.contribution import Contribution
 from app.models.ledger import LedgerEntry
@@ -11,6 +14,7 @@ from app.models.person import Person
 from app.forms import VCForm
 from app.utils import login_required
 import traceback
+import json
 
 vc_bp = Blueprint('vc', __name__, url_prefix='/vc')
 
@@ -24,42 +28,74 @@ def vcs_list():
     total_members = sum(len(vc.members) for vc in vcs)
     return render_template('vc/list.html', vcs=vcs, total_due=total_due, total_members=total_members, total_vcs=total_vcs)
 
+
 @vc_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create_vc():
     form = VCForm()
-    form.members.choices = [(p.id, p.name) for p in Person.query.filter_by(user_id=current_user.id).all()]
-    
-    # Determine next VC number for display
-    last_vc = VC.query.order_by(VC.vc_number.desc()).first()
+    form.members.choices = [
+        (p.id, p.name)
+        for p in Person.query.filter_by(user_id=current_user.id).all()
+    ]
+
+    last_vc        = VC.query.order_by(VC.vc_number.desc()).first()
     next_vc_number = (last_vc.vc_number + 1) if last_vc else 1
 
     if form.validate_on_submit():
+        # Parse slot map from hidden field: {person_id: slots}
+        try:
+            raw_slots = json.loads(form.member_slots.data or '{}')
+            slot_map  = {int(k): max(1, int(v)) for k, v in raw_slots.items()}
+        except (ValueError, TypeError):
+            slot_map = {}
+
         vc = VC(
-            user_id=current_user.id,
-            vc_number=next_vc_number,
-            name=form.name.data,
-            start_date=datetime.combine(form.start_date.data, datetime.min.time()),
-            amount=form.amount.data,
-            min_interest=form.min_interest.data,
-            tenure=form.tenure.data,
-            narration=form.narration.data
+            user_id      = current_user.id,
+            vc_number    = next_vc_number,
+            name         = form.name.data,
+            start_date   = datetime.combine(form.start_date.data, datetime.min.time()),
+            amount       = form.amount.data,
+            min_interest = form.min_interest.data,
+            tenure       = form.tenure.data,
+            narration    = form.narration.data,
         )
 
-        # Add members
-        selected_people = Person.query.filter(Person.id.in_(form.members.data)).all()
+        # Add unique members (relationship holds one row per unique person)
+        selected_ids    = form.members.data
+        selected_people = Person.query.filter(Person.id.in_(selected_ids)).all()
         vc.members.extend(selected_people)
 
         db.session.add(vc)
+        db.session.flush()   # get vc.id before setting slots
+
+        # Write slots into the association table
+        for person in selected_people:
+            slots = slot_map.get(person.id, 1)
+            if slots != 1:           # default is already 1; only update non-default
+                db.session.execute(
+                    vc_members.update()
+                    .where(
+                        (vc_members.c.vc_id     == vc.id) &
+                        (vc_members.c.person_id == person.id)
+                    )
+                    .values(slots=slots)
+                )
+
         db.session.flush()
 
-        # Create hands automatically
+        # Create hands
         vc.create_hands()
 
         db.session.commit()
-        flash(f'VC {next_vc_number} created successfully with {form.tenure.data} hands and {len(vc.members)} members!', 'success')
+
+        total_slots = sum(slot_map.get(p.id, 1) for p in selected_people)
+        flash(
+            f'VC {next_vc_number} created — {form.tenure.data} hands, '
+            f'{len(selected_people)} members ({total_slots} total slots).',
+            'success'
+        )
         return redirect(url_for('vc.vcs_list'))
-    
+
     return render_template('vc/create.html', form=form, vc_number=next_vc_number)
 
 
@@ -68,55 +104,111 @@ def create_vc():
 def view_vc(id):
     vc = VC.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     hands = VCHand.query.filter_by(vc_id=id).order_by(VCHand.hand_number).all()
-    return render_template('vc/view.html', vc=vc, hands=hands)
+    csrf_form = FlaskForm()
+    return render_template('vc/view.html', vc=vc, hands=hands, form=csrf_form)
 
+@vc_bp.route('/<int:id>/edit', methods=['POST'])
+@login_required
+def edit_vc(id):
+    vc = VC.query.filter_by(id=id, user_id=current_user.id).first_or_404()
 
+    name       = request.form.get('name', '').strip()
+    start_date = request.form.get('start_date', '').strip()
+
+    if not name:
+        flash("VC name cannot be empty.", "danger")
+        return redirect(url_for('vc.view_vc', id=id))
+
+    if not start_date:
+        flash("Start date cannot be empty.", "danger")
+        return redirect(url_for('vc.view_vc', id=id))
+
+    try:
+        new_start = datetime.strptime(start_date, '%Y-%m-%d')
+    except ValueError:
+        flash("Invalid date format.", "danger")
+        return redirect(url_for('vc.view_vc', id=id))
+
+    # If start date changed, shift all hand dates by the same delta
+    if new_start != vc.start_date.replace(hour=0, minute=0, second=0, microsecond=0):
+        delta = new_start - vc.start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        for hand in vc.hands:
+            hand.date = hand.date + delta
+
+    vc.name       = name
+    vc.start_date = new_start
+
+    db.session.commit()
+    flash(f"VC updated successfully.", "success")
+    return redirect(url_for('vc.view_vc', id=id))
+
+# ── Drop-in replacement for view_hand_distribution in routes/vc.py ──────────
+# Replace your existing view_hand_distribution function with this one.
+# Everything else in routes/vc.py stays the same.
 
 @vc_bp.route('/<int:vc_id>/hand/<int:hand_number>')
 @login_required
 def view_hand_distribution(vc_id, hand_number):
-    vc = VC.query.filter_by(id=vc_id, user_id=current_user.id).first_or_404()
+    vc   = VC.query.filter_by(id=vc_id, user_id=current_user.id).first_or_404()
     hand = VCHand.query.filter_by(vc_id=vc.id, hand_number=hand_number).first_or_404()
 
-    # Get list of member IDs for this VC
     vc_member_ids = [m.id for m in vc.members]
 
-    # Filter contributions: only for this hand AND only from VC members
     contributions = Contribution.query.filter(
         Contribution.hand_id == hand.id,
         Contribution.person_id.in_(vc_member_ids)
     ).order_by(Contribution.date.asc()).all()
 
-    payout = HandDistribution.query.filter_by(hand_id=hand.id).first()
-    payout_recorded = payout is not None
+    # All distributions for this hand (supports multiple winners)
+    distributions = HandDistribution.query.filter_by(hand_id=hand.id).all()
+    payout_recorded = len(distributions) > 0
+
+    # Keep `payout` for backwards-compat with any other template references.
+    # For single-winner hands this is the one record; for multi-winner it's
+    # the first one. The template should prefer iterating `distributions`.
+    payout = distributions[0] if distributions else None
 
     ledger_entries = LedgerEntry.query.filter(
         LedgerEntry.vc_id == vc.id,
         LedgerEntry.narration.like(f'%Payment for VC {vc.vc_number}, Hand {hand.hand_number}%')
     ).all()
 
-    # Map person_id → ledger entry
     ledger_map = {}
     for entry in ledger_entries:
         if entry.person_id not in ledger_map:
-            ledger_map[entry.person_id] = entry  # take first matching entry
+            ledger_map[entry.person_id] = entry
 
     members = vc.members
-    member_eligibility = {}
-    
-    # Get all payouts for this VC by traversing the relationships
-    all_payouts = []
-    for h in vc.hands:
-        all_payouts.extend(h.hand_distributions)
-    winning_member_ids = {p.person_id for p in all_payouts}
 
+    # Build eligibility: a person is ineligible if they've already won ANY
+    # previous hand (person-type distribution only, not operator hands).
+    all_person_winner_ids = set()
+    for h in vc.hands:
+        for d in h.hand_distributions:
+            if not d.is_operator_taken and d.person_id is not None:
+                all_person_winner_ids.add(d.person_id)
+
+    # Build win history per member for this VC
+    member_eligibility = {}
     for member in members:
-        is_eligible = member.id not in winning_member_ids
-        member_eligibility[member.id] = {
-            'is_eligible': is_eligible,
-            'reason': 'won a previous hand' if not is_eligible else None
-        }
-    
+        wins = [
+            d for h in vc.hands
+            for d in h.hand_distributions
+            if not d.is_operator_taken and d.person_id == member.id
+        ]
+        if wins:
+            # e.g. "Hand 2 · ₹800"
+            win_labels = [f"Hand {d.vc_hand.hand_number} · ₹{d.amount:,.0f}" for d in wins]
+            member_eligibility[member.id] = {
+                'is_eligible': True,  # always eligible now
+                'win_info': ", ".join(win_labels)
+            }
+        else:
+            member_eligibility[member.id] = {
+                'is_eligible': True,
+                'win_info': None
+            }
+
     return render_template(
         'vc/hand_distribution.html',
         vc=vc,
@@ -125,9 +217,8 @@ def view_hand_distribution(vc_id, hand_number):
         member_eligibility=member_eligibility,
         payout_recorded=payout_recorded,
         contributions=contributions,
-        payout=payout,
-        distributions=[], # Placeholder for template
-        vc_payouts=[], # Placeholder for template
+        payout=payout,               # first distribution or None
+        distributions=distributions, # all distributions for this hand
         ledger_map=ledger_map
     )
 

@@ -1,25 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}VC {{ vc.vc_number }} - Hands Timeline{% endblock %}
+{% block title %}{{ vc.name }} - Hands Timeline{% endblock %}
 
 {% block content %}
 <style>
-    /* ═══════════════════════════════════════════
-       VC DETAIL PAGE SPECIFIC STYLES
-    ═══════════════════════════════════════════ */
+    html { font-size: var(--fs-base); }
+    body { font-size: var(--fs-base); }
 
-    html {
-        font-size: var(--fs-base);
-    }
-
-    body {
-        font-size: var(--fs-base);
-    }
-
-    /* Page header */
-    .vc-header {
-        flex: 1;
-    }
+    .vc-header { flex: 1; }
 
     .vc-title {
         font-size: 2rem;
@@ -37,7 +25,6 @@
         font-size: 0.95rem;
         color: var(--text-muted);
     }
-
     .vc-meta span {
         display: flex;
         align-items: center;
@@ -49,14 +36,13 @@
         gap: 12px;
         flex-wrap: wrap;
     }
-
     .action-buttons .btn {
         padding: 10px 18px;
         font-size: 0.95rem;
         border-radius: var(--radius-md);
     }
 
-    /* Hand timeline container */
+    /* Hand timeline */
     .hand-timeline {
         background: var(--surface);
         border-radius: var(--radius-lg);
@@ -64,7 +50,6 @@
         overflow: hidden;
         box-shadow: var(--shadow-md);
     }
-
     .hand-timeline .card-header {
         background: var(--grad-header);
         color: #fff;
@@ -72,7 +57,6 @@
         text-align: center;
         border: none;
     }
-
     .hand-timeline .card-header h5 {
         margin: 0;
         font-weight: 600;
@@ -83,7 +67,6 @@
         gap: 8px;
     }
 
-    /* Hand row styling */
     .hand-row {
         display: flex;
         justify-content: space-between;
@@ -93,27 +76,10 @@
         transition: all 0.28s cubic-bezier(.4,0,.2,1);
         color: var(--text);
     }
-
-    .hand-row:last-child {
-        border-bottom: none;
-    }
-
-    .hand-row:not(.header-row) {
-        cursor: pointer;
-    }
-
-    .hand-row:not(.header-row):hover {
-        background: var(--surface2);
-        transform: translateX(4px);
-    }
-
-    .hand-row.active {
-        background: var(--accent-glow);
-        border-left: 4px solid var(--accent);
-        padding-left: 12px;
-    }
-
-    /* Header row styling */
+    .hand-row:last-child { border-bottom: none; }
+    .hand-row:not(.header-row) { cursor: pointer; }
+    .hand-row:not(.header-row):hover { background: var(--surface2); transform: translateX(4px); }
+    .hand-row.active { background: var(--accent-glow); border-left: 4px solid var(--accent); padding-left: 12px; }
     .header-row {
         background: var(--grad-header);
         color: #fff;
@@ -123,14 +89,8 @@
         letter-spacing: 0.07em;
         padding: 16px;
     }
+    .hand-row > div { display: flex; align-items: center; font-size: 0.95rem; }
 
-    .hand-row > div {
-        display: flex;
-        align-items: center;
-        font-size: 0.95rem;
-    }
-
-    /* Badge styling */
     .badge {
         background: var(--grad-header);
         color: #fff;
@@ -145,165 +105,40 @@
         gap: 4px;
     }
 
-    /* Responsive Design */
+    /* Edit form inside modal */
+    .edit-field-group { margin-bottom: 20px; }
+    .edit-field-group label { font-weight: 600; font-size: 0.875rem; color: var(--text); margin-bottom: 6px; display: block; }
+
     @media (max-width: 1200px) {
-        .vc-header {
-            margin-bottom: 16px;
-        }
-
-        .action-buttons {
-            flex-direction: column;
-            width: 100%;
-        }
-
-        .action-buttons .btn {
-            width: 100%;
-            text-align: center;
-        }
+        .vc-header { margin-bottom: 16px; }
+        .action-buttons { flex-direction: column; width: 100%; }
+        .action-buttons .btn { width: 100%; text-align: center; }
     }
 
     @media (max-width: 768px) {
-        .vc-title {
-            font-size: 1.5rem;
-        }
-
-        .vc-meta {
-            gap: 0.5rem;
-            font-size: 0.85rem;
-            flex-direction: column;
-        }
-
-        .hand-row {
-            display: block;
-            padding: 16px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            margin-bottom: 12px;
-            background: var(--surface);
-        }
-
-        .hand-row > div {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            font-size: 0.85rem;
-        }
-
-        .hand-row > div::before {
-            content: attr(data-label);
-            font-weight: 600;
-            color: var(--text-muted);
-            margin-right: 8px;
-        }
-
-        .header-row {
-            display: none !important;
-        }
-
-        .hand-row.active {
-            background: var(--accent-glow);
-            border-left: 4px solid var(--accent);
-            border-radius: var(--radius-md);
-        }
-
-        .action-buttons {
-            flex-direction: column;
-            width: 100%;
-        }
-
-        .action-buttons .btn {
-            width: 100%;
-        }
-
-        .hand-timeline .card-header h5 {
-            font-size: 1rem;
-        }
+        .vc-title { font-size: 1.5rem; }
+        .vc-meta { gap: 0.5rem; font-size: 0.85rem; flex-direction: column; }
+        .hand-row { display: block; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; background: var(--surface); }
+        .hand-row > div { display: flex; justify-content: space-between; padding: 8px 0; font-size: 0.85rem; }
+        .hand-row > div::before { content: attr(data-label); font-weight: 600; color: var(--text-muted); margin-right: 8px; }
+        .header-row { display: none !important; }
+        .hand-row.active { background: var(--accent-glow); border-left: 4px solid var(--accent); border-radius: var(--radius-md); }
+        .action-buttons { flex-direction: column; width: 100%; }
+        .action-buttons .btn { width: 100%; }
     }
 
-    /* Modal Styling (Design System) */
-    .modal-backdrop {
-        background-color: rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-content {
-        background: var(--surface);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
-    }
-
-    .modal-header {
-        background: var(--grad-header);
-        color: #fff;
-        border: none;
-        padding: 20px 24px;
-    }
-
-    .modal-title {
-        font-weight: 600;
-        font-size: 1.1rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .btn-close-white {
-        filter: brightness(0) invert(1);
-        opacity: 0.8;
-        transition: opacity 0.2s;
-    }
-
-    .btn-close-white:hover {
-        opacity: 1;
-    }
-
-    .modal-body {
-        padding: 24px;
-        background: var(--surface);
-        color: var(--text);
-        font-size: 0.95rem;
-        line-height: 1.6;
-    }
-
-    .modal-body p {
-        margin-bottom: 12px;
-    }
-
-    .modal-body p:last-child {
-        margin-bottom: 0;
-    }
-
-    .modal-footer {
-        background: var(--surface);
-        border-top: 1px solid var(--border);
-        padding: 16px 24px;
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-    }
-
-    .modal-footer .btn {
-        padding: 10px 18px;
-        font-size: 0.95rem;
-        border-radius: var(--radius-md);
-    }
-
-    /* Modal animations */
-    .modal.fade .modal-dialog {
-        transition: transform 0.3s cubic-bezier(.22,1,.36,1), opacity 0.3s cubic-bezier(.22,1,.36,1);
-        transform: scale(0.95) translateY(-20px);
-        opacity: 0;
-    }
-
-    .modal.show .modal-dialog {
-        transform: scale(1) translateY(0);
-        opacity: 1;
-    }
-
-    /* Ensure body scrolls when modal open */
-    body.modal-open {
-        overflow: auto !important;
-    }
+    .modal-backdrop { background-color: rgba(0,0,0,0.5); }
+    .modal-content { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+    .modal-header { background: var(--grad-header); color: #fff; border: none; padding: 20px 24px; }
+    .modal-title { font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+    .btn-close-white { filter: brightness(0) invert(1); opacity: 0.8; transition: opacity 0.2s; }
+    .btn-close-white:hover { opacity: 1; }
+    .modal-body { padding: 24px; background: var(--surface); color: var(--text); font-size: 0.95rem; line-height: 1.6; }
+    .modal-footer { background: var(--surface); border-top: 1px solid var(--border); padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; }
+    .modal-footer .btn { padding: 10px 18px; font-size: 0.95rem; border-radius: var(--radius-md); }
+    .modal.fade .modal-dialog { transition: transform 0.3s cubic-bezier(.22,1,.36,1), opacity 0.3s cubic-bezier(.22,1,.36,1); transform: scale(0.95) translateY(-20px); opacity: 0; }
+    .modal.show .modal-dialog { transform: scale(1) translateY(0); opacity: 1; }
+    body.modal-open { overflow: auto !important; }
 </style>
 
 <div class="container-fluid">
@@ -311,33 +146,23 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-4">
-                <!-- Left: Title and Meta Info -->
                 <div class="vc-header">
-                    <h1 class="vc-title">
-                        VC {{ vc.vc_number }} - {{ vc.name }}
-                    </h1>
+                    <h1 class="vc-title">{{ vc.name }}</h1>
                     <div class="vc-meta">
-                        <span>
-                            <i class="fas fa-calendar-alt"></i>
-                            {{ vc.start_date.strftime('%d %B %Y') }}
-                        </span>
-                        <span>
-                            <i class="fas fa-rupee-sign"></i>
-                            ₹{{ "%.0f"|format(vc.amount)|indian_comma }}
-                        </span>
-                        <span>
-                            <i class="fas fa-hourglass-half"></i>
-                            {{ vc.tenure }} Months
-                        </span>
+                        <span><i class="fas fa-calendar-alt"></i>{{ vc.start_date.strftime('%d %B %Y') }}</span>
+                        <span><i class="fas fa-rupee-sign"></i>₹{{ "%.0f"|format(vc.amount)|indian_comma }}</span>
+                        <span><i class="fas fa-hourglass-half"></i>{{ vc.tenure }} Months</span>
                     </div>
                 </div>
 
-                <!-- Right: Action Buttons -->
                 <div class="action-buttons">
                     <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i>Back to VCs
                     </a>
-                    <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.vc_number }}')">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editVCModal">
+                        <i class="fas fa-pen"></i>Edit VC
+                    </button>
+                    <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.name }}')">
                         <i class="fas fa-trash"></i>Delete VC
                     </button>
                 </div>
@@ -349,14 +174,10 @@
     <div class="row">
         <div class="col-12">
             <div class="hand-timeline">
-                <!-- Timeline Header -->
                 <div class="card-header">
-                    <h5>
-                        <i class="fas fa-timeline"></i>Hands Timeline - VC {{ vc.vc_number }}
-                    </h5>
+                    <h5><i class="fas fa-timeline"></i>Hands Timeline — {{ vc.name }}</h5>
                 </div>
 
-                <!-- Table Header Row -->
                 <div class="hand-row header-row">
                     <div style="flex:1">Hand</div>
                     <div style="flex:1.5">Date</div>
@@ -367,17 +188,12 @@
                     <div style="flex:1">Payout</div>
                 </div>
 
-                <!-- Timeline Data Rows -->
                 {% for hand in hands %}
                 <div class="hand-row {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
-                    onclick="location.href='{{ url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'">
+                     onclick="location.href='{{ url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number) }}'">
 
-                    <div style="flex:1" data-label="Hand">
-                        <strong>{{ hand.hand_number }}</strong>
-                    </div>
-                    <div style="flex:1.5" data-label="Date">
-                        {{ hand.date.strftime('%d/%m/%Y') }}
-                    </div>
+                    <div style="flex:1" data-label="Hand"><strong>{{ hand.hand_number }}</strong></div>
+                    <div style="flex:1.5" data-label="Date">{{ hand.date.strftime('%d/%m/%Y') }}</div>
                     <div style="flex:1.5" data-label="Min. Interest">
                         ₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }}
                     </div>
@@ -397,9 +213,9 @@
                     </div>
                     <div style="flex:2" data-label="Contribution/Person">
                         {% if hand.hand_distributions %}
-                            ₹{{ "%.0f"|format(hand.total_paid / vc.members|length)|indian_comma }}
+                            ₹{{ "%.0f"|format(hand.total_paid / vc.total_slots)|indian_comma }}
                         {% else %}
-                            ₹{{ "%.0f"|format(hand.projected_payout / vc.members|length)|indian_comma }}
+                            ₹{{ "%.0f"|format(hand.projected_payout / vc.total_slots)|indian_comma }}
                         {% endif %}
                     </div>
                     <div style="flex:1" data-label="Payout">
@@ -418,20 +234,56 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal (Bootstrap) -->
-<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+
+<!-- ══ EDIT VC MODAL ══ -->
+<div class="modal fade" id="editVCModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('vc.edit_vc', id=vc.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ session['_csrf_token'] if '_csrf_token' in session else '' }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-pen"></i>Edit VC</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="edit-field-group">
+                        <label for="editVCName"><i class="fas fa-tag me-1"></i>VC Name</label>
+                        <input type="text" class="form-control" id="editVCName" name="name"
+                               value="{{ vc.name }}" required>
+                    </div>
+                    <div class="edit-field-group">
+                        <label for="editVCStartDate"><i class="fas fa-calendar-alt me-1"></i>Start Date</label>
+                        <input type="date" class="form-control" id="editVCStartDate" name="start_date"
+                               value="{{ vc.start_date.strftime('%Y-%m-%d') }}" required>
+                        <div class="form-text">Changing start date will shift all hand dates accordingly.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══ DELETE CONFIRMATION MODAL ══ -->
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">
-                    <i class="fas fa-exclamation-triangle"></i>Confirm Deletion
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i>Confirm Deletion</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Are you absolutely sure you want to delete <strong>VC <span id="vcNumberPlaceholder" class="fw-bold"></span></strong>?</p>
-                <p style="color: var(--danger); font-weight: 600; margin-top: 16px;">
-                    <i class="fas fa-times-circle"></i> This action cannot be undone. All associated ledgers will be closed.
+                <p>Are you sure you want to delete <strong><span id="vcNamePlaceholder"></span></strong>?</p>
+                <p style="color:var(--danger);font-weight:600;margin-top:16px;">
+                    <i class="fas fa-times-circle"></i> This cannot be undone. All associated data will be deleted.
                 </p>
             </div>
             <div class="modal-footer">
@@ -446,43 +298,28 @@
 
 {% block scripts %}
 <script>
-    /**
-     * Delete Confirmation Modal
-     */
-    let deleteUrl = '';
+let deleteUrl = '';
 
-    function showDeleteConfirmation(url, vcNumber) {
-        deleteUrl = url;
-        document.getElementById('vcNumberPlaceholder').innerText = vcNumber;
-        
-        const modalElement = document.getElementById('deleteConfirmationModal');
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: true,
-            keyboard: true,
-            focus: true
-        });
-        modal.show();
+function showDeleteConfirmation(url, vcName) {
+    deleteUrl = url;
+    document.getElementById('vcNamePlaceholder').innerText = vcName;
+    new bootstrap.Modal(document.getElementById('deleteConfirmationModal')).show();
+}
+
+document.getElementById('confirmDeleteButton').addEventListener('click', function () {
+    if (deleteUrl) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = deleteUrl;
+        document.body.appendChild(form);
+        form.submit();
     }
+});
 
-    document.getElementById('confirmDeleteButton').addEventListener('click', function() {
-        if (deleteUrl) {
-            // Create form and submit
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = deleteUrl;
-            document.body.appendChild(form);
-            form.submit();
-        }
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.hand-row:not(.header-row)').forEach((row, i) => {
+        row.style.animationDelay = `${i * 0.05}s`;
     });
-
-    /**
-     * Hand row animation on load
-     */
-    document.addEventListener('DOMContentLoaded', function() {
-        const handRows = document.querySelectorAll('.hand-row:not(.header-row)');
-        handRows.forEach((row, index) => {
-            row.style.animationDelay = `${index * 0.05}s`;
-        });
-    });
+});
 </script>
 {% endblock %}
