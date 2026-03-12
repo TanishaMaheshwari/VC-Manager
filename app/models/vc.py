@@ -71,7 +71,7 @@ class VC(db.Model):
             db.select(db.func.sum(vc_members.c.slots))
             .where(vc_members.c.vc_id == self.id)
         ).scalar()
-        return result or 0
+        return int(result or 0)
 
     @property
     def slots_display(self):

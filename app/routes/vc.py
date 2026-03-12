@@ -12,6 +12,8 @@ from app.models.contribution import Contribution
 from app.models.ledger import LedgerEntry
 from app.models.person import Person
 from app.forms import VCForm
+from app.routes import hand
+from app.routes.ledger import get_last_balance
 from app.utils import login_required
 import traceback
 import json
@@ -154,14 +156,20 @@ def view_hand_distribution(vc_id, hand_number):
 
     vc_member_ids = [m.id for m in vc.members]
 
+    # All distributions for this hand
+    distributions = HandDistribution.query.filter_by(hand_id=hand.id).all()
+    payout_recorded = len(distributions) > 0
+    payout = distributions[0] if distributions else None
+
+    balance_map = {}
+    for d in distributions:
+        if not d.is_operator_taken and d.person_id:
+            balance_map[d.person_id] = get_last_balance(d.person_id)
+
     contributions = Contribution.query.filter(
         Contribution.hand_id == hand.id,
         Contribution.person_id.in_(vc_member_ids)
     ).order_by(Contribution.date.asc()).all()
-
-    # All distributions for this hand (supports multiple winners)
-    distributions = HandDistribution.query.filter_by(hand_id=hand.id).all()
-    payout_recorded = len(distributions) > 0
 
     # Keep `payout` for backwards-compat with any other template references.
     # For single-winner hands this is the one record; for multi-winner it's
@@ -219,7 +227,8 @@ def view_hand_distribution(vc_id, hand_number):
         contributions=contributions,
         payout=payout,               # first distribution or None
         distributions=distributions, # all distributions for this hand
-        ledger_map=ledger_map
+        ledger_map=ledger_map,
+        balance_map=balance_map 
     )
 
 @vc_bp.route('/<int:vc_id>/distribute-hand', methods=['POST'])
