@@ -105,6 +105,25 @@
         gap: 4px;
     }
 
+    .mobile-action-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        gap: 8px;
+        padding: 12px 16px;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+        z-index: 100;
+    }
+
+    /* Add bottom padding on mobile so timeline doesn't hide behind the bar */
+    @media (max-width: 768px) {
+        .container-fluid { padding-bottom: 8px; }
+        .main-content { padding-bottom: 80px; }
+    }
+
     /* Edit form inside modal */
     .edit-field-group { margin-bottom: 20px; }
     .edit-field-group label { font-weight: 600; font-size: 0.875rem; color: var(--text); margin-bottom: 6px; display: block; }
@@ -155,7 +174,7 @@
                     </div>
                 </div>
 
-                <div class="action-buttons">
+                <div class="action-buttons d-none d-md-flex">
                     <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i>Back to VCs
                     </a>
@@ -165,6 +184,7 @@
                     <button class="btn btn-danger" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.name }}')">
                         <i class="fas fa-trash"></i>Delete VC
                     </button>
+                    
                 </div>
             </div>
         </div>
@@ -182,8 +202,9 @@
                     <div style="flex:1">Hand</div>
                     <div style="flex:1.5">Date</div>
                     <div style="flex:1.5">Min. Interest</div>
-                    <div style="flex:1.5">Earned Interest</div>
-                    <div style="flex:1.5">Bid Price</div>
+                    <!-- <div style="flex:1.5">Earned Interest</div> -->
+                    <div style="flex:1.5">Win</div>
+                    <div style="flex:1.5">Win Price</div>
                     <div style="flex:2">Contribution/Person</div>
                     <div style="flex:1">Payout</div>
                 </div>
@@ -197,13 +218,13 @@
                     <div style="flex:1.5" data-label="Min. Interest">
                         ₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }}
                     </div>
-                    <div style="flex:1.5" data-label="Earned Interest">
+                    <!-- <div style="flex:1.5" data-label="Earned Interest">
                         {% if hand.hand_distributions %}
                             ₹{{ "%.0f"|format(vc.amount - hand.total_paid)|indian_comma }}
                         {% else %}
                             <span class="text-muted">-</span>
                         {% endif %}
-                    </div>
+                    </div> -->
                     <div style="flex:1.5" data-label="Bid Price">
                         {% if hand.hand_distributions %}
                             ₹{{ "%.0f"|format(hand.total_paid)|indian_comma }}
@@ -294,7 +315,22 @@
     </div>
 </div>
 
+<!-- Mobile action buttons — shown below timeline on small screens -->
+<div class="d-flex d-md-none gap-2 mt-3 flex-wrap">
+    <button class="btn btn-primary flex-fill" data-bs-toggle="modal" data-bs-target="#editVCModal">
+        <i class="fas fa-pen"></i>Edit
+    </button>
+    <button class="btn btn-danger flex-fill" onclick="showDeleteConfirmation('{{ url_for('vc.delete_vc', id=vc.id) }}', '{{ vc.name }}')">
+        <i class="fas fa-trash"></i>Delete
+    </button>
+    <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary flex-fill">
+        <i class="fas fa-arrow-left"></i>Back
+    </a>
+</div>
+
 {% endblock %}
+
+
 
 {% block scripts %}
 <script>

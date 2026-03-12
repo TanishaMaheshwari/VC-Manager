@@ -382,7 +382,10 @@
     <div class="person-list">
         {% if persons %}
             {% for person in persons %}
-            <div class="person-item" id="person-{{ person.id }}">
+            <div class="person-item" id="person-{{ person.id }}"
+                data-name="{{ person.name }}"
+                data-phone="{{ (person.phone or '') ~ ' ' ~ (person.phone2 or '') }}"
+                data-balance="{{ person.ledger_balance }}">
                 
                 <!-- Left Section: Main Info -->
                 <div class="person-item-main">
@@ -457,38 +460,59 @@
 
 {% block scripts %}
 <script>
-    /**
-     * Search and Sort functionality
-     */
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('searchInput');
-        const sortSelect = document.getElementById('sortSelect');
-        const personList = document.querySelector('.person-list');
-        const personItems = Array.from(document.querySelectorAll('.person-item'));
+        const sortSelect  = document.getElementById('sortSelect');
+        const personList  = document.querySelector('.person-list');
 
-        let searchTimer;
-
-        function performSearch() {
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => {
-                const query = (searchInput.value || '').trim().toLowerCase();
-                const sortOrder = sortSelect.value;
-
-                // Fetch search results
-                fetch(`/search_persons?q=${query}&sort=${sortOrder}`)
-                    .then(response => response.text())
-                    .then(html => {
-                        personList.innerHTML = html;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching search results:', error);
-                    });
-            }, 300);
+        function normalize(str) {
+            return (str || '').toLowerCase().replace(/\s+/g, '');
         }
 
-        // Event listeners
-        searchInput.addEventListener('input', performSearch);
-        sortSelect.addEventListener('change', performSearch);
+        function matches(item, query) {
+            if (!query) return true;
+            const name  = normalize(item.dataset.name);
+            const phone = normalize(item.dataset.phone);
+            const q     = normalize(query);
+            if (name.includes(q) || phone.includes(q)) return true;
+            let i = 0;
+            for (const ch of name) {
+                if (ch === q[i]) i++;
+                if (i === q.length) return true;
+            }
+            return false;
+        }
+
+        function applySearch() {
+            const query = searchInput.value.trim();
+            document.querySelectorAll('.person-item').forEach(item => {
+                item.style.display = matches(item, query) ? '' : 'none';
+            });
+        }
+
+        function applySort() {
+            const sort  = sortSelect.value;
+            const items = Array.from(document.querySelectorAll('.person-item'));
+
+            items.sort((a, b) => {
+                if (sort === 'name_asc') {
+                    return (a.dataset.name || '').localeCompare(b.dataset.name || '');
+                } else {
+                    const balA = parseFloat(a.dataset.balance || '0');
+                    const balB = parseFloat(b.dataset.balance || '0');
+                    return sort === 'balance_asc' ? balA - balB : balB - balA;
+                }
+            });
+
+            // Re-append in sorted order
+            items.forEach(item => personList.appendChild(item));
+
+            // Re-apply search filter
+            applySearch();
+        }
+
+        searchInput.addEventListener('input', applySearch);
+        sortSelect.addEventListener('change', applySort);
     });
 </script>
 {% endblock %}

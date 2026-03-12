@@ -31,12 +31,13 @@
     display: flex; align-items: center; gap: 10px;
     padding: 14px 20px;
     background: var(--surface2);
+    border-top: 3px solid var(--border);
     border-bottom: 1px solid var(--border);
     font-size: 0.72rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.1em;
     color: var(--text-muted);
 }
-.section-label i { color: var(--accent); font-size: 0.8rem; }
+.section-label i { color: var(--accent); font-size: 0.8rem;}
 
 /* Payout rows */
 .payout-row {
@@ -87,12 +88,12 @@
 .person-chip.operator-chip { background: #6366f1; }
 
 .amount-display { font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 700; }
-.amount-display.payout-amt   { color: var(--danger); }
+.amount-display.payout-amt   { color: var(--success); }
 .amount-display.contrib-amt  { color: var(--success); }
 .amount-display.operator-amt { color: #6366f1; }
 
 .person-name { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
-.person-sub  { font-size: 0.75rem; color: var(--text-muted); }
+.person-sub  { font-size: 1rem; color: var(--text-muted); }
 
 .date-cell .date-main { font-weight: 600; font-size: 0.85rem; color: var(--text); }
 .date-cell .date-time  { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
@@ -197,7 +198,7 @@
                 <div class="row-index">⚙</div>
                 <div><div class="person-chip operator-chip">OPERATOR</div></div>
                 <div>
-                    <div class="person-name">Operator</div>
+                    <div class="person-name  d-none d-md-block">Operator</div>
                     <div class="person-sub">Kept by operator — no member payout</div>
                 </div>
                 <div>
@@ -209,16 +210,23 @@
             {% else %}
             <div class="payout-row" onclick="openEditModal()" title="Click to edit">
                 <div class="row-index">★</div>
-                <div><div class="person-chip">{{ dist.person.short_name }}</div></div>
                 <div>
-                    <div class="person-name">{{ dist.person.name }}</div>
+                    <div class="person-chip d-none d-md-block">{{ dist.person.short_name }}</div>
+                    <div class="person-chip d-md-none">{{ dist.person.name }}</div>
+                </div>
+                <div>
+                    <div class="person-name d-none d-md-block">{{ dist.person.name }}</div>
                     <div class="person-sub">Winning bid: ₹{{ "%.0f"|format(dist.amount) }}</div>
                 </div>
                 <div>
-                    <div class="amount-display payout-amt">
-                        –₹{{ "%.0f"|format(dist.amount - hand.actual_contribution_per_person) }}
+                    <div>
+                        <div class="amount-display payout-amt">
+                            ₹{{ "%.0f"|format(dist.amount) }}
+                        </div>
+                        <div class="person-sub" style="margin-top:4px;">
+                            Net: ₹{{ "%.0f"|format(balance_map.get(dist.person_id, 0)) }}
+                        </div>
                     </div>
-                    <div class="person-sub" style="margin-top:4px;">Net after contribution</div>
                 </div>
                 <div><span class="pay-badge payout"><i class="fas fa-star"></i>Winner</span></div>
             </div>
@@ -251,10 +259,10 @@
             <div class="contrib-row fade-in"
                  onclick="window.location.href='{{ url_for('ledger.person_ledger', person_id=person_id) }}'">
                 <div class="row-index">{{ loop.index }}</div>
-                <div><div class="person-chip">{{ latest.person.name }}</div></div>
+                <div><div class="person-chip">{{ latest.person.short_name }}</div></div>
                 <div>
-                    <div class="person-name">
-                        <!-- {{ latest.person.name }} -->
+                    <div class="person-name  d-none d-md-block">
+                        {{ latest.person.name }}
                         {% if person_id in winner_ids %}
                             <span class="pay-badge payout ms-1" style="font-size:0.65rem;">
                                 <i class="fas fa-star"></i>Winner

@@ -132,18 +132,14 @@
 
                     <!-- VC Number + Name -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">VC Number</label>
-                            <input type="text" class="form-control" value="{{ vc_number }}" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.name.label(class="form-label") }}
-                            {{ form.name(class="form-control") }}
-                            {% for error in form.name.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+                    <div class="col-md-12">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
                     </div>
+                </div>
 
                     <!-- Start Date + Tenure -->
                     <div class="row mb-3">

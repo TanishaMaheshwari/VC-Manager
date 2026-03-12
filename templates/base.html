@@ -51,9 +51,9 @@
     }
 
     [data-theme="light"] {
-        --bg:           #f0f4f8;
+        --bg:           #ffffff;
         --surface:      #ffffff;
-        --surface2:     #e3ecf5;
+        --surface2:     #d6e6f6da;
         --surface3:     #d6e4f0;
         --border:       rgba(37,99,235,0.13);
         --border-solid: #d0dded;
@@ -364,7 +364,7 @@
         box-shadow: var(--shadow-lg);
     }
     .modal-header {
-        background: var(--grad-header); color: #fff; border: none;
+        background: var(--grad-header); color: #ffffff; border: none;
         padding: 18px 24px;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     }
@@ -391,6 +391,57 @@
         .stat-card { margin-bottom: 12px; }
     }
     @media (max-width: 480px) { .a11y-label { display: none; } }
+
+    /* ═══ MOBILE TAB BAR ═══ */
+    .mobile-tab-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1029; /* just below navbar */
+        background: var(--nav-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+        padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+    }
+
+    .tab-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 6px 4px;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        transition: color var(--transition);
+        border-radius: var(--radius-sm);
+    }
+    .tab-item i {
+        font-size: 1.15rem;
+        line-height: 1;
+    }
+    .tab-item:hover,
+    .tab-item.active {
+        color: var(--accent);
+    }
+    .tab-item.active i {
+        filter: drop-shadow(0 0 6px var(--accent));
+    }
+
+    /* Push page content above tab bar on mobile */
+    @media (max-width: 767px) {
+        .main-content {
+            padding-bottom: calc(70px + env(safe-area-inset-bottom));
+        }
+    }
     </style>
 </head>
 
@@ -414,7 +465,7 @@
 
         <div class="collapse navbar-collapse" id="navbarNav">
             {% if current_user.is_authenticated %}
-            <ul class="navbar-nav me-auto">
+            <ul class="navbar-nav me-auto d-none d-md-flex">
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.index') }}"><i class="fas fa-home"></i>Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('vc.vcs_list') }}"><i class="fas fa-list"></i>All VCs</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('person.persons') }}"><i class="fas fa-users"></i>Persons</a></li>
@@ -444,8 +495,8 @@
                         <span class="d-none d-sm-inline">{{ current_user.name }}</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{{ url_for('dashboard.index') }}"><i class="fas fa-tachometer-alt"></i>Dashboard</a></li>
-                        <li><hr class="dropdown-divider"></li>
+                        <!-- <li><a class="dropdown-item" href="{{ url_for('dashboard.index') }}"><i class="fas fa-tachometer-alt"></i>Dashboard</a></li>
+                        <li><hr class="dropdown-divider"></li> -->
                         <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i>Logout</a></li>
                     </ul>
                 </div>
@@ -472,7 +523,25 @@
         {% block content %}{% endblock %}
     </div>
 </main>
-
+<!-- Mobile bottom tab bar -->
+<nav class="mobile-tab-bar d-flex d-md-none" role="navigation" aria-label="Mobile navigation">
+    <a href="{{ url_for('dashboard.index') }}" class="tab-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{{ url_for('vc.vcs_list') }}" class="tab-item {% if request.endpoint and 'vc.' in request.endpoint %}active{% endif %}">
+        <i class="fas fa-list"></i>
+        <span>VCs</span>
+    </a>
+    <a href="{{ url_for('person.persons') }}" class="tab-item {% if request.endpoint and 'person.' in request.endpoint %}active{% endif %}">
+        <i class="fas fa-users"></i>
+        <span>Persons</span>
+    </a>
+    <!-- <a href="{{ url_for('payment.record_payment') }}" class="tab-item {% if request.endpoint and 'payment.' in request.endpoint %}active{% endif %}">
+        <i class="fas fa-money-bill-wave"></i>
+        <span>Payments</span>
+    </a> -->
+</nav>
 <!-- Modal portal: modals are moved here by JS, making them
      direct <body> children with no stacking context above them -->
 <div id="modal-portal"></div>
