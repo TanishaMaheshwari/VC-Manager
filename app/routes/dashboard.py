@@ -78,6 +78,7 @@ def index():
             vc_id=form.vc_id.data,
             date=form.date.data or datetime.utcnow(),
             narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}",
+            debit=0,
             credit=form.amount.data,
             balance=prev_balance + form.amount.data
         )

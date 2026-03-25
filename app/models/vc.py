@@ -35,7 +35,7 @@ class VC(db.Model):
 
     hands          = db.relationship('VCHand',      backref='vc', lazy=True, cascade='all, delete-orphan')
     payments       = db.relationship('Payment',     backref='vc', lazy=True, cascade='all, delete-orphan')
-    ledger_entries = db.relationship('LedgerEntry', backref='vc', lazy=True)
+    ledger_entries = db.relationship('LedgerEntry', back_populates='vc', lazy=True)
     members        = db.relationship('Person', secondary=vc_members, backref='vcs')
 
     # ── Slot helpers ─────────────────────────────────────────────────────────

@@ -27,13 +27,15 @@ def vcs_list():
     # Total due = sum of all unpaid contributions globally (across all people)
     total_due = sum(c.amount for vc in vcs for hand in vc.hands for c in hand.contributions if not c.paid)
     total_vcs = len(vcs)
-    total_members = sum(len(vc.members) for vc in vcs)
+    total_members = sum(vc.total_slots for vc in vcs) if vcs else 0
     return render_template('vc/list.html', vcs=vcs, total_due=total_due, total_members=total_members, total_vcs=total_vcs)
 
 
 @vc_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create_vc():
+    print(f"DEBUG raw request.form = {dict(request.form)}")
+
     form = VCForm()
     form.members.choices = [
         (p.id, p.name)
@@ -44,9 +46,8 @@ def create_vc():
     next_vc_number = (last_vc.vc_number + 1) if last_vc else 1
 
     if form.validate_on_submit():
-        # Parse slot map from hidden field: {person_id: slots}
         try:
-            raw_slots = json.loads(form.member_slots.data or '{}')
+            raw_slots = json.loads(request.form.get('slot_data', '{}'))
             slot_map  = {int(k): max(1, int(v)) for k, v in raw_slots.items()}
         except (ValueError, TypeError):
             slot_map = {}
@@ -62,37 +63,34 @@ def create_vc():
             narration    = form.narration.data,
         )
 
-        # Add unique members (relationship holds one row per unique person)
         selected_ids    = form.members.data
         selected_people = Person.query.filter(Person.id.in_(selected_ids)).all()
         vc.members.extend(selected_people)
 
         db.session.add(vc)
-        db.session.flush()   # get vc.id before setting slots
-
-        # Write slots into the association table
-        for person in selected_people:
-            slots = slot_map.get(person.id, 1)
-            if slots != 1:           # default is already 1; only update non-default
-                db.session.execute(
-                    vc_members.update()
-                    .where(
-                        (vc_members.c.vc_id     == vc.id) &
-                        (vc_members.c.person_id == person.id)
-                    )
-                    .values(slots=slots)
-                )
-
         db.session.flush()
 
-        # Create hands
-        vc.create_hands()
+        print(f"DEBUG slot_map = {slot_map}")
+        for person in selected_people:
+            print(f"DEBUG person.id = {person.id!r}  type = {type(person.id)}  lookup = {slot_map.get(person.id, 'NOT FOUND')}")
+            slots = slot_map.get(person.id, 1)
+            slots = slot_map.get(person.id, 1)
+            db.session.execute(
+                vc_members.update()
+                .where(
+                    (vc_members.c.vc_id     == vc.id) &
+                    (vc_members.c.person_id == person.id)
+                )
+                .values(slots=slots)
+            )
 
+        db.session.flush()
+        vc.create_hands()
         db.session.commit()
 
         total_slots = sum(slot_map.get(p.id, 1) for p in selected_people)
         flash(
-            f'VC {next_vc_number} created — {form.tenure.data} hands, '
+            f'VC "{vc.name}" created — {form.tenure.data} hands, '
             f'{len(selected_people)} members ({total_slots} total slots).',
             'success'
         )
@@ -199,6 +197,8 @@ def view_hand_distribution(vc_id, hand_number):
     # Build win history per member for this VC
     member_eligibility = {}
     for member in members:
+        if member is None:
+            continue
         wins = [
             d for h in vc.hands
             for d in h.hand_distributions
@@ -216,6 +216,7 @@ def view_hand_distribution(vc_id, hand_number):
                 'is_eligible': True,
                 'win_info': None
             }
+    member_slots = {p.id: vc.get_slots(p.id) for p in vc.members}
 
     return render_template(
         'vc/hand_distribution.html',
@@ -228,147 +229,9 @@ def view_hand_distribution(vc_id, hand_number):
         payout=payout,               # first distribution or None
         distributions=distributions, # all distributions for this hand
         ledger_map=ledger_map,
-        balance_map=balance_map 
+        balance_map=balance_map ,
+        member_slots=member_slots
     )
-
-@vc_bp.route('/<int:vc_id>/distribute-hand', methods=['POST'])
-@login_required
-def distribute_hand(vc_id):
-    try:
-        print("--- Starting distribute_hand function ---")
-
-        # Verify VC belongs to current user
-        vc = VC.query.filter_by(id=vc_id, user_id=current_user.id).first_or_404()
-
-        # 1. Fetch form data
-        hand_id = request.form.get("hand_id")
-        winners = request.form.getlist("winners")
-        bid_price = request.form.get("bid_price", type=float)
-        narration = request.form.get("narration")
-
-        print(f"Received data: hand_id={hand_id}, winners={winners}, bid_price={bid_price}, narration={narration}")
-
-        # Basic validation
-        if not winners or bid_price is None or bid_price <= 0:
-            print("Validation failed: winners or bid_price is invalid.")
-            flash("Error: Winner(s) and a valid bid price are required.", 'danger')
-            return redirect(url_for('vc.view_hand_distribution', vc_id=vc_id, hand_number=VCHand.query.get(hand_id).hand_number))
-
-        hand = VCHand.query.filter_by(id=hand_id, vc_id=vc.id).first_or_404()
-
-        required_earned_interest = vc.amount - hand.projected_payout
-        earned_interest_from_bid = vc.amount - bid_price
-        
-        if earned_interest_from_bid < required_earned_interest:
-            flash(f"The bid price must be ₹{hand.projected_payout:.0f} or less to cover the minimum interest of ₹{required_earned_interest:.0f}.", 'danger')
-            return redirect(url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
-
-        # Get winner objects from current user's persons only
-        winner_objs = Person.query.filter(Person.id.in_(winners), Person.user_id==current_user.id).all()
-
-        # Check if already distributed
-        if HandDistribution.query.filter_by(hand_id=hand.id).first():
-            print("Hand already distributed.")
-            flash("Error: This hand has already been distributed.", 'danger')
-            return redirect(url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
-
-        # Check if winner has already won
-        winning_member_ids = {d.person_id for h in vc.hands for d in h.hand_distributions}
-        for w in winner_objs:
-            if w.id in winning_member_ids:
-                print(f"Winner {w.name} already won a previous hand.")
-                flash(f"Error: {w.name} has already won a previous hand and is ineligible.", 'danger')
-                return redirect(url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
-
-        print("Validation checks passed. Starting database operations.")
-        # Ledger Fix: Use a dictionary to track real-time balances
-        all_persons = Person.query.all()
-        person_balances = {p.id: p.total_balance for p in all_persons}
-        print(f"Initial person_balances: {person_balances}")
-
-        # 1. Record payouts for winner(s)
-        payout_per_winner = bid_price / len(winner_objs)
-        print(f"Payout per winner: {payout_per_winner}")
-        for winner in winner_objs:
-            print(f"Processing winner: {winner.name}")
-            # Hand Distribution record
-            payout = HandDistribution(
-                hand_id=hand.id,
-                person_id=winner.id,
-                amount=payout_per_winner,
-                narration=narration or f"Payout for Hand {hand.hand_number}",
-                is_vc_money_taken=True
-            )
-            db.session.add(payout)
-            print("Added HandDistribution to session.")
-
-            # Ledger entry for payout (credit)
-            from app.routes.ledger import get_last_balance
-            current_balance = get_last_balance(winner.id)
-            new_balance = current_balance + payout_per_winner
-            ledger_entry = LedgerEntry(
-                person_id=winner.id,
-                vc_id=vc.id,
-                date=datetime.utcnow(),
-                narration=f"Payout received for VC {vc.name}, Hand {hand.hand_number}. ({narration or 'No comment'})",
-                credit=payout_per_winner,
-                balance=new_balance
-            )
-            db.session.add(ledger_entry)
-            person_balances[winner.id] = new_balance
-            print(f"Added LedgerEntry (credit). New balance for {winner.name}: {new_balance}")
-
-        # 2. Contributions for all members
-        members = vc.members
-        per_person_contribution = bid_price / len(members)
-        print(f"Contribution per member: {per_person_contribution}")
-        winning_ids = {w.id for w in winner_objs}
-        for member in members:
-            print(f"Processing member: {member.name}")
-
-            # Contribution record
-            # Mark as paid=True if this member is a winner, False otherwise
-            contribution = Contribution(
-                hand_id=hand.id,
-                person_id=member.id,
-                amount=per_person_contribution,
-                date=datetime.utcnow(),
-                paid=(member.id in winning_ids)  # Mark as paid if member is a winner
-            )
-            db.session.add(contribution)
-            print("Added Contribution to session.")
-
-            # Ledger entry (debit)
-            from app.routes.ledger import get_last_balance
-            current_balance = get_last_balance(member.id)
-            new_balance = current_balance - per_person_contribution
-            ledger_entry = LedgerEntry(
-                person_id=member.id,
-                vc_id=vc.id,
-                date=datetime.utcnow(),
-                narration=f"Contribution for VC {vc.name}, Hand {hand.hand_number}.",
-                debit=per_person_contribution,
-                balance=new_balance
-            )
-            db.session.add(ledger_entry)
-            person_balances[member.id] = new_balance
-            print(f"Added LedgerEntry (debit). New balance for {member.name}: {new_balance}")
-
-        # 3. Advance VC hand
-        if vc.current_hand == hand.hand_number:
-            vc.current_hand += 1
-            print("Advanced VC's current hand number.")
-
-        db.session.commit()
-        flash(f"Hand {hand.hand_number} distributed successfully with bid price ₹{bid_price}!", 'success')
-        return redirect(url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
-
-    except Exception as e:
-        db.session.rollback()
-        print("An exception occurred! Rolling back changes.")
-        traceback.print_exc()
-        flash(f"An error occurred during distribution: {str(e)}. Changes have been rolled back.", 'danger')
-        return redirect(url_for('vc.view_hand_distribution', vc_id=vc.id, hand_number=hand.hand_number))
 
 @vc_bp.route('/delete/<int:id>', methods=['POST'])
 @login_required
@@ -380,6 +243,8 @@ def delete_vc(id):
     
     # Close ledgers for all members of this VC
     for member in vc.members:
+        if member is None:
+            continue    
         close_ledger(member.id)
     
     # Delete the VC

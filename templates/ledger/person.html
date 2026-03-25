@@ -458,13 +458,13 @@
                     <div class="stat-card">
                         <div class="stat-icon"><i class="fas fa-minus-circle"></i></div>
                         <div class="stat-label">Total Debits</div>
-                        <div class="stat-value" style="color: var(--danger);">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
+                        <div class="stat-value" style="color: var(--danger);">₹{{ "%.0f"|format(entries|selectattr('debit')|sum(attribute='debit') or 0) }}</div>
                     </div>
 
                     <div class="stat-card">
                         <div class="stat-icon"><i class="fas fa-plus-circle"></i></div>
                         <div class="stat-label">Total Credits</div>
-                        <div class="stat-value" style="color: var(--success);">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
+                        <div class="stat-value" style="color: var(--success);">₹{{ "%.0f"|format(entries|selectattr('credit')|sum(attribute='credit') or 0) }}</div>
                     </div>
 
                     <div class="stat-card">

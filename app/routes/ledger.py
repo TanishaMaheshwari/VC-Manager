@@ -80,6 +80,7 @@ def person_ledger(person_id):
         query = query.filter(LedgerEntry.date <= datetime.strptime(to_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
 
     entries = query.order_by(LedgerEntry.date.desc()).all()
+    entries = [e for e in entries if e is not None]
 
     return render_template('ledger/person.html', person=person, entries=entries)
 
@@ -168,4 +169,49 @@ def export_ledger_pdf(person_id):
         mimetype='application/pdf',
         as_attachment=True,
         download_name=f"ledger_{person.name.replace(' ', '_')}.pdf"
+    )
+
+
+@ledger_bp.route('/operator')
+@login_required
+def operator_ledger():
+    from_date = request.args.get('from_date')
+    to_date   = request.args.get('to_date')
+    vc_id     = request.args.get('vc_id', type=int)
+
+    # Get all VC ids belonging to current user
+    user_vc_ids = [v.id for v in VC.query.filter_by(user_id=current_user.id).all()]
+    if not user_vc_ids:
+        return render_template('ledger/operator.html', entries=[], vcs=[], 
+                          total_credits=0, total_debits=0, net_balance=0)
+
+    # Use is_(None) for reliable NULL comparison in SQLAlchemy
+    query = LedgerEntry.query.filter(
+        LedgerEntry.person_id.is_(None),
+        LedgerEntry.vc_id.in_(user_vc_ids)
+    )
+
+    if vc_id:
+        query = query.filter(LedgerEntry.vc_id == vc_id)
+    if from_date:
+        query = query.filter(LedgerEntry.date >= datetime.strptime(from_date + ' 00:00:00', '%Y-%m-%d %H:%M:%S'))
+    if to_date:
+        query = query.filter(LedgerEntry.date <= datetime.strptime(to_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
+
+    entries = query.order_by(LedgerEntry.date.desc()).all()
+    entries = [e for e in entries if e is not None] 
+
+    vcs = VC.query.filter_by(user_id=current_user.id).order_by(VC.vc_number).all()
+
+    total_credits = sum(float(e.credit or 0) for e in entries)
+    total_debits  = sum(float(e.debit  or 0) for e in entries)
+    net_balance   = total_credits - total_debits
+
+    return render_template(
+        'ledger/operator.html',
+        entries=entries,
+        vcs=vcs,
+        total_credits=total_credits,
+        total_debits=total_debits,
+        net_balance=net_balance,
     )

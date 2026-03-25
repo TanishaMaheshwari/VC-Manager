@@ -25,7 +25,7 @@ class Person(db.Model):
     
     # Relationships
     payments = db.relationship('Payment', backref='person', lazy=True)
-    ledger_entries = db.relationship('LedgerEntry', backref='person', lazy=True)
+    ledger_entries = db.relationship('LedgerEntry', backref='ledger_person', lazy=True)
     
     @property
     def total_balance(self):
@@ -36,14 +36,10 @@ class Person(db.Model):
 
     @property
     def ledger_balance(self):
-        """
-        Get the balance from the most recent ledger entry.
-        Returns the actual recorded balance, not a calculated sum.
-        """
-        if self.ledger_entries:
-            # Sort by date descending to get the most recent entry
-            last_entry = sorted(self.ledger_entries, key=lambda e: e.date, reverse=True)[0]
-            return last_entry.balance
+        entries = [e for e in self.ledger_entries if e is not None]
+        if entries:
+            last_entry = sorted(entries, key=lambda e: e.date, reverse=True)[0]
+            return last_entry.balance if last_entry.balance is not None else (self.opening_balance or 0.0)
         return self.opening_balance or 0.0
 
     @property

@@ -254,7 +254,8 @@
             {% set entries      = group.list %}
             {% set total_amount = entries|sum(attribute='amount') %}
             {% set latest       = entries|last %}
-            {% set is_paid      = ledger_map.get(person_id) or (entries|selectattr('paid')|list|length > 0) %}
+            {% set is_paid      = ledger_map.get(person_id) or (entries|selectattr('paid')|list|length > 0) %}    
+            {% set slots        = member_slots.get(person_id, 1) %}
 
             <div class="contrib-row fade-in"
                  onclick="window.location.href='{{ url_for('ledger.person_ledger', person_id=person_id) }}'">
@@ -269,7 +270,7 @@
                             </span>
                         {% endif %}
                     </div>
-                    <div class="person-sub">{{ entries|length }} contribution{{ 's' if entries|length > 1 }}</div>
+                    <div class="person-sub">{{ slots }} hand{{ 's' if slots > 1 }}</div>
                 </div>
                 <div class="date-cell">
                     {% if ledger_map.get(person_id) %}
@@ -492,6 +493,13 @@ document.addEventListener('DOMContentLoaded', function () {
             if (firstAmount) {
                 firstAmount.value = this.value;
             }
+        });
+    }
+    const editBidPrice = document.getElementById('editBidPrice');
+    if (editBidPrice) {
+        editBidPrice.addEventListener('input', function () {
+            const firstAmount = document.querySelector('#editWinnerRows .winner-row:first-child [name="amounts[]"]');
+            if (firstAmount) firstAmount.value = this.value;
         });
     }
 });

@@ -9,8 +9,6 @@
     gap: 10px;
     margin-top: 8px;
 }
-
-/* Each member tile */
 .member-tile {
     position: relative;
     border: 2px solid var(--border);
@@ -25,15 +23,8 @@
     justify-content: space-between;
     gap: 10px;
 }
-.member-tile:hover {
-    border-color: var(--accent);
-    background: var(--accent-glow);
-}
-.member-tile.selected {
-    border-color: var(--accent);
-    background: var(--accent-glow);
-}
-
+.member-tile:hover  { border-color: var(--accent); background: var(--accent-glow); }
+.member-tile.selected { border-color: var(--accent); background: var(--accent-glow); }
 .member-name {
     font-weight: 600;
     font-size: 0.88rem;
@@ -43,78 +34,46 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
-/* Slot badge — right side of tile */
 .slot-badge {
     display: none;
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
 }
-.member-tile.selected .slot-badge {
-    display: flex;
-}
-
+.member-tile.selected .slot-badge { display: flex; }
 .slot-btn {
-    width: 24px;
-    height: 24px;
+    width: 24px; height: 24px;
     border-radius: 50%;
     border: 1.5px solid var(--accent);
     background: transparent;
     color: var(--accent);
-    font-size: 0.85rem;
-    font-weight: 700;
+    font-size: 0.85rem; font-weight: 700;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
     transition: background 0.15s, color 0.15s;
     flex-shrink: 0;
 }
-.slot-btn:hover {
-    background: var(--accent);
-    color: #fff;
-}
-.slot-btn:disabled {
-    opacity: 0.35;
-    cursor: default;
-}
-
+.slot-btn:hover { background: var(--accent); color: #fff; }
+.slot-btn:disabled { opacity: 0.35; cursor: default; }
 .slot-count {
     font-family: 'Space Mono', monospace;
-    font-size: 0.88rem;
-    font-weight: 700;
+    font-size: 0.88rem; font-weight: 700;
     color: var(--accent);
-    min-width: 16px;
-    text-align: center;
+    min-width: 16px; text-align: center;
 }
-
-/* Slot summary bar */
 .slot-summary {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 12px;
-    padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 12px; padding: 10px 16px;
     background: var(--surface2);
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
-    font-size: 0.875rem;
-    color: var(--text-muted);
+    font-size: 0.875rem; color: var(--text-muted);
     flex-wrap: wrap;
 }
-.slot-summary strong {
-    color: var(--accent);
-    font-family: 'Space Mono', monospace;
-}
+.slot-summary strong { color: var(--accent); font-family: 'Space Mono', monospace; }
 .slot-mismatch { color: var(--danger) !important; }
 .slot-match    { color: var(--success) !important; }
-
-/* Search */
-#memberSearch {
-    max-width: 340px;
-}
+#memberSearch  { max-width: 340px; }
 </style>
 
 <div class="row">
@@ -127,39 +86,36 @@
                 <form method="POST" id="createVCForm">
                     {{ form.hidden_tag() }}
 
-                    <!-- Hidden field carries slot JSON -->
-                    <input type="hidden" name="member_slots" id="memberSlotsInput" value="{}">
+                    <!-- slot_data: unique name WTForms knows nothing about -->
+                    <input type="hidden" name="slot_data" id="slotDataInput">
 
-                    <!-- VC Number + Name -->
                     <div class="row mb-3">
-                    <div class="col-md-12">
-                        {{ form.name.label(class="form-label") }}
-                        {{ form.name(class="form-control") }}
-                        {% for error in form.name.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
+                        <div class="col-md-12">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control") }}
+                            {% for e in form.name.errors %}
+                                <div class="text-danger small">{{ e }}</div>
+                            {% endfor %}
+                        </div>
                     </div>
-                </div>
 
-                    <!-- Start Date + Tenure -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             {{ form.start_date.label(class="form-label") }}
                             {{ form.start_date(class="form-control") }}
-                            {% for error in form.start_date.errors %}
-                                <div class="text-danger small">{{ error }}</div>
+                            {% for e in form.start_date.errors %}
+                                <div class="text-danger small">{{ e }}</div>
                             {% endfor %}
                         </div>
                         <div class="col-md-6">
                             {{ form.tenure.label(class="form-label") }}
-                            {{ form.tenure(class="form-control", id="tenureInput") }}
-                            {% for error in form.tenure.errors %}
-                                <div class="text-danger small">{{ error }}</div>
+                            {{ form.tenure(class="form-control") }}
+                            {% for e in form.tenure.errors %}
+                                <div class="text-danger small">{{ e }}</div>
                             {% endfor %}
                         </div>
                     </div>
 
-                    <!-- Amount + Min Interest -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             {{ form.amount.label(class="form-label") }}
@@ -167,8 +123,8 @@
                                 <span class="input-group-text">₹</span>
                                 {{ form.amount(class="form-control") }}
                             </div>
-                            {% for error in form.amount.errors %}
-                                <div class="text-danger small">{{ error }}</div>
+                            {% for e in form.amount.errors %}
+                                <div class="text-danger small">{{ e }}</div>
                             {% endfor %}
                         </div>
                         <div class="col-md-6">
@@ -177,13 +133,12 @@
                                 <span class="input-group-text">%</span>
                                 {{ form.min_interest(class="form-control") }}
                             </div>
-                            {% for error in form.min_interest.errors %}
-                                <div class="text-danger small">{{ error }}</div>
+                            {% for e in form.min_interest.errors %}
+                                <div class="text-danger small">{{ e }}</div>
                             {% endfor %}
                         </div>
                     </div>
 
-                    <!-- Members -->
                     <div class="mb-3">
                         <label class="form-label fw-bold">
                             <i class="fas fa-users me-1"></i>Members
@@ -202,9 +157,7 @@
                                  data-name="{{ subfield.label.text }}"
                                  onclick="toggleMember(event, this)">
 
-                                <!-- Hidden checkbox for form submission -->
                                 {{ subfield(class="d-none member-checkbox") }}
-
                                 <span class="member-name">{{ subfield.label.text }}</span>
 
                                 <div class="slot-badge" onclick="event.stopPropagation()">
@@ -218,26 +171,21 @@
                             {% endfor %}
                         </div>
 
-                        <!-- Live summary -->
-                        <div class="slot-summary" id="slotSummary">
+                        <div class="slot-summary">
                             <i class="fas fa-info-circle"></i>
                             <span id="summaryText">No members selected.</span>
                         </div>
 
-                        {% for error in form.members.errors %}
-                            <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
-                        {% for error in form.tenure.errors %}
-                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% for e in form.members.errors %}
+                            <div class="text-danger small mt-1">{{ e }}</div>
                         {% endfor %}
                     </div>
 
-                    <!-- Buttons -->
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-1"></i>Back
                         </a>
-                        {{ form.submit(class="btn btn-primary") }}
+                        <button type="submit" class="btn btn-primary">Create VC</button>
                     </div>
                 </form>
             </div>
@@ -246,60 +194,45 @@
 </div>
 
 <script>
-// Map: person_id (string) → slot count
 const slotMap = {};
 
 function toggleMember(event, tile) {
-    // Ignore clicks on the +/– buttons (they call stopPropagation)
     const checkbox = tile.querySelector('.member-checkbox');
-    const id       = tile.dataset.id;
-
+    const id = tile.dataset.id;
     if (tile.classList.contains('selected')) {
-        // Deselect
         tile.classList.remove('selected');
         checkbox.checked = false;
         tile.querySelector('.slot-count').textContent = '1';
         tile.querySelector('.slot-dec').disabled = true;
         delete slotMap[id];
     } else {
-        // Select with 1 slot
         tile.classList.add('selected');
         checkbox.checked = true;
         slotMap[id] = 1;
     }
-
-    syncHiddenField();
     updateSummary();
 }
 
 function changeSlots(btn, delta) {
-    const tile  = btn.closest('.member-tile');
-    const id    = tile.dataset.id;
-    const span  = tile.querySelector('.slot-count');
+    const tile = btn.closest('.member-tile');
+    const id = tile.dataset.id;
+    const span = tile.querySelector('.slot-count');
     const decBtn = tile.querySelector('.slot-dec');
-
     let count = parseInt(span.textContent) + delta;
     if (count < 1) count = 1;
-
-    span.textContent    = count;
-    slotMap[id]         = count;
-    decBtn.disabled     = (count <= 1);
-
-    syncHiddenField();
+    span.textContent = count;
+    slotMap[id] = count;
+    decBtn.disabled = (count <= 1);
     updateSummary();
 }
 
-function syncHiddenField() {
-    document.getElementById('memberSlotsInput').value = JSON.stringify(slotMap);
-}
-
 function updateSummary() {
-    const tenure    = parseInt(document.getElementById('tenureInput').value) || 0;
+    const tenureEl = document.querySelector('[name="tenure"]');
+    const tenure = tenureEl ? (parseInt(tenureEl.value) || 0) : 0;
     const totalSlots = Object.values(slotMap).reduce((a, b) => a + b, 0);
-    const members   = Object.keys(slotMap).length;
-    const txt       = document.getElementById('summaryText');
+    const txt = document.getElementById('summaryText');
 
-    if (members === 0) {
+    if (Object.keys(slotMap).length === 0) {
         txt.innerHTML = 'No members selected.';
         txt.className = '';
         return;
@@ -311,54 +244,41 @@ function updateSummary() {
         return `${name}${s > 1 ? ` ×${s}` : ''}`;
     });
 
-    let matchClass = '';
-    let matchNote  = '';
+    let matchClass = '', matchNote = '';
     if (tenure > 0) {
         if (totalSlots === tenure) {
-            matchClass = 'slot-match';
-            matchNote  = ' ✓ matches tenure';
+            matchClass = 'slot-match'; matchNote = ' ✓ matches tenure';
         } else {
             matchClass = 'slot-mismatch';
-            matchNote  = ` ✗ need ${tenure} total (${totalSlots > tenure ? totalSlots - tenure + ' too many' : tenure - totalSlots + ' more'})`;
+            matchNote = ` ✗ need ${tenure} total (${totalSlots > tenure ? totalSlots - tenure + ' too many' : tenure - totalSlots + ' more'})`;
         }
     }
-
-    txt.innerHTML = `<strong>${totalSlots}</strong> total slot${totalSlots !== 1 ? 's' : ''}: ${parts.join(', ')}<span class="${matchClass}">${matchNote}</span>`;
+    txt.innerHTML = `<strong>${totalSlots}</strong> slot${totalSlots !== 1 ? 's' : ''}: ${parts.join(', ')}<span class="${matchClass}">${matchNote}</span>`;
 }
 
-// Re-run summary when tenure changes
-document.getElementById('tenureInput').addEventListener('input', updateSummary);
-
-// Member search
-document.getElementById('memberSearch').addEventListener('input', function () {
-    const q = this.value.toLowerCase();
-    document.querySelectorAll('.member-tile').forEach(tile => {
-        tile.style.display = tile.dataset.name.toLowerCase().includes(q) ? '' : 'none';
-    });
-});
-
-// Restore state on validation error (form re-render with data)
 document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.member-checkbox:checked').forEach(cb => {
-        const tile = cb.closest('.member-tile');
-        if (tile) {
-            tile.classList.add('selected');
-            slotMap[tile.dataset.id] = 1;
-        }
-    });
+    // Tenure input live update
+    const tenureEl = document.querySelector('[name="tenure"]');
+    if (tenureEl) tenureEl.addEventListener('input', updateSummary);
 
-    // Restore slots from hidden field if present (re-render after failed submit)
-    try {
-        const saved = JSON.parse(document.getElementById('memberSlotsInput').value || '{}');
-        Object.entries(saved).forEach(([id, s]) => {
-            const tile = document.querySelector(`.member-tile[data-id="${id}"]`);
-            if (tile && tile.classList.contains('selected')) {
-                slotMap[id] = s;
-                tile.querySelector('.slot-count').textContent = s;
-                tile.querySelector('.slot-dec').disabled = (s <= 1);
-            }
+    // Member search
+    const searchEl = document.getElementById('memberSearch');
+    if (searchEl) {
+        searchEl.addEventListener('input', function () {
+            const q = this.value.toLowerCase();
+            document.querySelectorAll('.member-tile').forEach(tile => {
+                tile.style.display = tile.dataset.name.toLowerCase().includes(q) ? '' : 'none';
+            });
         });
-    } catch (e) {}
+    }
+
+    // Write slot_data into hidden field on submit
+    const form = document.getElementById('createVCForm');
+    if (form) {
+        form.addEventListener('submit', function () {
+            document.getElementById('slotDataInput').value = JSON.stringify(slotMap);
+        });
+    }
 
     updateSummary();
 });

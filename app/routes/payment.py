@@ -8,6 +8,7 @@ from app.models.person import Person
 from app.models.contribution import Contribution
 from app.models.payment import Payment
 from app.models.ledger import LedgerEntry
+from app.models.enums import PaymentStatus
 from app.forms import PaymentForm
 
 payment_bp = Blueprint('payment', __name__, url_prefix='/payment')
@@ -148,6 +149,7 @@ def create_payment():
             vc_id=form.vc_id.data,
             date=form.date.data or datetime.utcnow(),
             narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}",
+            debit=0,
             credit=form.amount.data,
             balance=prev_balance + form.amount.data
         )

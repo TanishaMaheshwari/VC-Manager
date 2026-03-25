@@ -615,7 +615,7 @@
                 performSearch();
             }
         });
-        sortSelect.addEventListener('change', performSearch);
+        if (sortSelect) sortSelect.addEventListener('change', performSearch);
     });
 </script>
 {% endblock %}

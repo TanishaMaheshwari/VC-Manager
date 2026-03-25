@@ -20,9 +20,6 @@ class VCForm(FlaskForm):
     narration    = TextAreaField("Narration")
     members      = MultiCheckboxField("Members", coerce=int)
 
-    # Hidden field carries slot counts as JSON: {"<person_id>": <slots>, ...}
-    member_slots = HiddenField("Member Slots", default="{}")
-
     submit = SubmitField("Create")
 
     def _get_slot_map(self):

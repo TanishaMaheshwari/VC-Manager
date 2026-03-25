@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Operator Account{% endblock %}
+
+{% block content %}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+    }
+    .page-title {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(1.5rem, 3vw, 2rem);
+        font-weight: 700;
+        background: var(--grad-header);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+    }
+    .operator-badge {
+        background: #6366f1;
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 30px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    /* Summary strip */
+    .summary-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+    .summary-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px 20px;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+    }
+    .summary-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+    }
+    .summary-value {
+        font-family: 'Space Mono', monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    .summary-value.positive { color: var(--success); }
+    .summary-value.negative { color: var(--danger); }
+    .summary-value.credit   { color: var(--success); }
+    .summary-value.debit    { color: var(--danger); }
+    .summary-value.neutral  { color: var(--accent); }
+
+    /* Filter */
+    .filter-bar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+    .filter-bar select,
+    .filter-bar input[type="date"] {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 9px 12px;
+        font-size: 0.875rem;
+        font-family: 'DM Sans', sans-serif;
+        flex: 1;
+        min-width: 140px;
+    }
+    .filter-bar select:focus,
+    .filter-bar input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+
+    /* Entries list */
+    .entries-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+    .entries-header {
+        background: var(--grad-header);
+        color: #fff;
+        padding: 14px 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .entry-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        gap: 16px;
+        transition: background var(--transition);
+    }
+    .entry-row:last-child { border-bottom: none; }
+    .entry-row:hover { background: var(--surface2); }
+    .entry-row.credit { border-left: 4px solid var(--success); }
+    .entry-row.debit  { border-left: 4px solid var(--danger); }
+
+    .entry-left { flex: 1; min-width: 0; }
+    .entry-date { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 2px; }
+    .entry-narr { font-weight: 600; font-size: 0.88rem; color: var(--text); }
+    .entry-vc   {
+        display: inline-block; margin-top: 3px;
+        background: var(--surface3); color: var(--text-muted);
+        padding: 2px 8px; border-radius: 4px;
+        font-size: 0.72rem; font-weight: 600;
+    }
+
+    .entry-right { text-align: right; flex-shrink: 0; }
+    .entry-amount { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.95rem; }
+    .entry-bal    { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+    .empty-state { padding: 48px 24px; text-align: center; color: var(--text-muted); }
+    .empty-state i { font-size: 2.5rem; margin-bottom: 12px; display: block; opacity: 0.4; }
+
+    @media (max-width: 768px) {
+        .entry-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+        .entry-right { text-align: left; width: 100%; display: flex; justify-content: space-between; align-items: center; }
+        .filter-bar { flex-direction: column; }
+        .filter-bar select, .filter-bar input { width: 100%; }
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <span class="operator-badge"><i class="fas fa-building"></i>Operator</span>
+        <h1 class="page-title">Operator Account</h1>
+    </div>
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i>Back
+    </a>
+</div>
+
+<!-- Summary -->
+<div class="summary-strip">
+    <div class="summary-card">
+        <div class="summary-label">Net Balance</div>
+        <div class="summary-value {{ 'positive' if net_balance >= 0 else 'negative' }}">
+            ₹{{ "%.0f"|format(net_balance) }}
+        </div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-label">Total Earned</div>
+        <div class="summary-value credit">₹{{ "%.0f"|format(total_credits) }}</div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-label">Total Subsidised</div>
+        <div class="summary-value debit">₹{{ "%.0f"|format(total_debits) }}</div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-label">Hands Recorded</div>
+        <div class="summary-value neutral">{{ entries|length }}</div>
+    </div>
+</div>
+
+<!-- Filter -->
+<form method="GET" class="filter-bar">
+    <select name="vc_id">
+        <option value="">All VCs</option>
+        {% for vc in vcs %}
+            <option value="{{ vc.id }}" {{ 'selected' if request.args.get('vc_id') == vc.id|string }}>
+                {{ vc.name }}
+            </option>
+        {% endfor %}
+    </select>
+    <input type="date" name="from_date" value="{{ request.args.get('from_date', '') }}" placeholder="From">
+    <input type="date" name="to_date"   value="{{ request.args.get('to_date', '') }}"   placeholder="To">
+    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i>Filter</button>
+</form>
+
+<!-- Entries -->
+<div class="entries-card">
+    <div class="entries-header">
+        <i class="fas fa-receipt"></i>Hand Settlements
+    </div>
+
+    {% if entries %}
+        {% for entry in entries %}
+        <div class="entry-row {{ 'credit' if entry.credit > 0 else 'debit' }}">
+            <div class="entry-left">
+                <div class="entry-date">{{ entry.date.strftime('%d %b %Y, %I:%M %p') }}</div>
+                <div class="entry-narr">{{ entry.narration }}</div>
+                {% if entry.vc %}
+                    <span class="entry-vc">{{ entry.vc.name }}</span>
+                {% endif %}
+            </div>
+            <div class="entry-right">
+                <div class="entry-amount">
+                    {% if entry.credit > 0 %}
+                        <span style="color:var(--success);">+₹{{ "%.0f"|format(entry.credit) }}</span>
+                    {% else %}
+                        <span style="color:var(--danger);">–₹{{ "%.0f"|format(entry.debit) }}</span>
+                    {% endif %}
+                </div>
+                <div class="entry-bal">Bal: ₹{{ "%.0f"|format(entry.balance) }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>No entries yet. Operator settlements are recorded automatically when hands are distributed.</p>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}{% endblock %}

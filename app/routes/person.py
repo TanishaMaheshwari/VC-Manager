@@ -32,15 +32,32 @@ def search_persons():
                 Person.short_name.ilike(f'%{query}%')
             )
         )
-    
+
+    from sqlalchemy import select, func
+
+    latest_balance = (
+        db.session.query(
+            LedgerEntry.person_id,
+            LedgerEntry.balance.label('latest_balance')
+        )
+        .distinct(LedgerEntry.person_id)
+        .order_by(LedgerEntry.person_id, LedgerEntry.date.desc())
+        .subquery()
+    )
+
+
     if sort_order == 'name_asc':
         base_query = base_query.order_by(Person.name.asc())
     elif sort_order == 'balance_asc':
-        base_query = base_query.order_by(Person.opening_balance.asc())
+        base_query = base_query.outerjoin(
+            latest_balance, Person.id == latest_balance.c.person_id
+        ).order_by(latest_balance.c.latest_balance.asc().nulls_last())
     elif sort_order == 'balance_desc':
-        base_query = base_query.order_by(Person.opening_balance.desc())
-    
-    persons = base_query.all()
+        base_query = base_query.outerjoin(
+            latest_balance, Person.id == latest_balance.c.person_id
+        ).order_by(latest_balance.c.latest_balance.desc().nulls_last())
+        
+        persons = base_query.all()
     
     return render_template('person/list_partial.html', persons=persons)
 
@@ -71,6 +88,7 @@ def create_person():
                     person_id=person.id,
                     date=person.created_at,
                     narration="Opening Balance",
+                    debit=0,
                     credit=form.opening_balance.data,
                     balance=form.opening_balance.data  # set initial balance
                 )
