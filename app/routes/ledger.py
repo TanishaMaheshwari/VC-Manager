@@ -82,7 +82,9 @@ def person_ledger(person_id):
     entries = query.order_by(LedgerEntry.date.desc()).all()
     entries = [e for e in entries if e is not None]
 
-    return render_template('ledger/person.html', person=person, entries=entries)
+    opening_balance = person.opening_balance or 0.0
+
+    return render_template('ledger/person.html', person=person, entries=entries, opening_balance=opening_balance)
 
 @ledger_bp.route('/create', methods=['GET', 'POST'])
 @login_required

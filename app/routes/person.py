@@ -57,7 +57,7 @@ def search_persons():
             latest_balance, Person.id == latest_balance.c.person_id
         ).order_by(latest_balance.c.latest_balance.desc().nulls_last())
         
-        persons = base_query.all()
+    persons = base_query.all()
     
     return render_template('person/list_partial.html', persons=persons)
 
@@ -67,52 +67,66 @@ def search_persons():
 def create_person():
     form = PersonForm()
     if form.validate_on_submit():
-        # Create person object
+
+        # Check uniqueness per user before hitting DB
+        name_exists = Person.query.filter_by(
+            user_id=current_user.id,
+            name=form.name.data
+        ).first()
+        if name_exists:
+            flash('A person with that name already exists in your account.', 'danger')
+            return render_template('person/create.html', form=form)
+
+        short_name_exists = Person.query.filter_by(
+            user_id=current_user.id,
+            short_name=form.short_name.data
+        ).first()
+        if short_name_exists:
+            flash('A person with that short name already exists in your account.', 'danger')
+            return render_template('person/create.html', form=form)
+
         person = Person(
             user_id=current_user.id,
             name=form.name.data,
             short_name=form.short_name.data,
             phone=form.phone.data,
             phone2=form.phone2.data,
-            opening_balance=0,
+            opening_balance=form.opening_balance.data or 0,
             created_at=datetime.utcnow()
         )
         db.session.add(person)
 
         try:
             db.session.commit()
-            
-            # --- Add opening balance to ledger if > 0 ---
-            if form.opening_balance.data and form.opening_balance.data > 0:
-                ledger_entry = LedgerEntry(
-                    person_id=person.id,
-                    date=person.created_at,
-                    narration="Opening Balance",
-                    debit=0,
-                    credit=form.opening_balance.data,
-                    balance=form.opening_balance.data  # set initial balance
-                )
-                db.session.add(ledger_entry)
-                db.session.commit()
 
-            flash('Person created successfully!', 'success')    
+            # if form.opening_balance.data and form.opening_balance.data > 0:
+            #     ledger_entry = LedgerEntry(
+            #         person_id=person.id,
+            #         date=person.created_at,
+            #         narration="Opening Balance",
+            #         debit=0,
+            #         credit=form.opening_balance.data,
+            #         balance=form.opening_balance.data
+            #     )
+            #     db.session.add(ledger_entry)
+            #     db.session.commit()
+
+            flash('Person created successfully!', 'success')
             return redirect(url_for('person.persons'))
-            
+
         except IntegrityError:
             db.session.rollback()
-            flash('Error: A person with that name or short name already exists. Please use a different value.', 'danger')
-            return redirect(url_for('person.create_person'))
+            flash('A person with that name or short name already exists.', 'danger')
+            return render_template('person/create.html', form=form)
         except Exception as e:
             db.session.rollback()
-            flash(f'An unexpected database error occurred: {str(e)}', 'danger')
-            return redirect(url_for('person.create_person'))
+            flash(f'An unexpected error occurred: {str(e)}', 'danger')
+            return render_template('person/create.html', form=form)
 
-    # If form validation fails, display specific errors
-    if not form.validate_on_submit() and form.is_submitted():
+    if form.is_submitted() and not form.validate():
         flash('Please fill out all required fields correctly.', 'danger')
-        
-    return render_template('person/create.html', form=form)
 
+    return render_template('person/create.html', form=form)
 
 @person_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -125,6 +139,7 @@ def edit_person(id):
         person.short_name = form.short_name.data
         person.phone = form.phone.data
         person.phone2 = form.phone2.data
+        person.opening_balance = form.opening_balance.data or 0
         
         try:
             db.session.commit()
@@ -140,3 +155,4 @@ def edit_person(id):
             return redirect(url_for('person.edit_person', id=id))
             
     return render_template('person/edit.html', form=form, person=person)
+

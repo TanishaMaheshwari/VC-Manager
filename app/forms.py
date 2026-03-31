@@ -37,7 +37,7 @@ class VCForm(FlaskForm):
 class PersonForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])
     short_name = StringField('Short Name', validators=[DataRequired()])
-    phone = StringField('Primary Phone Number', validators=[DataRequired()])
+    phone = StringField('Primary Phone Number', validators=[Optional()])
     phone2 = StringField('Secondary Phone Number', validators=[Optional()])
     opening_balance = FloatField('Opening Balance', validators=[Optional()])
     submit = SubmitField('Create')

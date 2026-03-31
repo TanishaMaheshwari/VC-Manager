@@ -97,6 +97,7 @@
 .field-group:nth-child(2) { animation-delay: 0.11s; }
 .field-group:nth-child(3) { animation-delay: 0.16s; }
 .field-group:nth-child(4) { animation-delay: 0.21s; }
+.field-group:nth-child(5) { animation-delay: 0.26s; }
 
 @keyframes fadeField {
     from { opacity: 0; transform: translateX(-8px); }
@@ -203,7 +204,7 @@
     margin-top: 28px;
     padding-top: 24px;
     border-top: 1px solid var(--border);
-    animation: fadeField 0.4s 0.28s ease both;
+    animation: fadeField 0.4s 0.32s ease both;
 }
 
 .btn-back {
@@ -341,6 +342,26 @@
                            "aria-describedby": "phone2-error" if form.phone2.errors else ""}) }}
                     {% for error in form.phone2.errors %}
                         <div class="field-error" id="phone2-error" role="alert">
+                            <i class="fas fa-circle-exclamation"></i>{{ error }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Opening Balance -->
+                <div class="field-group">
+                    <label class="form-label">
+                        {{ form.opening_balance.label.text }}
+                        <span class="field-optional">optional</span>
+                    </label>
+                    {{ form.opening_balance(
+                        class="form-control" + (" is-invalid" if form.opening_balance.errors else ""),
+                        placeholder="₹0.00",
+                        inputmode="decimal",
+                        step="0.01",
+                        **{"aria-invalid": "true" if form.opening_balance.errors else "false",
+                           "aria-describedby": "opening-balance-error" if form.opening_balance.errors else ""}) }}
+                    {% for error in form.opening_balance.errors %}
+                        <div class="field-error" id="opening-balance-error" role="alert">
                             <i class="fas fa-circle-exclamation"></i>{{ error }}
                         </div>
                     {% endfor %}

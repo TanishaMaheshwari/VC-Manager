@@ -15,12 +15,10 @@ OPERATOR KEEPS:
   • bid_price field stores the projected_payout for record-keeping
 
 In both cases operator always gets:  vc.amount - bid  net
-  (operator hand: vc.amount - projected = interest only, PLUS projected pocket = vc.amount total)
 ─────────────────────────────────────────────────────────────────────────────
 """
 
 from datetime import datetime
-from enum import member
 from flask import Blueprint, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app import db
@@ -28,9 +26,9 @@ from app.models.vc import VCHand, HandDistribution
 from app.models.person import Person
 from app.models.contribution import Contribution
 from app.models.ledger import LedgerEntry
-from app.routes.ledger import get_last_balance
 
 hand_bp = Blueprint('hand', __name__)
+
 
 def _redirect_hand(hand):
     return redirect(url_for(
@@ -40,11 +38,24 @@ def _redirect_hand(hand):
     ))
 
 
+def get_last_balance(person_id):
+    """
+    Get the last balance for a person across all ledger entries.
+    Returns 0 if no entries exist.
+    """
+    last_entry = (
+        LedgerEntry.query
+        .filter_by(person_id=person_id)
+        .order_by(LedgerEntry.id.desc())
+        .first()
+    )
+    return float(last_entry.balance) if last_entry else 0.0
+
+
 def _add_operator_ledger(hand, net_amount, now, narration=None):
     """
     Add a ledger entry for the operator account (person_id=None, vc-level).
     net_amount > 0 = credit (operator gains), < 0 = debit (operator pays out).
-    We store this on a special operator LedgerEntry with person_id=None.
     """
     # Get last operator balance for this VC
     last = (
@@ -69,8 +80,12 @@ def _add_operator_ledger(hand, net_amount, now, narration=None):
     )
     db.session.add(entry)
 
+
 def _build_contributions(hand, vc, contrib_per_slot, winner_id_set, now):
-    from app.routes.ledger import get_last_balance
+    """
+    Build contribution and ledger entries for all VC members.
+    Each member's ledger balance is calculated as: last_balance - contribution
+    """
     for member in vc.members:
         if member is None:
             continue
@@ -78,7 +93,6 @@ def _build_contributions(hand, vc, contrib_per_slot, winner_id_set, now):
         if member_slots == 0:
             continue
         member_contribution = contrib_per_slot * member_slots
-        # ... rest of function
 
         contribution = Contribution(
             hand_id=hand.id,
@@ -90,7 +104,9 @@ def _build_contributions(hand, vc, contrib_per_slot, winner_id_set, now):
         db.session.add(contribution)
         db.session.flush()
 
+        # FIX #1: Get LAST balance before this transaction
         current_balance = get_last_balance(member.id)
+        
         ledger_entry = LedgerEntry(
             person_id=member.id,
             vc_id=vc.id,
@@ -98,11 +114,65 @@ def _build_contributions(hand, vc, contrib_per_slot, winner_id_set, now):
             narration=f"Contribution for VC {vc.name}, Hand {hand.hand_number}.",
             debit=member_contribution,
             credit=0,
-            balance=current_balance - member_contribution
+            balance=current_balance - member_contribution  # NEW balance after debit
         )
         db.session.add(ledger_entry)
         db.session.flush()
 
+
+def _delete_hand_ledger_entries(hand, vc):
+    """
+    Selectively delete ledger entries created by this hand's distribution.
+    
+    Rules:
+    - Operator entries (person_id=None): always delete
+    - Winner payout entries: always delete
+    - Contribution debit entries:
+        - If a manual payment entry exists for same person+hand: keep it, rename to standard payment format
+        - If no payment exists: delete the contribution entry
+    """
+    hand_num = hand.hand_number
+
+    # 1. Delete operator entries for this hand
+    LedgerEntry.query.filter(
+        LedgerEntry.vc_id == vc.id,
+        LedgerEntry.person_id.is_(None),
+        LedgerEntry.narration.like(f"%Hand {hand_num}%")
+    ).delete(synchronize_session=False)
+
+    # 2. Delete winner payout entries
+    LedgerEntry.query.filter(
+        LedgerEntry.vc_id == vc.id,
+        LedgerEntry.narration.like(f"%Payout received — VC Hand {hand_num}%")
+    ).delete(synchronize_session=False)
+
+    # 3. Handle contribution entries per member
+    contrib_entries = LedgerEntry.query.filter(
+        LedgerEntry.vc_id == vc.id,
+        LedgerEntry.narration.like(f"%Contribution for VC%Hand {hand_num}%")
+    ).all()
+
+    for entry in contrib_entries:
+        if entry.person_id is None:
+            db.session.delete(entry)
+            continue
+
+        # Check if a manual payment entry exists for this person+hand
+        payment_entry = LedgerEntry.query.filter(
+            LedgerEntry.vc_id == vc.id,
+            LedgerEntry.person_id == entry.person_id,
+            LedgerEntry.narration.like(f"%Payment for VC%Hand {hand_num}%")
+        ).first()
+
+        if payment_entry:
+            # Keep payment, just ensure narration is in standard format
+            payment_entry.narration = f"Payment for VC {vc.name}, Hand {hand_num}"
+            db.session.delete(entry)  # delete the contribution debit
+        else:
+            # No payment exists — delete the contribution entry entirely
+            db.session.delete(entry)
+
+    db.session.flush()
 
 @hand_bp.route('/create/<int:hand_id>', methods=['POST'])
 @login_required
@@ -204,7 +274,7 @@ def create_payout(hand_id):
         )
         db.session.add(dist)
 
-        # Winner ledger credit
+        # FIX #1: Get LAST balance before this credit
         prev_balance = get_last_balance(person_id)
         ledger_entry = LedgerEntry(
             person_id=person_id,
@@ -213,7 +283,7 @@ def create_payout(hand_id):
             narration=f"Payout received — VC Hand {hand.hand_number}",
             credit=amount,
             debit=0,
-            balance=prev_balance + amount
+            balance=prev_balance + amount  # NEW balance after credit
         )
         db.session.add(ledger_entry)
 
@@ -261,12 +331,14 @@ def edit_payout(vc_id, hand_id):
     projected   = float(hand.projected_payout)
     total_slots = int(vc.total_slots)
 
-    # Wipe existing distributions, contributions, and operator ledger entries for this hand
-    HandDistribution.query.filter_by(hand_id=hand.id).delete()
-    Contribution.query.filter_by(hand_id=hand.id).delete()
-    LedgerEntry.query.filter_by(vc_id=vc.id, person_id=None).filter(
-        LedgerEntry.narration.like(f'%Hand {hand.hand_number}%')
-    ).delete(synchronize_session=False)
+    # FIX #2: Delete ALL previous ledger entries created by this hand
+    _delete_hand_ledger_entries(hand, vc)
+    
+    # Delete distributions and contributions
+    HandDistribution.query.filter_by(hand_id=hand.id).delete(synchronize_session=False)
+    Contribution.query.filter_by(hand_id=hand.id).delete(synchronize_session=False)
+    
+    db.session.flush()
 
     # ── OPERATOR KEEPS ───────────────────────────────────────────────────────
     if payout_type == 'operator':
@@ -318,6 +390,7 @@ def edit_payout(vc_id, hand_id):
     contrib_per_slot      = member_contrib_total / total_slots
     winner_id_set         = {int(pid) for pid in winner_ids}
 
+    # Create new winner payouts with recalculated balances
     for person_id, amount in zip([int(x) for x in winner_ids], parsed_amounts):
         dist = HandDistribution(
             hand_id=hand.id,
@@ -330,6 +403,7 @@ def edit_payout(vc_id, hand_id):
         )
         db.session.add(dist)
 
+        # FIX #1: Get LAST balance before this credit (after old entries deleted)
         prev_balance = get_last_balance(person_id)
         ledger_entry = LedgerEntry(
             person_id=person_id,
@@ -342,8 +416,10 @@ def edit_payout(vc_id, hand_id):
         )
         db.session.add(ledger_entry)
 
+    # Rebuild contributions
     _build_contributions(hand, vc, contrib_per_slot, winner_id_set, now)
 
+    # Rebuild operator ledger
     operator_net = float(vc.amount) - total_bid
     if total_bid > projected:
         extra = total_bid - projected

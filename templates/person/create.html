@@ -334,7 +334,10 @@
 
                 <!-- Primary Phone -->
                 <div class="field-group">
-                    {{ form.phone.label(class="form-label") }}
+                    <label class="form-label">
+                        {{ form.phone.label(class="form-label") }}
+                        <span class="field-optional">optional</span>
+                    </label>
                     {{ form.phone(
                         class="form-control" + (" is-invalid" if form.phone.errors else ""),
                         placeholder="+91 00000 00000",

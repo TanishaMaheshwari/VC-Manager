@@ -7,12 +7,17 @@ class Person(db.Model):
     __tablename__ = 'persons'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
-    short_name = db.Column(db.String(20), unique=True, nullable=False)
-    phone = db.Column(db.String(20), nullable=False)
+    name = db.Column(db.String(80), nullable=False)           
+    short_name = db.Column(db.String(20), nullable=False)    
+    phone = db.Column(db.String(20), nullable=True)
     phone2 = db.Column(db.String(20), nullable=True)
     opening_balance = db.Column(db.Float, default=0.0, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'name',       name='uq_person_user_name'),
+        db.UniqueConstraint('user_id', 'short_name', name='uq_person_user_short_name'),
+    )
 
     def __repr__(self):
         return f'<Person {self.name}>'

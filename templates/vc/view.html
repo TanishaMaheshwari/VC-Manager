@@ -198,16 +198,16 @@
                     <h5><i class="fas fa-timeline"></i>Hands Timeline — {{ vc.name }}</h5>
                 </div>
 
-                <div class="hand-row header-row">
+                <!-- <div class="hand-row header-row">
                     <div style="flex:1">Hand</div>
                     <div style="flex:1.5">Date</div>
                     <div style="flex:1.5">Min. Interest</div>
-                    <!-- <div style="flex:1.5">Earned Interest</div> -->
-                    <div style="flex:1.5">Win</div>
+                     <div style="flex:1.5">Earned Interest</div> -->
+                    <!-- <div style="flex:1.5">Win</div>
                     <div style="flex:1.5">Win Price</div>
                     <div style="flex:2">Contribution/Person</div>
                     <div style="flex:1">Payout</div>
-                </div>
+                </div> --> 
 
                 {% for hand in hands %}
                 <div class="hand-row {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
