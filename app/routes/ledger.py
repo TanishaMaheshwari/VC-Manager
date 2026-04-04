@@ -13,13 +13,16 @@ from app.forms import LedgerEntryForm
 ledger_bp = Blueprint('ledger', __name__, url_prefix='/ledger')
 
 def get_last_balance(person_id):
-    """Get the last balance for a person from their most recent ledger entry"""
-    last_entry = LedgerEntry.query.filter_by(person_id=person_id).order_by(LedgerEntry.date.desc()).first()
+    last_entry = (
+        LedgerEntry.query
+        .filter_by(person_id=person_id)
+        .order_by(LedgerEntry.id.desc())
+        .first()
+    )
     if last_entry:
-        return last_entry.balance
-    # If no entries, return opening balance
+        return float(last_entry.balance)
     person = Person.query.get(person_id)
-    return person.opening_balance or 0.0
+    return float(person.opening_balance or 0.0)
 
 def close_ledger(person_id):
     """
@@ -79,7 +82,7 @@ def person_ledger(person_id):
     if to_date:
         query = query.filter(LedgerEntry.date <= datetime.strptime(to_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
 
-    entries = query.order_by(LedgerEntry.date.desc()).all()
+    entries = query.order_by(LedgerEntry.id.desc()).all()
     entries = [e for e in entries if e is not None]
 
     opening_balance = person.opening_balance or 0.0

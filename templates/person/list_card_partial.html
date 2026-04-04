@@ -1,0 +1,57 @@
+{% if persons %}
+    {% for person in persons %}
+    <div class="person-item" id="person-{{ person.id }}"
+        data-name="{{ person.name }}"
+        data-phone="{{ (person.phone or '') ~ ' ' ~ (person.phone2 or '') }}"
+        data-balance="{{ person.ledger_balance }}">
+        <!-- Left Section: Main Info -->
+        <div class="person-item-main">
+            <div class="person-badge">{{ person.short_name }}</div>
+            <div class="person-name">{{ person.name }}</div>
+            <div class="person-meta">
+                {% if person.phone %}
+                <div class="person-meta-item">
+                    <i class="fas fa-phone"></i>
+                    <span>{{ person.phone }}</span>
+                </div>
+                {% endif %}
+                {% if person.phone2 %}
+                <div class="person-meta-item">
+                    <i class="fas fa-phone"></i>
+                    <span>{{ person.phone2 }}</span>
+                </div>
+                {% endif %}
+                {% if not person.phone and not person.phone2 %}
+                <div class="person-meta-item" style="color: var(--text-muted);">
+                    <i class="fas fa-phone"></i>
+                    <span>No phone</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Right Section: Actions -->
+        <div class="person-item-actions">
+            <div class="balance-badge {{ 'positive' if person.ledger_balance >= 0 else 'negative' }}">
+                ₹{{ "%.0f"|format(person.ledger_balance) }}
+            </div>
+            <div class="action-buttons">
+                <button class="btn" onclick="event.stopPropagation(); location.href='{{ url_for('ledger.person_ledger', person_id=person.id) }}'" title="View Ledger">
+                    <i class="fas fa-book"></i>
+                </button>
+                <button class="btn" onclick="event.stopPropagation(); location.href='{{ url_for('person.edit_person', id=person.id) }}'" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <i class="fas fa-users"></i>
+        <h3>No persons found</h3>
+        <p>Create your first person to get started</p>
+        <button class="btn btn-primary" onclick="location.href='{{ url_for('person.create_person') }}'">
+            <i class="fas fa-plus"></i>Add First Person
+        </button>
+    </div>
+{% endif %}
