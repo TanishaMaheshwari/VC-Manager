@@ -43,7 +43,7 @@
 .payout-row {
     padding: 20px 24px;
     display: grid;
-    grid-template-columns: 52px 90px 1fr auto 200px;
+    grid-template-columns: 52px 90px 1fr auto 140px;
     gap: 16px;
     align-items: center;
     background: linear-gradient(135deg, var(--warning-bg), transparent);
@@ -59,7 +59,7 @@
 .contrib-row {
     padding: 16px 24px;
     display: grid;
-    grid-template-columns: 52px 90px 1fr auto 240px;
+    grid-template-columns: 52px 90px 1fr 120px 240px;
     gap: 16px;
     align-items: center;
     border-bottom: 1px solid var(--border);
@@ -68,7 +68,7 @@
 }
 .contrib-row:hover { background: var(--surface2); }
 .contrib-row:last-child { border-bottom: none; }
- 
+
 .row-index {
     width: 36px; height: 36px; border-radius: 50%;
     background: var(--surface3); border: 1px solid var(--border);
@@ -257,10 +257,9 @@
 </div>
 
 <!-- CONTRIBUTIONS CARD -->
- 
 <div class="dist-card">
     <div class="section-label"><i class="fas fa-users"></i>Contributions — All Members</div>
- 
+
     {% if contributions %}
         {% set winner_ids = distributions | selectattr('is_operator_taken', 'equalto', false) | map(attribute='person_id') | list %}
         {% for group in contributions|groupby('person_id') %}
@@ -270,7 +269,7 @@
             {% set latest       = entries|last %}
             {% set is_paid      = ledger_map.get(person_id) or (entries|selectattr('paid')|list|length > 0) %}    
             {% set slots        = member_slots.get(person_id, 1) %}
- 
+
             <div class="contrib-row fade-in"
                  onclick="window.location.href='{{ url_for('ledger.person_ledger', person_id=person_id) }}'">
                 <div class="row-index">{{ loop.index }}</div>
@@ -286,17 +285,17 @@
                     </div>
                     <div class="person-sub">{{ slots }} hand{{ 's' if slots > 1 }}</div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <div style="font-weight: 600; font-size: 0.85rem; color: var(--text);">₹{{ "%.0f"|format(total_amount) }}</div>
-                    <div style="font-size: 0.72rem; color: var(--text-muted);">
-                        {% if ledger_map.get(person_id) %}
-                            {{ ledger_map[person_id].date.strftime('%d/%m/%Y') }}
-                        {% else %}
-                            {{ latest.date.strftime('%d/%m/%Y') }}
-                        {% endif %}
-                    </div>
+                <div class="date-cell">
+                    {% if ledger_map.get(person_id) %}
+                        <div class="date-main">{{ ledger_map[person_id].date.strftime('%d/%m/%Y') }}</div>
+                        <div class="date-time">{{ ledger_map[person_id].date.strftime('%I:%M %p') }}</div>
+                    {% else %}
+                        <div class="date-main">{{ latest.date.strftime('%d/%m/%Y') }}</div>
+                        <div class="date-time">{{ latest.date.strftime('%I:%M %p') }}</div>
+                    {% endif %}
                 </div>
-                <div style="text-align: center;">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                    <div class="amount-display contrib-amt">₹{{ "%.0f"|format(total_amount) }}</div>
                     {% if is_paid %}
                         <span class="pay-badge paid"><i class="fas fa-check-circle"></i>Paid</span>
                     {% else %}
