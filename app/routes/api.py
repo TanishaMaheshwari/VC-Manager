@@ -75,3 +75,43 @@ def hand_details(hand_id):
         "pending_persons": [{"id": p.id, "name": p.name} for p in pending_persons],
         "contribution_amount": contribution_amount
     })
+
+@api_bp.route('/person_balance/<int:person_id>')
+@login_required
+def person_balance(person_id):
+    from app.routes.ledger import get_last_balance
+    person = Person.query.filter_by(id=person_id, user_id=current_user.id).first()
+    if not person:
+        return jsonify({'success': False, 'error': 'Person not found'}), 404
+    balance = get_last_balance(person_id)
+    return jsonify({'success': True, 'balance': balance, 'name': person.name})
+
+@api_bp.route("/hand/<int:hand_id>/payout_details")
+@login_required
+def hand_payout_details(hand_id):
+    hand = db.session.get(VCHand, hand_id)
+    if not hand or hand.vc.user_id != current_user.id:
+        return jsonify({"error": "Not found"}), 404
+
+    print("DISTRIBUTIONS:", [(d.person_id, d.is_operator_taken, d.amount) for d in hand.hand_distributions])
+
+    from app.models.contribution import Contribution
+    winners = []
+    for d in hand.hand_distributions:
+        if not d.is_operator_taken and d.person_id:
+            # Find member contribution for this person in this hand
+            member_contribution = sum(
+                c.amount for c in Contribution.query.filter_by(hand_id=hand.id, person_id=d.person_id)
+            )
+            interest_amount = getattr(hand, 'interest_amount', None)
+            net_payout = d.amount - member_contribution if member_contribution is not None else None
+            winners.append({
+                "person_id": d.person_id,
+                "name": d.person.name,
+                "amount": d.amount,
+                "member_contribution": member_contribution,
+                "interest_amount": interest_amount,
+                "net_payout": net_payout
+            })
+
+    return jsonify({"winners": winners})

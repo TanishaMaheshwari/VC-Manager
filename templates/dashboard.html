@@ -4,109 +4,92 @@
 
 {% block content %}
 <style>
-    /* ═══════════════════════════════════════════
-       DASHBOARD PAGE SPECIFIC STYLES
-    ═══════════════════════════════════════════ */
+    html { font-size: var(--fs-base); }
+    body { font-size: var(--fs-base); }
 
-    /* Ensure font size is properly inherited from base */
-    html {
-        font-size: var(--fs-base);
-    }
-
-    body {
-        font-size: var(--fs-base);
-    }
-
-    .dashboard-grid {
+    /* ── LAYOUT ── */
+    .forms-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
         margin-bottom: 32px;
     }
 
+    @media (max-width: 1024px) {
+        .forms-row  { grid-template-columns: 1fr; }
+        .stats-row  { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+        .forms-row  { grid-template-columns: 1fr; gap: 16px; }
+        .stats-row  { grid-template-columns: 1fr; gap: 12px; }
+    }
+
+    /* ── FORM SECTIONS ── */
     .form-section {
         background: var(--surface);
         border: 1.5px solid var(--border);
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-md);
         overflow: hidden;
-        transition: all 0.28s cubic-bezier(.4,0,.2,1);
+        transition: box-shadow 0.28s, border-color 0.28s;
+        display: flex;
+        flex-direction: column;
     }
-
-    .form-section:hover {
-        box-shadow: var(--shadow-lg);
-        border-color: var(--accent);
-    }
+    .form-section:hover { box-shadow: var(--shadow-lg); border-color: var(--accent); }
 
     .form-section .card-header {
         background: var(--grad-header);
         color: #fff;
-        padding: 18px 24px;
+        padding: 16px 22px;
         font-weight: 600;
+        font-size: 0.95rem;
         border: none;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
     }
+    .form-section.received .card-header { background: var(--grad-success); }
 
-    .form-section .card-body {
-        padding: 24px;
-    }
+    .form-section .card-body { padding: 20px 22px; flex: 1; }
 
-    .form-group {
-        margin-bottom: 20px;
-    }
-
-    .form-group:last-child {
-        margin-bottom: 0;
-    }
+    .form-group { margin-bottom: 16px; }
+    .form-group:last-child { margin-bottom: 0; }
 
     .form-label {
         font-weight: 600;
         color: var(--text);
-        margin-bottom: 8px;
-        font-size: 0.95rem;
+        margin-bottom: 6px;
+        font-size: 0.875rem;
         display: flex;
         align-items: center;
         gap: 6px;
     }
 
-    .form-control,
-    .form-select {
+    .form-control, .form-select {
         background: var(--surface2);
         color: var(--text);
         border: 1.5px solid var(--border);
         border-radius: var(--radius-md);
-        padding: 12px 14px;
+        padding: 10px 13px;
         font-family: 'DM Sans', sans-serif;
-        font-size: 1rem;
-        transition: all 0.28s cubic-bezier(.4,0,.2,1);
-        line-height: 1.6;
+        font-size: 0.9rem;
+        transition: all 0.28s;
+        width: 100%;
     }
-
-    .form-control::placeholder {
-        color: var(--text-muted);
-        opacity: 0.6;
-    }
-
-    .form-control:focus,
-    .form-select:focus {
+    .form-control::placeholder { color: var(--text-muted); opacity: 0.6; }
+    .form-control:focus, .form-select:focus {
         outline: none;
         background: var(--surface);
         border-color: var(--accent);
         box-shadow: 0 0 0 4px var(--accent-glow);
-        color: var(--text);
-    }
-
-    .form-control.is-invalid {
-        border-color: var(--danger);
-        background: var(--surface2);
-        color: var(--text);
-    }
-
-    .form-control.is-invalid:focus {
-        box-shadow: 0 0 0 4px rgba(255,107,107,0.15);
-        color: var(--text);
     }
 
     .input-group-text {
@@ -115,499 +98,217 @@
         border: 1.5px solid var(--border);
         border-right: none;
         font-weight: 600;
-        font-size: 1rem;
+        font-size: 0.9rem;
+        padding: 10px 12px;
     }
+    .input-group .form-control { border-left: none; }
 
-    .input-group .form-control {
-        border-left: none;
-    }
-
-    .form-text {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin-top: 6px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .text-danger {
-        color: var(--danger);
-        font-size: 0.85rem;
-        font-weight: 500;
-        margin-top: 6px;
-    }
+    .form-text { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+    .text-danger { color: var(--danger); font-size: 0.82rem; margin-top: 4px; }
 
     .button-group {
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 24px;
-        padding-top: 20px;
-        border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
     }
-
     .button-group .btn {
         flex: 1;
-        min-width: 120px;
+        justify-content: center;
+        font-size: 0.95rem;
+        padding: 12px;
     }
-
-    .summary-section {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
+    /* ── STAT CARDS ── */
     .stat-card {
         background: var(--surface);
         border: 1.5px solid var(--border);
         border-radius: var(--radius-lg);
-        padding: 28px 20px;
+        padding: 24px 16px;
         text-align: center;
         box-shadow: var(--shadow-md);
         transition: all 0.3s ease;
         cursor: pointer;
     }
+    .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--accent); background: var(--accent-glow); }
+    .stat-number { font-family: 'Space Mono', monospace; font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; line-height: 1.1; }
+    .stat-label  { color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .stat-card small { color: var(--text-muted); font-size: 0.78rem; line-height: 1.4; display: block; margin-top: 4px; }
 
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow-lg);
-        border-color: var(--accent);
-        background: var(--accent-glow);
-    }
+    /* ── BALANCE BADGE ── */
+    .balance-badge { padding: 4px 10px; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.85rem; display: inline-block; }
+    .balance-badge.positive { background: var(--success-bg); color: var(--success); }
+    .balance-badge.negative { background: var(--danger-bg);  color: var(--danger); }
 
-    .stat-number {
-        font-family: 'Space Mono', monospace;
-        font-size: 2.4rem;
-        font-weight: 700;
-        color: var(--accent);
-        margin-bottom: 8px;
-        line-height: 1.1;
-    }
-
-    .stat-label {
-        color: var(--text-muted);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-size: 0.8rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    .stat-label i {
-        font-size: 0.9rem;
-    }
-
-    .stat-card small {
-        color: var(--text-muted);
-        font-size: 0.85rem;
-        line-height: 1.4;
-        display: block;
-    }
-
-    .stat-card:hover .stat-number {
-        color: var(--accent);
-    }
-
-    .stat-card:hover .stat-label {
-        color: var(--text);
-    }
-
-    .stat-card:hover small {
-        color: var(--text);
-    }
-
-    .modern-table {
-        background: var(--surface);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        box-shadow: none;
-        margin: 0;
-        border: 1px solid var(--border);
-    }
-
-    .modern-table table {
-        margin: 0;
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: auto;
-    }
-
-    .modern-table thead {
-        background: var(--grad-header);
-    }
-
-    .modern-table thead th {
-        color: #fff;
-        font-weight: 600;
-        padding: 16px 14px;
-        border: none;
-        text-transform: uppercase;
-        font-size: 0.85rem;
-        letter-spacing: 0.07em;
-        white-space: normal;
-        text-align: left;
-        display: table-cell;
-    }
-
-    .modern-table thead th i {
-        margin-right: 6px;
-    }
-
-    .modern-table tbody td {
-        padding: 14px;
-        border-bottom: 1px solid var(--border);
-        vertical-align: middle;
-        color: var(--text);
-        font-size: 0.95rem;
-        transition: background 0.2s;
-        word-break: break-word;
-    }
-
-    .modern-table tbody tr:hover td {
-        background: var(--surface2);
-        color: var(--text);
-    }
-
-    .modern-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .badge {
-        background: var(--grad-header);
-        color: #fff;
-        padding: 5px 10px;
-        border-radius: var(--radius-sm);
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .due-amount {
-        background: var(--danger-bg);
-        color: var(--danger);
-        padding: 6px 12px;
-        border-radius: var(--radius-sm);
-        font-weight: 700;
-        font-family: 'Space Mono', monospace;
-        font-size: 0.95rem;
-        text-align: center;
-        display: inline-block;
-    }
-
-    .person-badge {
-        background: var(--grad-header);
-        color: #fff;
-        padding: 5px 10px;
-        border-radius: var(--radius-sm);
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.8rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 40px;
-        min-height: 40px;
-    }
-
-    /* Modal Styling */
-    .modal-content {
-        background: var(--surface);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
-    }
-
-    .modal-header {
-        background: var(--grad-header);
-        color: #fff;
-        border: none;
-        padding: 20px 24px;
-    }
-
-    .modal-title {
-        font-weight: 600;
-        font-size: 1.1rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .btn-close-white {
-        filter: brightness(0) invert(1);
-        opacity: 0.8;
-        transition: opacity 0.2s;
-    }
-
-    .btn-close-white:hover {
-        opacity: 1;
-    }
-
-    .modal-body {
-        padding: 24px;
-        background: var(--surface);
-        color: var(--text);
-    }
-
-    /* Modal backdrop */
-    .modal-backdrop {
-        background-color: rgba(0, 0, 0, 0.5);
-        backdrop-filter: none;
-    }
-
-    /* Modal fade animation */
-    .modal.fade .modal-dialog {
-        transition: transform 0.3s cubic-bezier(.22,1,.36,1), opacity 0.3s cubic-bezier(.22,1,.36,1);
-        transform: scale(0.95) translateY(-20px);
-        opacity: 0;
-    }
-
-    .modal.show .modal-dialog {
-        transform: scale(1) translateY(0);
-        opacity: 1;
-    }
-
-    /* Ensure body is scrollable when modal is open */
-    body.modal-open {
-        overflow: auto !important;
-    }
-
-    /* Modal dialog positioning */
-    .modal-dialog {
-        max-width: 800px;
-    }
-
-    /* Modal responsive */
-    @media (max-width: 576px) {
-        .modal-dialog {
-            margin: 0.5rem;
-            max-width: calc(100% - 1rem);
-        }
-
-        .modal-header {
-            padding: 16px 20px;
-        }
-
-        .modal-title {
-            font-size: 1rem;
-        }
-
-        .modal-body {
-            padding: 16px;
-        }
-    }
-
-    /* Responsive Design */
-    @media (max-width: 1024px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
-
-        .form-section .card-body {
-            padding: 16px;
-        }
-
-        .button-group {
-            flex-direction: column;
-        }
-
-        .button-group .btn {
-            width: 100%;
-        }
-
-        .stat-number {
-            font-size: 1.8rem;
-        }
-
-        .modern-table table {
-            font-size: 0.875rem;
-        }
-
-        .modern-table thead th {
-            padding: 12px 8px;
-            font-size: 0.7rem;
-        }
-
-        .modern-table tbody td {
-            padding: 10px 8px;
-        }
-    }
+    /* ── DUE MODAL TABLE ── */
+    .modern-table { background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); }
+    .modern-table table { margin: 0; width: 100%; border-collapse: collapse; }
+    .modern-table thead { background: var(--grad-header); }
+    .modern-table thead th { color: #fff; font-weight: 600; padding: 14px 12px; border: none; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.07em; }
+    .modern-table tbody td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text); font-size: 0.9rem; }
+    .modern-table tbody tr:hover td { background: var(--surface2); }
+    .modern-table tbody tr:last-child td { border-bottom: none; }
+    .badge-vc { background: var(--grad-header); color: #fff; padding: 4px 8px; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600; }
+    .due-amount { background: var(--danger-bg); color: var(--danger); padding: 5px 10px; border-radius: var(--radius-sm); font-weight: 700; font-family: 'Space Mono', monospace; font-size: 0.88rem; }
 </style>
 
 <div class="container-fluid">
-    <!-- Main Dashboard Grid -->
-    <div class="dashboard-grid">
-        
-        <!-- Left Column: Payment Form -->
-        <div class="form-section">
+
+    <!-- ══ FORMS ROW ══ -->
+    <div class="forms-row">
+
+        <!-- RECEIVED form (contribution from member) -->
+        <div class="form-section received">
             <div class="card-header">
-                <i class="fas fa-money-bill-wave"></i>
-                Record Payment
+                <i class="fas fa-arrow-down"></i>Received 
             </div>
-            
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" action="{{ url_for('payment.record_payment') }}" id="receivedForm">
                     {{ form.hidden_tag() }}
 
-                    <!-- VC Selection -->
                     <div class="form-group">
-                        <label for="{{ form.vc_id.id }}" class="form-label">
-                            <i class="fas fa-building"></i>{{ form.vc_id.label.text }}
-                        </label>
-                        {{ form.vc_id(class="form-select", id="vc-select") }}
-                        {% for error in form.vc_id.errors %}
-                            <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
+                        <label class="form-label"><i class="fas fa-building"></i>VC</label>
+                        <select class="form-select" id="r-vc-select" name="vc_id">
+                            <option value="">— Select VC —</option>
+                            {% for vc in vcs %}
+                                <option value="{{ vc.name }}">{{ vc.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <!-- Hand Selection -->
                     <div class="form-group">
-                        <label for="{{ form.hand_id.id }}" class="form-label">
-                            <i class="fas fa-poker-chip"></i>{{ form.hand_id.label.text }}
-                        </label>
-                        {{ form.hand_id(class="form-select", id="hand-select") }}
-                        {% for error in form.hand_id.errors %}
-                            <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
-                        <div class="form-text">
-                            <i class="fas fa-info-circle"></i>Select the hand. Each option shows Hand number, winner, and date.
-                        </div>
+                        <label class="form-label"><i class="fas fa-layer-group"></i>Hand</label>
+                        {{ form.hand_id(class="form-select", id="r-hand-select") }}
                     </div>
 
-                    <!-- Person Selection -->
                     <div class="form-group">
-                        <label for="{{ form.person_id.id }}" class="form-label">
-                            <i class="fas fa-user"></i>{{ form.person_id.label.text }}
-                        </label>
-                        {{ form.person_id(class="form-select", id="person-select") }}
-                        {% for error in form.person_id.errors %}
-                            <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
+                        <label class="form-label"><i class="fas fa-user"></i>Person</label>
+                        {{ form.person_id(class="form-select", id="r-person-select") }}
+                        <div id="r-person-balance" class="form-text"></div>
                     </div>
 
-                    <!-- Date Field -->
                     <div class="form-group">
-                        <label for="payment-date" class="form-label">
-                            <i class="fas fa-calendar"></i>{{ form.date.label.text }}
-                        </label>
+                        <label class="form-label"><i class="fas fa-calendar"></i>Date</label>
                         {% set date_val = form.date.data.strftime('%Y-%m-%dT%H:%M') if form.date.data else '' %}
-                        <input 
-                            id="payment-date" 
-                            name="{{ form.date.name }}" 
-                            type="datetime-local" 
-                            class="form-control" 
-                            value="{{ date_val }}">
-                        {% for error in form.date.errors %}
-                            <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
-                        <div class="form-text">
-                            <i class="fas fa-info-circle"></i>Defaults to today, but editable.
-                        </div>
+                        <input name="{{ form.date.name }}" type="datetime-local" class="form-control" value="{{ date_val }}">
                     </div>
 
-                    <!-- Amount Field -->
                     <div class="form-group">
-                        <label for="{{ form.amount.id }}" class="form-label">
-                            <i class="fas fa-rupee-sign"></i>{{ form.amount.label.text }}
-                        </label>
+                        <label class="form-label"><i class="fas fa-rupee-sign"></i>Amount</label>
                         <div class="input-group">
                             <span class="input-group-text">₹</span>
-                            {{ form.amount(class="form-control", id="payment-amount") }}
+                            {{ form.amount(class="form-control", id="r-amount") }}
                         </div>
-                        {% for error in form.amount.errors %}
-                            <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
-                        <div class="form-text">
-                            <i class="fas fa-info-circle"></i>Auto-filled with actual contribution per person for the selected hand.
-                        </div>
+                        <div class="form-text">Auto-filled with contribution amount</div>
                     </div>
 
-                    <!-- Narration -->
                     <div class="form-group">
-                        <label for="{{ form.narration.id }}" class="form-label">
-                            <i class="fas fa-note-sticky"></i>{{ form.narration.label.text }}
-                        </label>
-                        {{ form.narration(class="form-control", rows="3") }}
-                        {% for error in form.narration.errors %}
-                            <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
+                        <label class="form-label"><i class="fas fa-note-sticky"></i>Narration</label>
+                        {{ form.narration(class="form-control", rows="2") }}
                     </div>
 
-                    <!-- Action Buttons -->
                     <div class="button-group">
-                        <a href="{{ url_for('vc.vcs_list') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i>Back
-                        </a>
-                        {{ form.submit(class="btn btn-success") }}
+                        {{ form.submit(class="btn btn-success", value="Record Receipt", style="width:100%;justify-content:center;") }}
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Right Column: Summary Cards -->
-        <div class="summary-section">
-            
-            <!-- Total Due Card -->
-            <div class="stat-card" onclick="showDueDetails()" role="button" tabindex="0">
-                <div class="stat-number">₹{{ "%.0f"|format(total_due) }}</div>
-                <div class="stat-label">
-                    <i class="fas fa-exclamation-triangle"></i>Total Due
-                </div>
-                <small>Click to view detailed breakdown by VC and person</small>
+        <!-- PAID form (payout to winner) -->
+        <div class="form-section">
+            <div class="card-header">
+                <i class="fas fa-arrow-up"></i>Paid 
             </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('payment.record_payout_payment') }}" id="paidForm">
+                    <input type="hidden" name="csrf_token" value="{{ form.csrf_token._value() }}">
 
-            <!-- Total VCs Card -->
-            <div class="stat-card" onclick="location.href='{{ url_for('vc.vcs_list') }}'" role="button" tabindex="0">
-                <div class="stat-number">{{ total_vcs }}</div>
-                <div class="stat-label">
-                    <i class="fas fa-building"></i>Total VCs
-                </div>
-                <small>Click to view all VC records and details</small>
-            </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-building"></i>VC</label>
+                        <select class="form-select" id="p-vc-select" name="vc_id">
+                            <option value="">— Select VC —</option>
+                            {% for vc in vcs %}
+                                <option value="{{ vc.id }}">{{ vc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-            <!-- Total People Card -->
-            <div class="stat-card" onclick="location.href='{{ url_for('person.persons') }}'" role="button" tabindex="0">
-                <div class="stat-number">{{ total_persons }}</div>
-                <div class="stat-label">
-                    <i class="fas fa-users"></i>Total People
-                </div>
-                <small>Click to manage person accounts and ledgers</small>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-layer-group"></i>Hand</label>
+                        <select class="form-select" id="p-hand-select" name="hand_id">
+                            <option value="">— Select Hand —</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-trophy"></i>Winner</label>
+                        <select class="form-select" id="p-winner-select" name="person_id">
+                            <option value="">— Auto-filled —</option>
+                        </select>
+                        <div id="p-winner-balance" class="form-text"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-calendar"></i>Date</label>
+                        {% set date_val = form.date.data.strftime('%Y-%m-%dT%H:%M') if form.date.data else '' %}
+                        <input name="{{ form.date.name }}" type="datetime-local" class="form-control" value="{{ date_val }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-rupee-sign"></i>Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" class="form-control" id="p-amount" name="amount" step="0.01" min="0.01" placeholder="Auto-filled">
+                        </div>
+                        <div class="form-text">Auto-filled from payout record, editable</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-note-sticky"></i>Narration</label>
+                        <textarea class="form-control" name="narration" rows="2" ></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">
+                            <i class="fas fa-paper-plane"></i>Record Payout
+                        </button>
+                    </div>
+                </form>
             </div>
+        </div>
+    </div>
+
+    <!-- ══ STATS ROW ══ -->
+    <div class="stats-row">
+        <div class="stat-card" onclick="showDueDetails()" role="button" tabindex="0">
+            <div class="stat-number">₹{{ "%.0f"|format(total_due) }}</div>
+            <div class="stat-label"><i class="fas fa-exclamation-triangle"></i>Total Due</div>
+            <small>Click to view breakdown</small>
+        </div>
+        <div class="stat-card" onclick="location.href='{{ url_for('vc.vcs_list') }}'" role="button" tabindex="0">
+            <div class="stat-number">{{ total_vcs }}</div>
+            <div class="stat-label"><i class="fas fa-building"></i>Total VCs</div>
+            <small>Click to view all VCs</small>
+        </div>
+        <div class="stat-card" onclick="location.href='{{ url_for('person.persons') }}'" role="button" tabindex="0">
+            <div class="stat-number">{{ total_persons }}</div>
+            <div class="stat-label"><i class="fas fa-users"></i>Total People</div>
+            <small>Click to manage persons</small>
         </div>
     </div>
 </div>
 
 <!-- Due Details Modal -->
-<div class="modal fade" id="dueDetailsModal" tabindex="-1" aria-labelledby="dueDetailsLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+<div class="modal fade" id="dueDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="dueDetailsLabel">
-                    <i class="fas fa-chart-pie"></i>Due Amount Breakdown
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title"><i class="fas fa-chart-pie"></i>Due Amount Breakdown</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="modern-table">
                     <table>
                         <thead>
                             <tr>
-                                <th>VC Name</th>
+                                <th>VC</th>
                                 <th>Person</th>
                                 <th>Due Amount</th>
                             </tr>
@@ -615,19 +316,11 @@
                         <tbody>
                             {% for vc in vcs %}
                                 {% if vc.total_due_per_vc > 0 %}
-                                    <tr>
-                                        <td>
-                                            <span class="badge">{{ vc.vc_number }}</span>
-                                            <span>{{ vc.name }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="person-badge">{{ vc.hand_person.short_name if vc.hand_person else 'N/A' }}</span>
-                                            <span>{{ vc.hand_person.name if vc.hand_person else 'N/A' }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="due-amount">₹{{ "%.2f"|format(vc.total_due_per_vc) }}</span>
-                                        </td>
-                                    </tr>
+                                <tr>
+                                    <td><span class="badge-vc">{{ vc.name }}</span></td>
+                                    <td>{{ vc.hand_person.name if vc.hand_person else 'N/A' }}</td>
+                                    <td><span class="due-amount">₹{{ "%.2f"|format(vc.total_due_per_vc) }}</span></td>
+                                </tr>
                                 {% endif %}
                             {% endfor %}
                         </tbody>
@@ -642,110 +335,140 @@
 
 {% block scripts %}
 <script>
-    /**
-     * Show Due Details Modal
-     */
-    function showDueDetails() {
-        const dueDetailsModal = document.getElementById('dueDetailsModal');
-        const modal = new bootstrap.Modal(dueDetailsModal, {
-            backdrop: true,
-            keyboard: true,
-            focus: true
+function showDueDetails() {
+    new bootstrap.Modal(document.getElementById('dueDetailsModal')).show();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // ── RECEIVED FORM ──────────────────────────────────────────────
+    const rVc     = document.getElementById('r-vc-select');
+    const rHand   = document.getElementById('r-hand-select');
+    const rPerson = document.getElementById('r-person-select');
+    const rAmount = document.getElementById('r-amount');
+    const rBal    = document.getElementById('r-person-balance');
+
+    async function rLoadHands(vcId) {
+        rHand.innerHTML   = '<option value="">— Select Hand —</option>';
+        rPerson.innerHTML = '<option value="">— Select Person —</option>';
+        rAmount.value = '';
+        if (!vcId) return;
+        const data = await fetch(`/api/vc/${vcId}/details`).then(r => r.json());
+        data.hands.forEach(h => {
+            const opt = document.createElement('option');
+            opt.value = h.id;
+            opt.textContent = `Hand ${h.hand_number} — ${h.winner_name || 'Pending'} — ${h.date ? new Date(h.date).toLocaleDateString() : ''}`;
+            rHand.appendChild(opt);
         });
-        modal.show();
+        if (rHand.options.length > 1) { rHand.selectedIndex = 1; rHand.dispatchEvent(new Event('change')); }
     }
 
-    /**
-     * Initialize form interactions
-     */
-    document.addEventListener("DOMContentLoaded", () => {
-        const vcSelect = document.getElementById("vc-select");
-        const handSelect = document.getElementById("hand-select");
-        const personSelect = document.getElementById("person-select");
-        const amountInput = document.getElementById("payment-amount");
+    async function rLoadPersons(handId) {
+        rPerson.innerHTML = '<option value="">— Select Person —</option>';
+        rAmount.value = '';
+        if (!handId) return;
+        const data = await fetch(`/api/hand/${handId}/details`).then(r => r.json());
+        data.pending_persons.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            rPerson.appendChild(opt);
+        });
+        rAmount.value = data.contribution_amount || '';
+    }
 
-        /**
-         * Load hands for selected VC
-         */
-        async function loadHands(vcId) {
-            if (!vcId) return;
+    async function rShowBalance(personId) {
+        rBal.innerHTML = '';
+        if (!personId) return;
+        const data = await fetch(`/api/person_balance/${personId}`).then(r => r.json());
+        if (data.success) {
+            const cls = data.balance >= 0 ? 'positive' : 'negative';
+            rBal.innerHTML = `Balance: <span class="balance-badge ${cls}">₹${data.balance.toLocaleString()}</span>`;
+        }
+    }
 
-            try {
-                const res = await fetch(`/api/vc/${vcId}/details`);
-                if (!res.ok) throw new Error(`API error: ${res.status}`);
-                const data = await res.json();
+    rVc.addEventListener('change',     () => rLoadHands(rVc.value));
+    rHand.addEventListener('change',   () => rLoadPersons(rHand.value));
+    rPerson.addEventListener('change', () => rShowBalance(rPerson.value));
 
-                // Reset dropdowns
-                handSelect.innerHTML = '<option value="">-- Select Hand --</option>';
-                personSelect.innerHTML = '<option value="">-- Select Person --</option>';
-                amountInput.value = "";
+    if (rVc.options.length > 1) { rVc.selectedIndex = 1; rLoadHands(rVc.value); }
 
-                // Only include hands that have a winner
-                const handsWithWinner = data.hands.filter(h => h.winner_name && h.winner_name !== "Pending");
-                handsWithWinner.forEach(h => {
-                    const handDate = h.date ? new Date(h.date).toLocaleDateString() : 'N/A';
-                    const opt = document.createElement("option");
-                    opt.value = h.id;
-                    opt.textContent = `Hand ${h.hand_number} - Winner: ${h.winner_name} - Date: ${handDate}`;
-                    handSelect.appendChild(opt);
+    // ── PAID FORM ──────────────────────────────────────────────────
+    const pVc     = document.getElementById('p-vc-select');
+    const pHand   = document.getElementById('p-hand-select');
+    const pWinner = document.getElementById('p-winner-select');
+    const pAmount = document.getElementById('p-amount');
+    const pWinnerBal = document.getElementById('p-winner-balance');
+
+    async function pLoadHands(vcId) {
+        pHand.innerHTML   = '<option value="">— Select Hand —</option>';
+        pWinner.innerHTML = '<option value="">— Auto-filled —</option>';
+        pAmount.value = '';
+        if (!vcId) return;
+        const data = await fetch(`/api/vc/${vcId}/details`).then(r => r.json());
+        // Only show distributed hands (have a winner)
+        data.hands.filter(h => h.winner_name && h.winner_name !== 'Pending').forEach(h => {
+            const opt = document.createElement('option');
+            opt.value = h.id;
+            opt.textContent = `Hand ${h.hand_number} — ${h.winner_name}`;
+            pHand.appendChild(opt);
+        });
+        if (pHand.options.length > 1) { pHand.selectedIndex = 1; pHand.dispatchEvent(new Event('change')); }
+    }
+
+    async function pLoadWinner(handId) {
+        pWinner.innerHTML = '<option value="">— Loading… —</option>';
+        pAmount.value = '';
+        if (!handId) return;
+        const data = await fetch(`/api/hand/${handId}/payout_details`).then(r => r.json());
+        pWinner.innerHTML = '';
+        if (data.winners && data.winners.length) {
+            data.winners.forEach(w => {
+                const opt = document.createElement('option');
+                opt.value = w.person_id;
+                opt.textContent = w.name;
+                // Use net_payout if available, else fallback
+                let net = w.net_payout !== undefined ? w.net_payout : (w.amount - (w.member_contribution || w.interest_amount || 0));
+                opt.dataset.amount = net;
+                pWinner.appendChild(opt);
+            });
+            // Auto-fill net_payout and balance for first winner
+            let first = data.winners[0];
+            let net = first.net_payout !== undefined ? first.net_payout : (first.amount - (first.member_contribution || first.interest_amount || 0));
+            pAmount.value = net;
+            // Show balance for first winner
+            if (first.person_id) {
+                fetch(`/api/person_balance/${first.person_id}`).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        const cls = data.balance >= 0 ? 'positive' : 'negative';
+                        pWinnerBal.innerHTML = `Balance: <span class="balance-badge ${cls}">₹${data.balance.toLocaleString()}</span>`;
+                    }
                 });
+            } else {
+                pWinnerBal.innerHTML = '';
+            }
+        } else {
+            pWinner.innerHTML = '<option value="">— No winner recorded —</option>';
+            pWinnerBal.innerHTML = '';
+        }
+    }
 
-                // Auto-select first hand if exists
-                if (handSelect.options.length > 1) {
-                    handSelect.selectedIndex = 1;
-                    handSelect.dispatchEvent(new Event("change"));
+    pVc.addEventListener('change',     () => pLoadHands(pVc.value));
+    pHand.addEventListener('change',   () => pLoadWinner(pHand.value));
+    pWinner.addEventListener('change', () => {
+        const sel = pWinner.options[pWinner.selectedIndex];
+        if (sel && sel.dataset.amount) pAmount.value = sel.dataset.amount;
+        // Show winner's balance
+        pWinnerBal.innerHTML = '';
+        if (sel && sel.value) {
+            fetch(`/api/person_balance/${sel.value}`).then(r => r.json()).then(data => {
+                if (data.success) {
+                    const cls = data.balance >= 0 ? 'positive' : 'negative';
+                    pWinnerBal.innerHTML = `Balance: <span class="balance-badge ${cls}">₹${data.balance.toLocaleString()}</span>`;
                 }
-            } catch (err) {
-                console.error("Failed to load hands:", err);
-            }
-        }
-
-        /**
-         * Load persons and contribution for selected hand
-         */
-        async function loadPersons(handId) {
-            if (!handId) return;
-
-            try {
-                const res = await fetch(`/api/hand/${handId}/details`);
-                if (!res.ok) throw new Error(`API error: ${res.status}`);
-                const data = await res.json();
-
-                // Reset persons and amount
-                personSelect.innerHTML = '<option value="">-- Select Person --</option>';
-                amountInput.value = "";
-
-                // Populate persons dropdown
-                data.pending_persons.forEach(p => {
-                    const opt = document.createElement("option");
-                    opt.value = p.id;
-                    opt.textContent = p.name;
-                    personSelect.appendChild(opt);
-                });
-
-                // Set contribution amount
-                amountInput.value = data.contribution_amount || "";
-            } catch (err) {
-                console.error("Failed to load pending persons:", err);
-            }
-        }
-
-        // Event listeners
-        vcSelect.addEventListener("change", () => {
-            loadHands(vcSelect.value);
-        });
-
-        handSelect.addEventListener("change", () => {
-            loadPersons(handSelect.value);
-        });
-
-        // Initialize on page load
-        if (!vcSelect.value && vcSelect.options.length > 1) {
-            vcSelect.selectedIndex = 1;
-        }
-        if (vcSelect.value) {
-            loadHands(vcSelect.value);
+            });
         }
     });
+});
 </script>
 {% endblock %}

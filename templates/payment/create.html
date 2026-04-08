@@ -320,6 +320,7 @@
                                 <i class="fas fa-user"></i>{{ form.person_id.label.text }}
                             </label>
                             {{ form.person_id(class="form-select", id="person-select") }}
+                            <div id="person-balance-subtitle" class="form-text" style="margin-top: 4px; min-height: 1.5em;"></div>
                             {% for error in form.person_id.errors %}
                                 <div class="text-danger">{{ error }}</div>
                             {% endfor %}
@@ -394,6 +395,33 @@
         const handSelect = document.getElementById("hand-select");
         const personSelect = document.getElementById("person-select");
         const amountInput = document.getElementById("payment-amount");
+        const personBalanceSubtitle = document.getElementById("person-balance-subtitle");
+
+        async function updatePersonBalance() {
+            const personId = personSelect.value;
+            if (!personId) {
+                personBalanceSubtitle.textContent = '';
+                return;
+            }
+            personBalanceSubtitle.textContent = 'Loading balance...';
+            try {
+                const res = await fetch(`/api/person_balance/${personId}`);
+                if (!res.ok) throw new Error('Failed to fetch balance');
+                const data = await res.json();
+                if (data.success) {
+                    let bal = data.balance;
+                    let balStr = `Balance: ₹${bal.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
+                    personBalanceSubtitle.textContent = balStr;
+                } else {
+                    personBalanceSubtitle.textContent = 'Balance unavailable';
+                }
+            } catch (e) {
+                personBalanceSubtitle.textContent = 'Balance unavailable';
+            }
+        }
+        personSelect.addEventListener('change', updatePersonBalance);
+        // On page load, show balance for pre-selected person (if any)
+        if (personSelect.value) updatePersonBalance();
 
         /**
          * Load hands for a given VC

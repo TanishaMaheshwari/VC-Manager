@@ -1,9 +1,10 @@
-"""Ledger routes for VC-Manager application"""
+"""Ledger routes for VC-Manager application - Updated with Image Export and Clear"""
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
 from flask_login import current_user, login_required
 from datetime import datetime
 from io import BytesIO
 from weasyprint import HTML
+from pdf2image import convert_from_bytes
 from app import db
 from app.models.person import Person
 from app.models.ledger import LedgerEntry
@@ -13,6 +14,7 @@ from app.forms import LedgerEntryForm
 ledger_bp = Blueprint('ledger', __name__, url_prefix='/ledger')
 
 def get_last_balance(person_id):
+    """Get the last balance for a person from their most recent ledger entry"""
     last_entry = (
         LedgerEntry.query
         .filter_by(person_id=person_id)
@@ -24,44 +26,6 @@ def get_last_balance(person_id):
     person = Person.query.get(person_id)
     return float(person.opening_balance or 0.0)
 
-def close_ledger(person_id):
-    """
-    Close a person's ledger by:
-    1. Getting the last balance from the most recent ledger entry
-    2. Deleting all existing ledger entries for that person
-    3. Adding a new entry with the last balance and narration 'ledger closed on {date}'
-    """
-    person = Person.query.get(person_id)
-    if not person:
-        return False
-    
-    # Get the last entry to capture the final balance
-    last_entry = LedgerEntry.query.filter_by(person_id=person_id).order_by(LedgerEntry.date.desc()).first()
-    
-    if not last_entry:
-        return False  # No entries to close
-    
-    final_balance = last_entry.balance
-    
-    # Delete all existing ledger entries for this person
-    LedgerEntry.query.filter_by(person_id=person_id).delete()
-    
-    # Add new entry with the final balance
-    closing_date = datetime.utcnow()
-    closing_entry = LedgerEntry(
-        person_id=person_id,
-        vc_id=None,
-        date=closing_date,
-        narration=f"Ledger closed on {closing_date.strftime('%d-%m-%Y %H:%M')}",
-        debit=0,
-        credit=0,
-        balance=final_balance
-    )
-    
-    db.session.add(closing_entry)
-    db.session.commit()
-    
-    return True
 
 @ledger_bp.route('/<int:person_id>')
 @login_required
@@ -85,9 +49,10 @@ def person_ledger(person_id):
     entries = query.order_by(LedgerEntry.id.desc()).all()
     entries = [e for e in entries if e is not None]
 
-    opening_balance = person.opening_balance or 0.0
+    opening_balance = float(person.opening_balance or 0.0)
 
     return render_template('ledger/person.html', person=person, entries=entries, opening_balance=opening_balance)
+
 
 @ledger_bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -114,7 +79,7 @@ def create_ledger_entry():
             narration=form.narration.data,
             debit=form.debit.data or 0,
             credit=form.credit.data or 0,
-            balance=prev_balance + (form.credit.data or 0) - (form.debit.data or 0)
+            balance=float(prev_balance) + float(form.credit.data or 0) - float(form.debit.data or 0)
         )
         
         db.session.add(entry)
@@ -126,22 +91,10 @@ def create_ledger_entry():
     return render_template('ledger/create.html', form=form)
 
 
-@ledger_bp.route('/<int:person_id>/close', methods=['POST'])
-@login_required
-def close_ledger_route(person_id):
-    """Route to close a person's ledger"""
-    person = Person.query.filter_by(id=person_id, user_id=current_user.id).first_or_404()
-    if close_ledger(person_id):
-        flash(f'Ledger closed successfully for person!', 'success')
-    else:
-        flash('Failed to close ledger. Person or entries not found.', 'danger')
-    
-    return redirect(url_for('ledger.person_ledger', person_id=person_id))
-
-
 @ledger_bp.route('/<int:person_id>/pdf')
 @login_required
 def export_ledger_pdf(person_id):
+    """Export ledger as PDF"""
     person = Person.query.filter_by(id=person_id, user_id=current_user.id).first_or_404()
 
     vc_id     = request.args.get('vc_id', type=int)
@@ -175,6 +128,76 @@ def export_ledger_pdf(person_id):
         as_attachment=True,
         download_name=f"ledger_{person.name.replace(' ', '_')}.pdf"
     )
+
+
+@ledger_bp.route('/<int:person_id>/image')
+@login_required
+def export_ledger_image(person_id):
+    """Export ledger as JPEG image"""
+    person = Person.query.filter_by(id=person_id, user_id=current_user.id).first_or_404()
+
+    vc_id     = request.args.get('vc_id', type=int)
+    from_date = request.args.get('from_date')
+    to_date   = request.args.get('to_date')
+
+    query = LedgerEntry.query.filter_by(person_id=person_id)
+
+    if vc_id:
+        query = query.filter(LedgerEntry.vc_id == vc_id)
+    if from_date:
+        query = query.filter(LedgerEntry.date >= datetime.strptime(from_date + ' 00:00:00', '%Y-%m-%d %H:%M:%S'))
+    if to_date:
+        query = query.filter(LedgerEntry.date <= datetime.strptime(to_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
+
+    entries = query.order_by(LedgerEntry.date.desc()).all()
+
+    # Generate HTML
+    rendered_html = render_template(
+        'ledger/pdf_template.html',
+        person=person,
+        entries=entries
+    )
+
+    try:
+        # Generate PDF from HTML
+        pdf_bytes = HTML(string=rendered_html).write_pdf()
+        # Convert first page of PDF to image (JPEG)
+        images = convert_from_bytes(pdf_bytes, fmt='jpeg', single_file=True, poppler_path='/opt/homebrew/bin')
+        if not images:
+            raise Exception('No image generated from PDF')
+        img = images[0]
+        jpeg_stream = BytesIO()
+        img.save(jpeg_stream, format='JPEG', quality=95)
+        jpeg_stream.seek(0)
+        return send_file(
+            jpeg_stream,
+            mimetype='image/jpeg',
+            as_attachment=True,
+            download_name=f"ledger_{person.name.replace(' ', '_')}.jpg"
+        )
+    except Exception as e:
+        flash(f'Error exporting as image: {str(e)}', 'danger')
+        return redirect(url_for('ledger.person_ledger', person_id=person_id))
+
+
+@ledger_bp.route('/<int:person_id>/clear', methods=['POST'])
+@login_required
+def clear_ledger(person_id):
+    """Clear all ledger entries and reset balance to 0"""
+    person = Person.query.filter_by(id=person_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        entries = LedgerEntry.query.filter_by(person_id=person_id).all()
+        for entry in entries:
+            db.session.delete(entry)
+            db.session.commit()
+        person.opening_balance = 0
+        db.session.commit()
+        flash(f'Ledger cleared successfully! Balance and opening balance have been reset to ₹0.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error clearing ledger: {str(e)}', 'danger')
+    return redirect(url_for('ledger.person_ledger', person_id=person_id))
 
 
 @ledger_bp.route('/operator')

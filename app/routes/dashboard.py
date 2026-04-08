@@ -1,5 +1,5 @@
 """Dashboard routes"""
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session
+from flask import Blueprint, jsonify, render_template, redirect, url_for, flash, request, session
 from flask_login import current_user, login_required
 from datetime import datetime, date
 from app import db
@@ -77,7 +77,7 @@ def index():
             person_id=form.person_id.data,
             vc_id=form.vc_id.data,
             date=form.date.data or datetime.utcnow(),
-            narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}",
+            narration=f"{form.narration.data}",
             debit=0,
             credit=form.amount.data,
             balance=prev_balance + form.amount.data
@@ -86,6 +86,38 @@ def index():
 
         db.session.commit()
         flash('Contribution recorded successfully!', 'success')
-        return redirect(url_for('vc.vcs_list'))
+        return redirect(url_for('dashboard.index'))
     
     return render_template('dashboard.html', form=form, today=date.today(), total_due=total_due, total_vcs=total_vcs, vcs=vcs, persons=persons, total_persons=total_persons)
+
+# ── Add to routes/api.py ────────────────────────────────────────────────────
+
+@dashboard_bp.route("/hand/<int:hand_id>/payout_details")
+@login_required
+def hand_payout_details(hand_id):
+    """Returns winners and their payout amounts for a distributed hand."""
+    hand = db.session.get(VCHand, hand_id)
+    if not hand or hand.vc.user_id != current_user.id:
+        return jsonify({"error": "Not found"}), 404
+
+    winners = []
+    for d in hand.hand_distributions:
+        if not d.is_operator_taken and d.person_id:
+            winners.append({
+                "person_id": d.person_id,
+                "name": d.person.name,
+                "amount": d.amount
+            })
+
+    return jsonify({"winners": winners})
+
+
+@dashboard_bp.route("/person_balance/<int:person_id>")
+@login_required
+def person_balance(person_id):
+    """Returns current ledger balance for a person."""
+    person = Person.query.filter_by(id=person_id, user_id=current_user.id).first()
+    if not person:
+        return jsonify({"success": False}), 404
+    return jsonify({"success": True, "balance": person.ledger_balance})
+

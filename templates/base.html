@@ -469,7 +469,7 @@
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.index') }}"><i class="fas fa-home"></i>Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('vc.vcs_list') }}"><i class="fas fa-list"></i>All VCs</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('person.persons') }}"><i class="fas fa-users"></i>Persons</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('payment.record_payment') }}"><i class="fas fa-money-bill-wave"></i>Payments</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('transactions.recent_transactions') }}"><i class="fas fa-history"></i>Recents</a></li>
             </ul>
             {% endif %}
 
@@ -537,10 +537,10 @@
         <i class="fas fa-users"></i>
         <span>Persons</span>
     </a>
-    <!-- <a href="{{ url_for('payment.record_payment') }}" class="tab-item {% if request.endpoint and 'payment.' in request.endpoint %}active{% endif %}">
-        <i class="fas fa-money-bill-wave"></i>
-        <span>Payments</span>
-    </a> -->
+    <a href="{{ url_for('transactions.recent_transactions') }}" class="tab-item {% if request.endpoint and 'transactions.' in request.endpoint %}active{% endif %}">
+        <i class="fas fa-history"></i>
+        <span>Recents</span>
+    </a>
 </nav>
 <!-- Modal portal: modals are moved here by JS, making them
      direct <body> children with no stacking context above them -->

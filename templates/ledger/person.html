@@ -84,18 +84,20 @@
         font-weight: 600;
     }
 
-    /* Export Button */
+    /* Export Section */
     .export-section {
         text-align: center;
         margin-top: 32px;
         padding-top: 24px;
         border-top: 2px solid var(--border);
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
     }
 
-    .export-btn {
-        padding: 12px 28px;
-        background: var(--accent);
-        color: #fff;
+    .action-btn {
+        padding: 12px 24px;
         border: none;
         border-radius: var(--radius-md);
         font-weight: 600;
@@ -107,9 +109,34 @@
         font-size: 0.95rem;
     }
 
-    .export-btn:hover {
+    .btn-export-pdf {
+        background: var(--accent);
+        color: #fff;
+    }
+
+    .btn-export-pdf:hover {
         transform: translateY(-2px);
         box-shadow: var(--shadow-md);
+    }
+
+    .btn-export-image {
+        background: var(--success);
+        color: #fff;
+    }
+
+    .btn-export-image:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+
+    .btn-clear {
+        background: var(--danger);
+        color: #fff;
+    }
+
+    .btn-clear:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
     }
 
     /* Table */
@@ -176,16 +203,6 @@
     .amount-credit { color: var(--success); }
     .amount-empty { color: var(--text-muted); }
 
-    .opening-balance-row {
-        background: var(--surface2);
-        font-weight: 700;
-    }
-
-    .opening-balance-row td {
-        border-bottom: 2px solid var(--border);
-        padding: 14px 16px;
-    }
-
     /* Empty State */
     .empty-state {
         text-align: center;
@@ -218,8 +235,15 @@
             font-size: 0.95rem;
         }
 
-        .export-btn {
-            padding: 10px 20px;
+        .export-section {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 10px 18px;
             font-size: 0.9rem;
         }
 
@@ -250,11 +274,6 @@
         .cell-amount {
             font-size: 0.9rem;
         }
-
-        .export-btn {
-            padding: 10px 18px;
-            font-size: 0.9rem;
-        }
     }
 
     @media (max-width: 480px) {
@@ -270,10 +289,16 @@
             font-size: 0.9rem;
         }
 
-        .export-btn {
+        .export-section {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .action-btn {
             width: 100%;
             padding: 12px 16px;
             font-size: 0.85rem;
+            justify-content: center;
         }
 
         .stats-row {
@@ -297,18 +322,6 @@
             font-size: 0.75rem;
         }
 
-        .back-btn {
-            padding: 8px 12px;
-            font-size: 0.85rem;
-        }
-
-        .export-btn {
-            width: 100%;
-            padding: 12px;
-            font-size: 0.85rem;
-            justify-content: center;
-        }
-
         .ledger-table th,
         .ledger-table td {
             padding: 10px 8px;
@@ -330,7 +343,6 @@
     <div class="page-header">
         <div class="header-title">
             <h1 class="page-title">{{ person.name }} - Ledger</h1>
-            <!-- <div class="page-subtitle">JAN-MAR</div> -->
         </div>
     </div>
 
@@ -345,7 +357,7 @@
         <div class="stat-box">
             <div class="stat-label">Balance as of Today</div>
             <div class="stat-value {{ 'positive' if person.ledger_balance >= 0 else 'negative' }}">
-                ₹{{ "{:,.0f}".format(person.ledger_balance) }} <span style="color: var(--text-muted); font-size: 0.8rem;">{{ 'Cr' if opening_balance >= 0 else 'Dr' }}</span>
+                ₹{{ "{:,.0f}".format(person.ledger_balance) }} <span style="color: var(--text-muted); font-size: 0.8rem;">{{ 'Cr' if person.ledger_balance >= 0 else 'Dr' }}</span>
             </div>
         </div>
     </div>
@@ -364,17 +376,6 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Opening Balance Row -->
-                    <!-- <tr class="opening-balance-row">
-                        <td colspan="2" class="cell-date">Opening Balance</td>
-                        <td class="cell-amount amount-empty">—</td>
-                        <td class="cell-amount amount-empty">—</td>
-                        <td class="cell-amount {{ 'amount-credit' if opening_balance >= 0 else 'amount-debit' }}">
-                            ₹{{ "{:,.0f}".format(opening_balance) }}
-                        </td>
-                    </tr> -->
-
-                    <!-- Ledger Entries -->
                     {% for entry in entries %}
                     <tr>
                         <td class="cell-date">{{ entry.date.strftime('%d/%m/%Y') }}</td>
@@ -409,11 +410,45 @@
         {% endif %}
     </div>
 
-    <!-- Export Button at Bottom -->
+    <!-- Export & Action Buttons -->
     <div class="export-section">
-        <button class="export-btn" onclick="exportPDF({{ person.id }})">
-            <i class="fas fa-download"></i>Export PDF
+        <button class="action-btn btn-export-pdf" onclick="exportPDF({{ person.id }})">
+            <i class="fas fa-file-pdf"></i>Export as PDF
         </button>
+        <button class="action-btn btn-export-image" onclick="exportImage({{ person.id }})">
+            <i class="fas fa-image"></i>Export as Image
+        </button>
+        <button class="action-btn btn-clear" onclick="confirmClearLedger()">
+            <i class="fas fa-trash"></i>Clear Ledger
+        </button>
+    </div>
+</div>
+
+<!-- Clear Ledger Confirmation Modal -->
+<div class="modal fade" id="clearLedgerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2" style="color: var(--danger);"></i>Clear Ledger</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="color: var(--text);">
+                <p style="margin-bottom: 16px; font-weight: 600;">
+                    Are you sure you want to clear this ledger?
+                </p>
+                <ul style="margin-bottom: 0; padding-left: 20px; color: var(--text);">
+                    <li>All ledger entries will be <strong>permanently deleted</strong></li>
+                    <li>Balance will be reset to <strong>₹0</strong></li>
+                    <li style="color: var(--danger); margin-top: 8px;"><strong>This action cannot be undone!</strong></li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="clearLedger({{ person.id }})">
+                    <i class="fas fa-trash me-2"></i>Clear Ledger
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -424,6 +459,41 @@
     function exportPDF(personId) {
         const params = new URLSearchParams(window.location.search);
         window.open(`/ledger/${personId}/pdf?${params.toString()}`, '_blank');
+    }
+
+    function exportImage(personId) {
+        const params = new URLSearchParams(window.location.search);
+        window.open(`/ledger/${personId}/image?${params.toString()}`, '_blank');
+    }
+
+    function confirmClearLedger() {
+        const modal = new bootstrap.Modal(document.getElementById('clearLedgerModal'));
+        modal.show();
+    }
+
+    function clearLedger(personId) {
+        // Get CSRF token from hidden input or meta tag
+        let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        fetch(`/ledger/${personId}/clear`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ csrf_token: csrfToken })
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to clear ledger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
     }
 </script>
 {% endblock %}

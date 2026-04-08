@@ -1,0 +1,561 @@
+{% extends "base.html" %}
+
+{% block title %}Recent Transactions{% endblock %}
+
+{% block content %}
+<style>
+    html { font-size: var(--fs-base); }
+    body { font-size: var(--fs-base); }
+
+    .container-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    /* Page Header */
+    .page-header {
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 2px solid var(--border);
+    }
+
+    .page-title {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(1.8rem, 4vw, 2.4rem);
+        font-weight: 700;
+        background: var(--grad-success);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0 0 8px 0;
+    }
+
+    .page-subtitle {
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin: 0;
+    }
+
+    /* Summary Cards */
+    .summary-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .summary-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .summary-label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 8px;
+    }
+
+    .summary-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        font-family: 'Space Mono', monospace;
+        color: var(--text);
+    }
+
+    .summary-value.received { color: var(--success); }
+    .summary-value.paid { color: var(--danger); }
+    .summary-value.net { color: var(--accent); }
+
+    /* Filter Section */
+    .filter-section {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .filter-group label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 10px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        color: var(--text);
+        font-size: 0.95rem;
+        font-family: inherit;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.1);
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.28s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .filter-btn-reset {
+        background: var(--surface2);
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+    }
+
+    .filter-btn-reset:hover {
+        background: var(--surface3);
+        color: var(--text);
+    }
+
+    /* Transactions Table */
+    .table-section {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 24px;
+    }
+
+    .transactions-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .transactions-table thead {
+        background: var(--surface2);
+        border-bottom: 2px solid var(--border);
+    }
+
+    .transactions-table th {
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .transactions-table td {
+        padding: 16px;
+        border-bottom: 1.5px solid var(--border);
+        color: var(--text);
+        font-size: 0.95rem;
+    }
+
+    .transactions-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .transactions-table tbody tr:hover {
+        background: var(--surface2);
+    }
+
+    .cell-date {
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+    }
+
+    .cell-person {
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .cell-description {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .cell-amount {
+        font-weight: 700;
+        font-family: 'Space Mono', monospace;
+        text-align: center;
+    }
+
+    .amount-received { color: var(--success); }
+    .amount-paid { color: var(--danger); }
+
+    .type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 30px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .type-badge.received {
+        background: rgba(34, 197, 94, 0.15);
+        color: var(--success);
+    }
+
+    .type-badge.paid {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--danger);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .empty-state h3 {
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+
+    /* Pagination */
+    .pagination-section {
+        text-align: center;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .pagination-btn {
+        padding: 8px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-weight: 600;
+    }
+
+    .pagination-btn:hover {
+        background: var(--surface3);
+    }
+
+    .pagination-btn.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .container-wrapper {
+            padding: 16px;
+        }
+
+        .page-title {
+            font-size: 1.6rem;
+        }
+
+        .summary-row {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .summary-card {
+            padding: 16px;
+        }
+
+        .summary-value {
+            font-size: 1.3rem;
+        }
+
+        .filter-row {
+            grid-template-columns: 1fr;
+        }
+
+        .transactions-table th,
+        .transactions-table td {
+            padding: 12px 10px;
+            font-size: 0.85rem;
+        }
+
+        .transactions-table th {
+            font-size: 0.8rem;
+        }
+
+        .cell-amount {
+            font-size: 0.9rem;
+        }
+
+        .type-badge {
+            font-size: 0.7rem;
+            padding: 5px 10px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .container-wrapper {
+            padding: 12px;
+        }
+
+        .page-title {
+            font-size: 1.4rem;
+        }
+
+        .summary-row {
+            grid-template-columns: 1fr;
+        }
+
+        .filter-section {
+            padding: 16px;
+        }
+
+        .filter-row {
+            grid-template-columns: 1fr;
+        }
+
+        .filter-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .transactions-table th,
+        .transactions-table td {
+            padding: 10px 10px;
+            font-size: 0.8rem;
+        }
+
+        .transactions-table th {
+            font-size: 0.7rem;
+        }
+
+        .cell-date {
+            font-size: 0.75rem;
+        }
+
+        .cell-person {
+            font-size: 0.85rem;
+        }
+
+        .cell-amount {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+
+<div class="container-wrapper">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title"><i class="fas fa-exchange-alt me-2" style="-webkit-text-fill-color: var(--success);"></i>Recent Transactions</h1>
+        <p class="page-subtitle">All received & paid entries from your VCs</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <!-- <div class="summary-row">
+        <div class="summary-card">
+            <div class="summary-label"><i class="fas fa-arrow-down me-1" style="color: var(--success);"></i>Total Received</div>
+            <div class="summary-value received">₹{{ "{:,.0f}".format(total_received) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label"><i class="fas fa-arrow-up me-1" style="color: var(--danger);"></i>Total Paid</div>
+            <div class="summary-value paid">₹{{ "{:,.0f}".format(total_paid) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label"><i class="fas fa-balance-scale me-1" style="color: var(--accent);"></i>Net Balance</div>
+            <div class="summary-value net">₹{{ "{:,.0f}".format(total_received - total_paid) }}</div>
+        </div>
+    </div> -->
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="GET" class="filter-row">
+            <div class="filter-group">
+                <label for="filterType">Transaction Type</label>
+                <select id="filterType" name="type">
+                    <option value="">— All Types —</option>
+                    <option value="received" {% if request.args.get('type') == 'received' %}selected{% endif %}>Received</option>
+                    <option value="paid" {% if request.args.get('type') == 'paid' %}selected{% endif %}>Paid</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filterVC">VC</label>
+                <select id="filterVC" name="vc_id">
+                    <option value="">— All VCs —</option>
+                    {% for vc in all_vcs %}
+                    <option value="{{ vc.id }}" {% if request.args.get('vc_id')|int == vc.id %}selected{% endif %}>{{ vc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filterFromDate">From Date</label>
+                <input type="date" id="filterFromDate" name="from_date" value="{{ request.args.get('from_date', '') }}">
+            </div>
+
+            <div class="filter-group">
+                <label for="filterToDate">To Date</label>
+                <input type="date" id="filterToDate" name="to_date" value="{{ request.args.get('to_date', '') }}">
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-top: auto;">
+                <button type="submit" class="filter-btn">
+                    <i class="fas fa-search"></i>Filter
+                </button>
+                <a href="{{ url_for('transactions.recent_transactions') }}" class="filter-btn filter-btn-reset">
+                    <i class="fas fa-redo"></i>Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="table-section">
+        {% if transactions %}
+            <table class="transactions-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Person</th>
+                        <th>Description</th>
+                        <!-- <th>Type</th> -->
+                        <th style="text-align:center;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in transactions %}
+                    <tr>
+                        <td class="cell-date">{{ txn.date.strftime('%d/%m/%Y') }}</td>
+                        <td class="cell-person">{{ txn.person_name }}</td>
+                        <td>
+                            <div class="cell-description">{{ txn.narration }}</div>
+                        </td>
+                        <!-- <td>
+                            <span class="type-badge {{ 'received' if txn.type == 'received' else 'paid' }}">
+                                {% if txn.type == 'received' %}
+                                    <i class="fas fa-arrow-down"></i>Received
+                                {% else %}
+                                    <i class="fas fa-arrow-up"></i>Paid
+                                {% endif %}
+                            </span>
+                        </td> -->
+                        <td class="cell-amount">
+                            {% if txn.type == 'received' %}
+                                <span class="amount-received">+ ₹{{ "{:,.0f}".format(txn.amount) }}</span>
+                            {% else %}
+                                <span class="amount-paid">- ₹{{ "{:,.0f}".format(txn.amount) }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h3>No transactions found</h3>
+                <p>There are no transactions matching your filters. Try adjusting your search criteria.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination (if applicable) -->
+    {% if transactions and pages > 1 %}
+    <div class="pagination-section">
+        {% if page > 1 %}
+            <a href="{{ url_for('transactions.recent_transactions', page=1, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
+                <i class="fas fa-angle-double-left"></i>First
+            </a>
+            <a href="{{ url_for('transactions.recent_transactions', page=page-1, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
+                <i class="fas fa-angle-left"></i>Prev
+            </a>
+        {% endif %}
+
+        {% for p in range(max(1, page-2), min(pages+1, page+3)) %}
+            {% if p == page %}
+                <span class="pagination-btn active">{{ p }}</span>
+            {% else %}
+                <a href="{{ url_for('transactions.recent_transactions', page=p, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < pages %}
+            <a href="{{ url_for('transactions.recent_transactions', page=page+1, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
+                Next <i class="fas fa-angle-right"></i>
+            </a>
+            <a href="{{ url_for('transactions.recent_transactions', page=pages, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
+                Last <i class="fas fa-angle-double-right"></i>
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-submit form on filter change
+    const filterForm = document.querySelector('.filter-row form') || document.closest('form');
+    if (filterForm) {
+        filterForm.addEventListener('change', function() {
+            this.submit();
+        });
+    }
+</script>
+{% endblock %}

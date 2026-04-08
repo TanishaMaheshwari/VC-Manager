@@ -52,6 +52,7 @@ def create_app(config_name='development'):
         )
     
     # Register blueprints
+
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.vc import vc_bp
@@ -60,7 +61,8 @@ def create_app(config_name='development'):
     from app.routes.payment import payment_bp
     from app.routes.ledger import ledger_bp
     from app.routes.api import api_bp
-    
+    from app.routes.transaction import transactions_bp
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(vc_bp)
@@ -69,6 +71,7 @@ def create_app(config_name='development'):
     app.register_blueprint(payment_bp)
     app.register_blueprint(ledger_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(transactions_bp)
     
     # Register template filters
     @app.template_filter('indian_comma')

@@ -91,7 +91,7 @@ def record_payment():
         db.session.commit()
 
         flash(f"Payment of ₹{payment.amount} recorded for {person.name}", "success")
-        return redirect(url_for("payment.record_payment"))
+        return redirect(url_for("dashboard.index"))
 
     return render_template("payment/create.html", form=form, pending_vcs=pending_vcs, all_hands=all_hands, all_members=all_members)
 
@@ -160,3 +160,62 @@ def create_payment():
         return redirect(url_for('vc.vcs_list'))
 
     return render_template('payment/create.html', form=form, datetime=datetime)
+
+
+@payment_bp.route('/record-payout', methods=['POST'])
+@login_required
+def record_payout_payment():
+    """
+    Record actual cash payout to a winner.
+    Creates a Payment record and a ledger DEBIT entry
+    (money going OUT from the VC/operator to the winner).
+    """
+    from app.routes.ledger import get_last_balance
+
+    vc_id     = request.form.get('vc_id',     type=int)
+    hand_id   = request.form.get('hand_id',   type=int)
+    person_id = request.form.get('person_id', type=int)
+    amount    = request.form.get('amount',    type=float)
+    narration = request.form.get('narration', '').strip()
+    date_str  = request.form.get('date', '').strip()
+
+    if not all([vc_id, hand_id, person_id, amount]):
+        flash("All fields are required.", "danger")
+        return redirect(url_for('dashboard.index'))
+
+    vc     = VC.query.filter_by(id=vc_id, user_id=current_user.id).first_or_404()
+    hand   = VCHand.query.filter_by(id=hand_id, vc_id=vc_id).first_or_404()
+    person = Person.query.filter_by(id=person_id, user_id=current_user.id).first_or_404()
+
+    try:
+        pay_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M') if date_str else datetime.utcnow()
+    except ValueError:
+        pay_date = datetime.utcnow()
+
+    # Payment record
+    payment = Payment(
+        vc_id=vc_id,
+        hand_id=hand_id,
+        person_id=person_id,
+        amount=amount,
+        date=pay_date,
+        narration=narration or f"Payout paid to {person.name} — Hand {hand.hand_number}"
+    )
+    db.session.add(payment)
+
+    # Ledger CREDIT entry for the winner (they received cash)
+    prev_balance = get_last_balance(person_id)
+    ledger_entry = LedgerEntry(
+        person_id=person_id,
+        vc_id=vc_id,
+        date=pay_date,
+        narration=narration or f"Payout paid — VC {vc.name}, Hand {hand.hand_number}",
+        credit=0,
+        debit=amount,
+        balance=prev_balance - amount
+    )
+    db.session.add(ledger_entry)
+
+    db.session.commit()
+    flash(f"Payout of ₹{amount:,.0f} recorded for {person.name}.", "success")
+    return redirect(url_for('dashboard.index'))

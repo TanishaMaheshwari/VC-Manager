@@ -133,7 +133,7 @@ def _build_contributions(hand, vc, interest_charged, now):
             person_id=member.id,
             vc_id=vc.id,
             date=now,
-            narration=f"Contribution for VC {vc.name}, Hand {hand.hand_number}.",
+            narration=f"contri for VC {vc.name}, Hand {hand.hand_number}.",
             debit=member_contribution,
             credit=0,
             balance=current_balance - member_contribution  # NEW balance after debit
@@ -247,7 +247,7 @@ def create_payout(hand_id):
             person_id=person_id,
             vc_id=hand.vc_id,
             date=now,
-            narration=f"Payout received — VC Hand {hand.hand_number}",
+            narration=f"आपकी व्.स. छुट्टी है — हाथ {hand.hand_number}",
             credit=amount,
             debit=0,
             balance=prev_balance + amount  # NEW balance after credit
@@ -285,10 +285,7 @@ def _delete_hand_ledger_entries(hand, vc):
     hand_narration_pattern = f"Hand {hand.hand_number}"
     
     # Delete all ledger entries that mention this hand
-    LedgerEntry.query.filter(
-        LedgerEntry.vc_id == vc.id,
-        LedgerEntry.narration.like(f"%{hand_narration_pattern}%")
-    ).delete(synchronize_session=False)
+    LedgerEntry.query.filter(LedgerEntry.vc_id == vc.id).delete(synchronize_session=False)
     
     db.session.flush()
 
@@ -390,7 +387,7 @@ def edit_payout(vc_id, hand_id):
             person_id=person_id,
             vc_id=hand.vc_id,
             date=now,
-            narration=f"Payout received — VC Hand {hand.hand_number}",
+            narration=f"आपकी vc छुट्टी है — हाथ {hand.hand_number}",
             credit=amount,
             debit=0,
             balance=prev_balance + amount
