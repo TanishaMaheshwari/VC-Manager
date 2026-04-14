@@ -448,12 +448,7 @@
                     opt.textContent = `Hand ${h.hand_number} - Winner: ${h.winner_name} - Date: ${handDate}`;
                     handSelect.appendChild(opt);
                 });
-
-                // Auto-select first hand if exists
-                if (handSelect.options.length > 1) {
-                    handSelect.selectedIndex = 1;
-                    handSelect.dispatchEvent(new Event("change")); // triggers person loading
-                }
+                // Do NOT auto-select hand or person. Let user pick.
             } catch (err) {
                 console.error("Failed to load hands:", err);
             }

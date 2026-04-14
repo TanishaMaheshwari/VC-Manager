@@ -132,8 +132,8 @@ def _build_contributions(hand, vc, interest_charged, now):
         ledger_entry = LedgerEntry(
             person_id=member.id,
             vc_id=vc.id,
-            date=now,
-            narration=f"contri for VC {vc.name}, Hand {hand.hand_number}.",
+            date=hand.date,  # Preserve original hand date for ledger consistency
+            narration=f"{vc.name} Haath {hand.hand_number} mai aapka hissa raha",
             debit=member_contribution,
             credit=0,
             balance=current_balance - member_contribution  # NEW balance after debit
@@ -234,7 +234,7 @@ def create_payout(hand_id):
             hand_id=hand.id,
             person_id=person_id,
             amount=amount,
-            narration=narration or f"Payout for Hand {hand.hand_number}",
+            narration=narration or f"{vc.name} Haath {hand.hand_number} mai aapko diye",
             payment_date=now,
             is_operator_taken=False,
             is_vc_money_taken=True
@@ -246,8 +246,8 @@ def create_payout(hand_id):
         ledger_entry = LedgerEntry(
             person_id=person_id,
             vc_id=hand.vc_id,
-            date=now,
-            narration=f"आपकी व्.स. छुट्टी है — हाथ {hand.hand_number}",
+            date=hand.date,  # Use the hand's date (datetime) for ledger consistency
+            narration=f" {vc.name} Haath {hand.hand_number} aapki rahi hai",
             credit=amount,
             debit=0,
             balance=prev_balance + amount  # NEW balance after credit
@@ -374,7 +374,7 @@ def edit_payout(vc_id, hand_id):
             hand_id=hand.id,
             person_id=person_id,
             amount=amount,
-            narration=narration or f"Payout for Hand {hand.hand_number}",
+            narration=narration or f"{vc.name} Haath {hand.hand_number} mai aapko diye",
             payment_date=now,
             is_operator_taken=False,
             is_vc_money_taken=True
@@ -386,8 +386,8 @@ def edit_payout(vc_id, hand_id):
         ledger_entry = LedgerEntry(
             person_id=person_id,
             vc_id=hand.vc_id,
-            date=now,
-            narration=f"आपकी vc छुट्टी है — हाथ {hand.hand_number}",
+            date=hand.date,  # Preserve original hand date for ledger consistency
+            narration=f" {vc.name} Haath {hand.hand_number} aapki rahi hai",
             credit=amount,
             debit=0,
             balance=prev_balance + amount

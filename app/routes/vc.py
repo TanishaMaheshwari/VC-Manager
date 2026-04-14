@@ -176,7 +176,7 @@ def view_hand_distribution(vc_id, hand_number):
 
     ledger_entries = LedgerEntry.query.filter(
         LedgerEntry.vc_id == vc.id,
-        LedgerEntry.narration.like(f'%Payment for VC {vc.vc_number}, Hand {hand.hand_number}%')
+        LedgerEntry.narration.like(f'%{vc.name} Haath {hand.hand_number}%')
     ).all()
 
     ledger_map = {}

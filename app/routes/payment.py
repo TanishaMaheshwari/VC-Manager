@@ -24,22 +24,30 @@ def record_payment():
     pending_vcs = VC.query.filter(VC.user_id==current_user.id, VC.status != PaymentStatus.PAID).all()
     form.vc_id.choices = [(vc.id, f"VC {vc.vc_number}") for vc in pending_vcs]
 
-    # 2. Filter hands with unpaid contributions, get minimum hand_id with unpaid contributions
-    hands_with_unpaid = []
+    # 2. Show all hands for selected VCs
+    all_hands = {}
     for vc in pending_vcs:
         for hand in vc.hands:
-            unpaid_contribs = Contribution.query.filter_by(
-                hand_id=hand.id,
-                paid=False
-            ).all()
-            if unpaid_contribs:
-                hands_with_unpaid.append(hand)
-    
-    # Sort to get minimum hand_id
-    hands_with_unpaid.sort(key=lambda h: h.id)
-    all_hands = {hand.id: hand for hand in hands_with_unpaid}
-    # Get members from current user's persons only
-    all_members = {member.id: member for vc in pending_vcs for member in vc.members if member.user_id == current_user.id}
+            all_hands[hand.id] = hand
+    # Show only persons without payout ledger entry for selected hand
+    all_members = {}
+    selected_hand_id = form.hand_id.data if form.hand_id.data else None
+    selected_vc_id = form.vc_id.data if form.vc_id.data else None
+    selected_vc = VC.query.get(selected_vc_id) if selected_vc_id else None
+    selected_hand = VCHand.query.get(selected_hand_id) if selected_hand_id else None
+    if selected_vc and selected_hand:
+        for member in selected_vc.members:
+            if member.user_id != current_user.id:
+                continue
+            slots = selected_vc.get_slots(member.id)
+            narration_like = f"{selected_vc.name} Haath {selected_hand.hand_number} mai aapko diye%"
+            ledger_entries = LedgerEntry.query.filter(
+                LedgerEntry.person_id == member.id,
+                LedgerEntry.vc_id == selected_vc.id,
+                LedgerEntry.narration.like(narration_like)
+            ).count()
+            if ledger_entries < slots:
+                all_members[member.id] = member
 
     # Initialize hand and person choices for form validation
     form.hand_id.choices = [(h.id, f"Hand {h.hand_number}") for h in all_hands.values()]
@@ -61,11 +69,23 @@ def record_payment():
             person_id=person.id,
             amount=form.amount.data,
             date=form.date.data,
-            narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}"
+            narration=f"{vc.name} Haath {hand.hand_number} {form.narration.data}"
         )
         db.session.add(payment)
 
-        # 4. Update Ledger automatically
+        # 4. Add Transaction entry (type=credit for received)
+        from app.models.transaction import Transaction
+        transaction = Transaction(
+            user_id=current_user.id,
+            person_id=person.id,
+            amount=form.amount.data,
+            type='credit',
+            date=form.date.data,
+            narration=payment.narration
+        )
+        db.session.add(transaction)
+
+        # 5. Update Ledger automatically
         from app.routes.ledger import get_last_balance
         current_balance = get_last_balance(person.id)
         ledger_entry = LedgerEntry(
@@ -148,7 +168,7 @@ def create_payment():
             person_id=form.person_id.data,
             vc_id=form.vc_id.data,
             date=form.date.data or datetime.utcnow(),
-            narration=f"Payment for VC {vc.vc_number}, Hand {hand.hand_number}: {form.narration.data}",
+            narration=f"{vc.name} Haath {hand.hand_number}: {form.narration.data}",
             debit=0,
             credit=form.amount.data,
             balance=prev_balance + form.amount.data
@@ -199,9 +219,21 @@ def record_payout_payment():
         person_id=person_id,
         amount=amount,
         date=pay_date,
-        narration=narration or f"Payout paid to {person.name} — Hand {hand.hand_number}"
+        narration=narration or f"{vc.name} Haath {hand.hand_number} ke diye gaye"
     )
     db.session.add(payment)
+
+    # Transaction entry (type=debit for paid)
+    from app.models.transaction import Transaction
+    transaction = Transaction(
+        user_id=current_user.id,
+        person_id=person_id,
+        amount=amount,
+        type='debit',
+        date=pay_date,
+        narration=payment.narration
+    )
+    db.session.add(transaction)
 
     # Ledger CREDIT entry for the winner (they received cash)
     prev_balance = get_last_balance(person_id)
@@ -209,10 +241,10 @@ def record_payout_payment():
         person_id=person_id,
         vc_id=vc_id,
         date=pay_date,
-        narration=narration or f"Payout paid — VC {vc.name}, Hand {hand.hand_number}",
-        credit=0,
-        debit=amount,
-        balance=prev_balance - amount
+        narration=narration or f"{vc.name} Haath {hand.hand_number} mai aapko diye",
+        credit=amount,  # CREDIT in ledger (person receives money)
+        debit=0,
+        balance=prev_balance + amount
     )
     db.session.add(ledger_entry)
 

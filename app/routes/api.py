@@ -15,24 +15,35 @@ def vc_details(vc_id):
     vc = VC.query.filter_by(id=vc_id, user_id=current_user.id).first_or_404()
     
     hands = []
-    # Filter hands: only include those with at least one unpaid contribution
+    # Filter hands: only include those with at least one unpaid contribution AND not all members have ledger entry with payout narration
     hands_with_unpaid = []
     for h in vc.hands:
-        # Check if this hand has any unpaid contributions
         unpaid_contribs = Contribution.query.filter_by(
             hand_id=h.id,
             paid=False
         ).all()
-        if unpaid_contribs:
-            hands_with_unpaid.append(h)
-    
-    # Sort by hand_id to get the minimum hand_id with unpaid contributions
-    hands_with_unpaid.sort(key=lambda h: h.id)
-    
-    for h in hands_with_unpaid:
-        # Include hands with unpaid contributions
-        winner_name = h.winner_short_name or "Pending"
+        if not unpaid_contribs:
+            continue
+        # Check if all members have payout ledger entry
+        all_have_ledger = True
+        for member in vc.members:
+            narration_like = f"{vc.name} Haath {h.hand_number} mai aapko diye%"
+            ledger_entry = LedgerEntry.query.filter(
+                LedgerEntry.person_id == member.id,
+                LedgerEntry.vc_id == vc.id,
+                LedgerEntry.narration.like(narration_like)
+            ).first()
+            if not ledger_entry:
+                all_have_ledger = False
+                break
+        if all_have_ledger:
+            continue
+        hands_with_unpaid.append(h)
 
+    hands_with_unpaid.sort(key=lambda h: h.id)
+
+    for h in hands_with_unpaid:
+        winner_name = h.winner_short_name or "Pending"
         hands.append({
             "id": h.id,
             "hand_number": h.hand_number,
@@ -62,7 +73,7 @@ def hand_details(hand_id):
     # Exclude persons who already have ledger entries
     ledger_entries = LedgerEntry.query.filter(
         LedgerEntry.vc_id == hand.vc.id,
-        LedgerEntry.narration.like(f"Payment for VC {hand.vc.vc_number}, Hand {hand.hand_number}%")
+        LedgerEntry.narration.like(f"{hand.vc.name} Haath {hand.hand_number}: %")
     ).all()
     paid_ids = {l.person_id for l in ledger_entries}
     pending_ids = potential_ids - paid_ids
@@ -86,6 +97,8 @@ def person_balance(person_id):
     balance = get_last_balance(person_id)
     return jsonify({'success': True, 'balance': balance, 'name': person.name})
 
+from app.models.ledger import LedgerEntry   # adjust import if needed
+
 @api_bp.route("/hand/<int:hand_id>/payout_details")
 @login_required
 def hand_payout_details(hand_id):
@@ -93,18 +106,33 @@ def hand_payout_details(hand_id):
     if not hand or hand.vc.user_id != current_user.id:
         return jsonify({"error": "Not found"}), 404
 
-    print("DISTRIBUTIONS:", [(d.person_id, d.is_operator_taken, d.amount) for d in hand.hand_distributions])
+    # ✅ STEP 1: Get already paid persons (by narration pattern)
+    narration_like = f"{hand.vc.name} Haath {hand.hand_number} mai aapko diye%"
+    paid_person_ids = {
+        l.person_id for l in LedgerEntry.query.filter(
+            LedgerEntry.vc_id == hand.vc_id,
+            LedgerEntry.narration.like(narration_like)
+        ).all()
+    }
+
+    print("PAID PERSONS:", paid_person_ids)
 
     from app.models.contribution import Contribution
+
     winners = []
     for d in hand.hand_distributions:
-        if not d.is_operator_taken and d.person_id:
-            # Find member contribution for this person in this hand
+        if (
+            not d.is_operator_taken
+            and d.person_id
+            and d.person_id not in paid_person_ids   # ✅ FILTER HERE
+        ):
             member_contribution = sum(
                 c.amount for c in Contribution.query.filter_by(hand_id=hand.id, person_id=d.person_id)
             )
+
             interest_amount = getattr(hand, 'interest_amount', None)
             net_payout = d.amount - member_contribution if member_contribution is not None else None
+
             winners.append({
                 "person_id": d.person_id,
                 "name": d.person.name,

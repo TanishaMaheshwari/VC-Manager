@@ -61,3 +61,43 @@ class LedgerEntryForm(FlaskForm):
     debit = FloatField('Debit', validators=[Optional(), NumberRange(min=0)], default=0)
     credit = FloatField('Credit', validators=[Optional(), NumberRange(min=0)], default=0)
     submit = SubmitField('Add Entry')
+
+
+"""Transaction form for custom DR/CR entries"""
+from flask_wtf import FlaskForm
+from wtforms import SelectField, DecimalField, TextAreaField, SubmitField, RadioField
+from wtforms.validators import DataRequired, NumberRange, Optional
+from wtforms.widgets import HiddenInput
+
+
+class TransactionForm(FlaskForm):
+    
+        person_id = SelectField('Member', coerce=int, validators=[DataRequired()])
+        
+        type = RadioField(
+            'Transaction Type',
+            choices=[('credit', 'Received'), ('debit', 'Paid')],
+            default='credit',
+            validators=[DataRequired()]
+        )
+        
+        amount = DecimalField(
+            'Amount (₹)',
+            validators=[
+                DataRequired(),
+                NumberRange(min=0.01, message="Amount must be greater than 0")
+            ],
+            places=2
+        )
+        
+        
+        narration = TextAreaField(
+            'Description',
+            validators=[Optional()],
+            render_kw={
+                'placeholder': 'e.g., Personal loan, Deposit, Withdrawal, etc.',
+                'rows': 3
+            }
+        )
+        
+        submit = SubmitField('Add Transaction')

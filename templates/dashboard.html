@@ -106,6 +106,19 @@
     .form-text { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
     .text-danger { color: var(--danger); font-size: 0.82rem; margin-top: 4px; }
 
+    .transaction-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1.5fr;
+        gap: 16px;
+    }
+
+    /* Mobile fallback */
+    @media (max-width: 768px) {
+        .transaction-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .button-group {
     display: flex;
     gap: 10px;
@@ -171,7 +184,7 @@
                         <select class="form-select" id="r-vc-select" name="vc_id">
                             <option value="">— Select VC —</option>
                             {% for vc in vcs %}
-                                <option value="{{ vc.name }}">{{ vc.name }}</option>
+                                <option value="{{ vc.id }}">{{ vc.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -221,7 +234,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('payment.record_payout_payment') }}" id="paidForm">
-                    <input type="hidden" name="csrf_token" value="{{ form.csrf_token._value() }}">
+                    {{ form.csrf_token }}
 
                     <div class="form-group">
                         <label class="form-label"><i class="fas fa-building"></i>VC</label>
@@ -243,7 +256,7 @@
                     <div class="form-group">
                         <label class="form-label"><i class="fas fa-trophy"></i>Winner</label>
                         <select class="form-select" id="p-winner-select" name="person_id">
-                            <option value="">— Auto-filled —</option>
+                            <option value="">— Select-Person —</option>
                         </select>
                         <div id="p-winner-balance" class="form-text"></div>
                     </div>
@@ -275,24 +288,63 @@
         </div>
     </div>
 
-    <!-- ══ STATS ROW ══ -->
-    <div class="stats-row">
-        <div class="stat-card" onclick="showDueDetails()" role="button" tabindex="0">
-            <div class="stat-number">₹{{ "%.0f"|format(total_due) }}</div>
-            <div class="stat-label"><i class="fas fa-exclamation-triangle"></i>Total Due</div>
-            <small>Click to view breakdown</small>
+    <!-- ══ TRANSACTION FORM & TABLE ══ -->
+    <!-- ══ TRANSACTION FORM & TABLE ══ -->
+    <div class="form-section" style="margin-bottom: 32px;">
+        <div class="card-header">
+            <i class="fas fa-exchange-alt"></i> Add Custom Transaction
         </div>
-        <div class="stat-card" onclick="location.href='{{ url_for('vc.vcs_list') }}'" role="button" tabindex="0">
-            <div class="stat-number">{{ total_vcs }}</div>
-            <div class="stat-label"><i class="fas fa-building"></i>Total VCs</div>
-            <small>Click to view all VCs</small>
-        </div>
-        <div class="stat-card" onclick="location.href='{{ url_for('person.persons') }}'" role="button" tabindex="0">
-            <div class="stat-number">{{ total_persons }}</div>
-            <div class="stat-label"><i class="fas fa-users"></i>Total People</div>
-            <small>Click to manage persons</small>
+
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('dashboard.index') }}" id="transactionForm">
+                {{ transaction_form.hidden_tag() }}
+
+                <!-- ROW 1 -->
+                <div class="transaction-row">
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-user"></i> Member
+                        </label>
+                        {{ transaction_form.person_id(class="form-select") }}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-exchange-alt"></i> Type
+                        </label>
+                        {{ transaction_form.type(class="form-select") }}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-rupee-sign"></i> Amount
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            {{ transaction_form.amount(class="form-control", placeholder="0") }}
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ROW 2 -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-note-sticky"></i> Narration
+                    </label>
+                    {{ transaction_form.narration(class="form-control", rows="2", placeholder="Optional note...") }}
+                </div>
+
+                <!-- ROW 3 -->
+                <div class="button-group">
+                    {{ transaction_form.submit(class="btn btn-light") }}
+                </div>
+
+            </form>
         </div>
     </div>
+</div>
 </div>
 
 <!-- Due Details Modal -->
@@ -402,18 +454,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function pLoadHands(vcId) {
         pHand.innerHTML   = '<option value="">— Select Hand —</option>';
-        pWinner.innerHTML = '<option value="">— Auto-filled —</option>';
+        pWinner.innerHTML = '<option value="">— Select Person —</option>';
         pAmount.value = '';
+        pWinnerBal.innerHTML = '';
+
         if (!vcId) return;
+
         const data = await fetch(`/api/vc/${vcId}/details`).then(r => r.json());
-        // Only show distributed hands (have a winner)
-        data.hands.filter(h => h.winner_name && h.winner_name !== 'Pending').forEach(h => {
-            const opt = document.createElement('option');
-            opt.value = h.id;
-            opt.textContent = `Hand ${h.hand_number} — ${h.winner_name}`;
-            pHand.appendChild(opt);
-        });
-        if (pHand.options.length > 1) { pHand.selectedIndex = 1; pHand.dispatchEvent(new Event('change')); }
+
+        for (const h of data.hands) {
+
+            // skip invalid hands
+            if (!h.winner_name || h.winner_name === 'Pending') continue;
+
+            // 🔥 NEW: check if this hand has valid winners
+            const payoutData = await fetch(`/api/hand/${h.id}/payout_details`).then(r => r.json());
+
+            if (payoutData.winners && payoutData.winners.length > 0) {
+                const opt = document.createElement('option');
+                opt.value = h.id;
+                opt.textContent = `Hand ${h.hand_number} — ${h.winner_name}`;
+                pHand.appendChild(opt);
+            }
+        }
+
+        // ✨ optional UX improvement
+        if (pHand.options.length === 1) {
+            pHand.innerHTML = '<option value="">— No pending payouts —</option>';
+        }
     }
 
     async function pLoadWinner(handId) {

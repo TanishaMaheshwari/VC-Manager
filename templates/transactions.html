@@ -199,7 +199,7 @@
     }
 
     .cell-date {
-        font-weight: 600;
+        font-weight: 400;
         color: var(--text);
         white-space: nowrap;
     }
@@ -282,57 +282,54 @@
         border-radius: var(--radius-md);
         color: var(--text);
         cursor: pointer;
-        transition: all 0.2s;
-        font-weight: 600;
-    }
-
-    .pagination-btn:hover {
-        background: var(--surface3);
-    }
-
-    .pagination-btn.active {
-        background: var(--accent);
-        color: #fff;
-        border-color: var(--accent);
-    }
-
-    .pagination-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-        .container-wrapper {
-            padding: 16px;
-        }
-
-        .page-title {
-            font-size: 1.6rem;
-        }
-
-        .summary-row {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
-
-        .summary-card {
-            padding: 16px;
-        }
-
-        .summary-value {
-            font-size: 1.3rem;
-        }
-
-        .filter-row {
-            grid-template-columns: 1fr;
-        }
-
-        .transactions-table th,
-        .transactions-table td {
-            padding: 12px 10px;
-            font-size: 0.85rem;
-        }
+        <!-- Transactions Table -->
+        <div class="table-section">
+            {% if transactions %}
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>Date&Time</th>
+                            <th>Nickname</th>
+                            <th>Person</th>
+                            <th>Description</th>
+                            <th style="text-align:center;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for txn in transactions %}
+                        <tr>
+                            <td class="cell-date">{{ txn.date.strftime('%d-%m ;  %H:%M') }}</td>
+                            <td class="cell-shortname">{{ txn.short_name }}</td>
+                            <td class="cell-person">{{ txn.person_name }}</td>
+                            <td>
+                                <div class="cell-description">{{ txn.narration }}</div>
+                            </td>
+                            <td class="cell-amount">
+                                {% if txn.type == 'received' %}
+                                    <span class="amount-received">+ ₹{{ "{:,.0f}".format(txn.amount) }}</span>
+                                {% else %}
+                                    <span class="amount-paid">- ₹{{ "{:,.0f}".format(txn.amount) }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if pages > page %}
+                <div style="text-align:center; margin: 24px 0 0 0;">
+                    <a href="{{ url_for('transactions.recent_transactions', page=page+1, search=request.args.get('search'), type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="filter-btn">
+                        See more
+                    </a>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h3>No transactions found</h3>
+                    <p>There are no transactions matching your filters. Try adjusting your search criteria.</p>
+                </div>
+            {% endif %}
+        </div>
 
         .transactions-table th {
             font-size: 0.8rem;
@@ -398,11 +395,20 @@
     }
 </style>
 
+
 <div class="container-wrapper">
-    <!-- Page Header -->
-    <div class="page-header">
-        <h1 class="page-title"><i class="fas fa-exchange-alt me-2" style="-webkit-text-fill-color: var(--success);"></i>Recent Transactions</h1>
-        <p class="page-subtitle">All received & paid entries from your VCs</p>
+    <!-- Page Header with Search Bar -->
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h1 class="page-title" style="margin-bottom: 0;"><i class="fas fa-exchange-alt me-2" style="-webkit-text-fill-color: var(--success);"></i>Recent Transactions</h1>
+            <p class="page-subtitle">All received & paid entries from your VCs</p>
+        </div>
+        <form method="get" action="" class="search-form" style="display: flex; gap: 8px; align-items: center; margin-left: auto;">
+            <input type="text" name="search" class="form-control" placeholder="Search person, amount, date, time, narration" value="{{ request.args.get('search', '') }}" style="min-width: 220px;">
+            <button type="submit" class="filter-btn" style="padding: 10px 16px;">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
     </div>
 
     <!-- Summary Cards -->
@@ -421,58 +427,16 @@
         </div>
     </div> -->
 
-    <!-- Filter Section -->
-    <div class="filter-section">
-        <form method="GET" class="filter-row">
-            <div class="filter-group">
-                <label for="filterType">Transaction Type</label>
-                <select id="filterType" name="type">
-                    <option value="">— All Types —</option>
-                    <option value="received" {% if request.args.get('type') == 'received' %}selected{% endif %}>Received</option>
-                    <option value="paid" {% if request.args.get('type') == 'paid' %}selected{% endif %}>Paid</option>
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label for="filterVC">VC</label>
-                <select id="filterVC" name="vc_id">
-                    <option value="">— All VCs —</option>
-                    {% for vc in all_vcs %}
-                    <option value="{{ vc.id }}" {% if request.args.get('vc_id')|int == vc.id %}selected{% endif %}>{{ vc.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label for="filterFromDate">From Date</label>
-                <input type="date" id="filterFromDate" name="from_date" value="{{ request.args.get('from_date', '') }}">
-            </div>
-
-            <div class="filter-group">
-                <label for="filterToDate">To Date</label>
-                <input type="date" id="filterToDate" name="to_date" value="{{ request.args.get('to_date', '') }}">
-            </div>
-
-            <div style="display: flex; gap: 8px; margin-top: auto;">
-                <button type="submit" class="filter-btn">
-                    <i class="fas fa-search"></i>Filter
-                </button>
-                <a href="{{ url_for('transactions.recent_transactions') }}" class="filter-btn filter-btn-reset">
-                    <i class="fas fa-redo"></i>Reset
-                </a>
-            </div>
-        </form>
-    </div>
-
     <!-- Transactions Table -->
     <div class="table-section">
         {% if transactions %}
             <table class="transactions-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
+                        <th>Date&Time</th>
+                        <th>Nickname</th>
                         <th>Person</th>
-                        <th>Description</th>
+                        <th>Narration</th>
                         <!-- <th>Type</th> -->
                         <th style="text-align:center;">Amount</th>
                     </tr>
@@ -480,7 +444,8 @@
                 <tbody>
                     {% for txn in transactions %}
                     <tr>
-                        <td class="cell-date">{{ txn.date.strftime('%d/%m/%Y') }}</td>
+                        <td class="cell-date">{{ txn.date.strftime('%d-%m ;  %H:%M') }}</td>
+                        <td class="cell-shortname">{{ txn.short_name }}</td>
                         <td class="cell-person">{{ txn.person_name }}</td>
                         <td>
                             <div class="cell-description">{{ txn.narration }}</div>
@@ -544,6 +509,50 @@
         {% endif %}
     </div>
     {% endif %}
+
+        <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="GET" class="filter-row">
+            <div class="filter-group">
+                <label for="filterType">Transaction Type</label>
+                <select id="filterType" name="type">
+                    <option value="">— All Types —</option>
+                    <option value="received" {% if request.args.get('type') == 'received' %}selected{% endif %}>Received</option>
+                    <option value="paid" {% if request.args.get('type') == 'paid' %}selected{% endif %}>Paid</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filterVC">VC</label>
+                <select id="filterVC" name="vc_id">
+                    <option value="">— All VCs —</option>
+                    {% for vc in all_vcs %}
+                    <option value="{{ vc.id }}" {% if request.args.get('vc_id')|int == vc.id %}selected{% endif %}>{{ vc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filterFromDate">From Date</label>
+                <input type="date" id="filterFromDate" name="from_date" value="{{ request.args.get('from_date', '') }}">
+            </div>
+
+            <div class="filter-group">
+                <label for="filterToDate">To Date</label>
+                <input type="date" id="filterToDate" name="to_date" value="{{ request.args.get('to_date', '') }}">
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-top: auto;">
+                <button type="submit" class="filter-btn">
+                    <i class="fas fa-search"></i>Filter
+                </button>
+                <a href="{{ url_for('transactions.recent_transactions') }}" class="filter-btn filter-btn-reset">
+                    <i class="fas fa-redo"></i>Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
 </div>
 
 {% endblock %}

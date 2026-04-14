@@ -112,16 +112,17 @@ class VC(db.Model):
     def create_hands(self):
         """Create one VCHand per month of tenure."""
         for month in range(1, self.tenure + 1):
-            hand_date = self.start_date + timedelta(days=30 * (month - 1))
-            hand = VCHand(
-                vc_id=self.id,
-                hand_number=month,
-                date=hand_date,
-                contribution_amount=self.amount / self.tenure,
-                balance=self.amount,
-                self_half_option='self'
-            )
-            db.session.add(hand)
+                from dateutil.relativedelta import relativedelta
+                hand_date = self.start_date + relativedelta(months=month - 1)
+                hand = VCHand(
+                    vc_id=self.id,
+                    hand_number=month,
+                    date=hand_date,
+                    contribution_amount=self.amount / self.tenure,
+                    balance=self.amount,
+                    self_half_option='self'
+                )
+                db.session.add(hand)
 
 
 class VCHand(db.Model):
