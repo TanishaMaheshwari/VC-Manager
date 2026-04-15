@@ -19,6 +19,7 @@ def index():
     total_vcs = len(vcs)
     persons = Person.query.filter_by(user_id=current_user.id).all()
     total_persons = len(persons)
+    all_persons = Person.query.filter_by(user_id=current_user.id).all()
 
     form = PaymentForm()
     transaction_form = TransactionForm()
@@ -141,7 +142,8 @@ def index():
         total_vcs=total_vcs,
         vcs=vcs,
         persons=persons,
-        total_persons=total_persons
+        total_persons=total_persons,
+        all_persons=all_persons
     )
 
 

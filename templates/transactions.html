@@ -159,13 +159,14 @@
         border: 1.5px solid var(--border);
         border-radius: var(--radius-lg);
         overflow: hidden;
-        box-shadow: var(--shadow-md);
+        box-shadow: var(--shadow-md);a
         margin-bottom: 24px;
     }
 
     .transactions-table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed; 
     }
 
     .transactions-table thead {
@@ -185,7 +186,7 @@
 
     .transactions-table td {
         padding: 16px;
-        border-bottom: 1.5px solid var(--border);
+        border-bottom: none;
         color: var(--text);
         font-size: 0.95rem;
     }
@@ -198,26 +199,64 @@
         background: var(--surface2);
     }
 
+    /* Column widths */
+    .transactions-table th:nth-child(1),
+    .transactions-table td:nth-child(1) {
+        width: 100px;
+    }
+
+    .transactions-table th:nth-child(2),
+    .transactions-table td:nth-child(2) {
+        width: 140px;
+    }
+
+    .transactions-table th:nth-child(3),
+    .transactions-table td:nth-child(3) {
+        width: auto;
+    }
+
+    .transactions-table th:nth-child(4),
+    .transactions-table td:nth-child(4) {
+        width: 140px;
+    }
+
     .cell-date {
         font-weight: 400;
         color: var(--text);
         white-space: nowrap;
     }
 
+    /* .cell-shortname {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    } */
+
     .cell-person {
         font-weight: 600;
         color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .cell-description {
         color: var(--text-muted);
         font-size: 0.9rem;
+        word-wrap: break-word;
+        white-space: normal;
     }
 
+    /* .cell-description {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    } */
+
     .cell-amount {
-        font-weight: 700;
-        font-family: 'Space Mono', monospace;
-        text-align: center;
+        text-align: center; /* 🔥 better than center */
+        white-space: nowrap;
     }
 
     .amount-received { color: var(--success); }
@@ -289,7 +328,7 @@
                     <thead>
                         <tr>
                             <th>Date&Time</th>
-                            <th>Nickname</th>
+                            <th></th>
                             <th>Person</th>
                             <th>Description</th>
                             <th style="text-align:center;">Amount</th>
@@ -298,8 +337,11 @@
                     <tbody>
                         {% for txn in transactions %}
                         <tr>
-                            <td class="cell-date">{{ txn.date.strftime('%d-%m ;  %H:%M') }}</td>
-                            <td class="cell-shortname">{{ txn.short_name }}</td>
+                            <td class="datetime-cell">
+                                <div class="date">{{ txn.date.strftime('%d-%m') }}</div>
+                                <div class="time">{{ txn.date.strftime('%H:%M') }}</div>
+                            </td>
+                            /* <td class="cell-shortname"></td> */
                             <td class="cell-person">{{ txn.person_name }}</td>
                             <td>
                                 <div class="cell-description">{{ txn.narration }}</div>
@@ -393,6 +435,81 @@
             font-size: 0.85rem;
         }
     }
+    @media (max-width: 768px) {
+
+    .transactions-table {
+        table-layout: fixed;
+    }
+
+    .transactions-table th,
+    .transactions-table td {
+        padding: 8px 6px;
+        font-size: 0.78rem;
+    }
+
+    /* Column widths optimized for mobile */
+    .transactions-table th:nth-child(1),
+    .transactions-table td:nth-child(1) {
+        width: 65px; /* Date */
+    }
+
+    .transactions-table th:nth-child(2),
+    .transactions-table td:nth-child(2) {
+        width: 90px; /* Person */
+    }
+
+    .transactions-table th:nth-child(3),
+    .transactions-table td:nth-child(3) {
+        width: auto; /* Narration takes max */
+    }
+
+    .transactions-table th:nth-child(4),
+    .transactions-table td:nth-child(4) {
+        width: 80px; /* Amount */
+    }
+
+    /* Stack date + time tighter */
+    .datetime-cell {
+        font-size: 0.7rem;
+        line-height: 1.1;
+    }
+
+    .datetime-cell .date {
+        font-weight: 600;
+    }
+
+    .datetime-cell .time {
+        opacity: 0.7;
+    }
+
+    /* Person name compact */
+    .cell-person {
+        font-size: 0.8rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Narration clamp (VERY IMPORTANT) */
+    .cell-description {
+        font-size: 0.75rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* 👈 prevents overflow */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        white-space: normal;
+        word-break: break-word;   /* prevent weird cuts */
+        line-height: 1.3;
+    }
+
+    /* Amount compact */
+    .cell-amount {
+        font-size: 0.8rem;
+        text-align: right;
+        white-space: nowrap;
+    }
+}
 </style>
 
 
@@ -431,34 +548,26 @@
     <div class="table-section">
         {% if transactions %}
             <table class="transactions-table">
-                <thead>
-                    <tr>
-                        <th>Date&Time</th>
-                        <th>Nickname</th>
-                        <th>Person</th>
-                        <th>Narration</th>
-                        <!-- <th>Type</th> -->
-                        <th style="text-align:center;">Amount</th>
-                    </tr>
-                </thead>
+               <tr>
+                    <th>Date</th>
+                    <th>Person</th>
+                    <th>Narration</th>
+                    <th style="text-align:center;">Amount</th>
+                </tr>
                 <tbody>
                     {% for txn in transactions %}
                     <tr>
-                        <td class="cell-date">{{ txn.date.strftime('%d-%m ;  %H:%M') }}</td>
-                        <td class="cell-shortname">{{ txn.short_name }}</td>
-                        <td class="cell-person">{{ txn.person_name }}</td>
-                        <td>
-                            <div class="cell-description">{{ txn.narration }}</div>
+                        <td class="datetime-cell">
+                            <div class="date">{{ txn.date.strftime('%d/%m') }}</div>
+                            <div class="time">{{ txn.date.strftime('%H:%M') }}</div>
                         </td>
-                        <!-- <td>
-                            <span class="type-badge {{ 'received' if txn.type == 'received' else 'paid' }}">
-                                {% if txn.type == 'received' %}
-                                    <i class="fas fa-arrow-down"></i>Received
-                                {% else %}
-                                    <i class="fas fa-arrow-up"></i>Paid
-                                {% endif %}
-                            </span>
-                        </td> -->
+
+                        <td class="cell-person">{{ txn.person_name }}</td>
+
+                        <td class="cell-description">
+                            {{ txn.narration }}
+                        </td>
+
                         <td class="cell-amount">
                             {% if txn.type == 'received' %}
                                 <span class="amount-received">+ ₹{{ "{:,.0f}".format(txn.amount) }}</span>
@@ -483,15 +592,18 @@
     {% if transactions and pages > 1 %}
     <div class="pagination-section">
         {% if page > 1 %}
-            <a href="{{ url_for('transactions.recent_transactions', page=1, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
+            <!-- <a href="{{ url_for('transactions.recent_transactions', page=1, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
                 <i class="fas fa-angle-double-left"></i>First
-            </a>
+            </a> -->
             <a href="{{ url_for('transactions.recent_transactions', page=page-1, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
                 <i class="fas fa-angle-left"></i>Prev
             </a>
         {% endif %}
 
-        {% for p in range(max(1, page-2), min(pages+1, page+3)) %}
+        {% set start_page = 1 if page - 2 < 1 else page - 2 %}
+        {% set end_page = pages if page + 2 > pages else page + 2 %}
+
+        {% for p in range(start_page, end_page + 1) %}
             {% if p == page %}
                 <span class="pagination-btn active">{{ p }}</span>
             {% else %}
@@ -503,9 +615,9 @@
             <a href="{{ url_for('transactions.recent_transactions', page=page+1, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
                 Next <i class="fas fa-angle-right"></i>
             </a>
-            <a href="{{ url_for('transactions.recent_transactions', page=pages, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
+            <!-- <a href="{{ url_for('transactions.recent_transactions', page=pages, type=request.args.get('type'), vc_id=request.args.get('vc_id'), from_date=request.args.get('from_date'), to_date=request.args.get('to_date')) }}" class="pagination-btn">
                 Last <i class="fas fa-angle-double-right"></i>
-            </a>
+            </a> -->
         {% endif %}
     </div>
     {% endif %}
