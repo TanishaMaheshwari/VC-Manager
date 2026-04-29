@@ -242,8 +242,8 @@ def record_payout_payment():
         vc_id=vc_id,
         date=pay_date,
         narration=narration or f"{vc.name} Haath {hand.hand_number} mai aapko diye",
-        credit=amount,  # CREDIT in ledger (person receives money)
-        debit=0,
+        credit=0,  # CREDIT in ledger (person receives money)
+        debit=amount,
         balance=prev_balance + amount
     )
     db.session.add(ledger_entry)

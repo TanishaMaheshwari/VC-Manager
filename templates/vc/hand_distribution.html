@@ -333,10 +333,10 @@
                                 onclick="setPayoutType('person', this)">
                             <i class="fas fa-user"></i>Person(s) Win
                         </button>
-                        <button type="button" class="payout-type-btn operator" id="btnOperator"
+                        <!-- <button type="button" class="payout-type-btn operator" id="btnOperator"
                                 onclick="setPayoutType('operator', this)">
                             <i class="fas fa-cog"></i>Operator Keeps
-                        </button>
+                        </button> -->
                     </div>
 
                     <div class="mb-4">
@@ -350,7 +350,8 @@
                                     placeholder="Enter interest amount" step="0.01" min="0"
                                     oninput="calcPayout()" required>
                                 <div class="form-text">
-                                    Min: ₹{{ "%.0f"|format(vc.amount - hand.projected_payout) }}
+                                    Min: ₹{{ "%.0f"|format(vc.amount - hand.projected_payout) }} &nbsp;·&nbsp;
+                                    Contri: ₹<span id="contriDisplay">—</span>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -430,10 +431,10 @@
                                 onclick="setEditPayoutType('person', this)">
                             <i class="fas fa-user"></i>Person(s) Win
                         </button>
-                        <button type="button" class="payout-type-btn operator" id="editBtnOperator"
+                        <!-- <button type="button" class="payout-type-btn operator" id="editBtnOperator"
                                 onclick="setEditPayoutType('operator', this)">
                             <i class="fas fa-cog"></i>Operator Keeps
-                        </button>
+                        </button> -->
                     </div>
 
                     <div class="mb-4">
@@ -443,7 +444,8 @@
                                 <input type="number" class="form-control" id="editInterestInput"
                                     placeholder="Enter interest amount" step="0.01" min="0"
                                     oninput="calcEditPayout()" required>
-                                <div class="form-text">Min: ₹{{ "%.0f"|format(vc.amount - hand.projected_payout) }}</div>
+                                <div class="form-text">Min: ₹{{ "%.0f"|format(vc.amount - hand.projected_payout) }}&nbsp;·&nbsp;
+                                     Contri: ₹<span id="editContriDisplay">—</span></div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label"><i class="fas fa-rupee-sign"></i>Payout Amount (₹)</label>
@@ -483,6 +485,7 @@
 {% block scripts %}
 <script>
 const VC_AMOUNT = {{ vc.amount }};
+const TOTAL_SLOTS = {{ vc.total_slots }};
 
 const MEMBERS = [
     {% for member in members %}
@@ -507,34 +510,6 @@ document.addEventListener('DOMContentLoaded', function () {
         row.style.animationDelay = `${i * 0.06}s`;
     });
 });
-
-function calcPayout() {
-    const interest = parseFloat(document.getElementById('interestInput').value) || 0;
-    const payout   = VC_AMOUNT - interest;
-    const display  = document.getElementById('payoutDisplay');
-    display.value  = payout > 0 ? payout.toFixed(2) : '';
-    
-    // UPDATE HIDDEN FIELD - THIS IS THE FIX!
-    document.getElementById('interestChargedInput').value = interest.toFixed(2);
-
-    // Sync first winner amount
-    const firstAmount = document.querySelector('#winnerRows .winner-row:first-child [name="amounts[]"]');
-    if (firstAmount && payout > 0) firstAmount.value = payout.toFixed(2);
-}
-
-function calcEditPayout() {
-    const interest = parseFloat(document.getElementById('editInterestInput').value) || 0;
-    const payout   = VC_AMOUNT - interest;
-    const display  = document.getElementById('editBidPrice');
-    display.value  = payout > 0 ? payout.toFixed(2) : '';
-    
-    // UPDATE HIDDEN FIELD - THIS IS THE FIX!
-    document.getElementById('editInterestChargedInput').value = interest.toFixed(2);
-
-    const firstAmount = document.querySelector('#editWinnerRows .winner-row:first-child [name="amounts[]"]');
-    if (firstAmount && payout > 0) firstAmount.value = payout.toFixed(2);
-}
-
 
 /* ── Member options HTML ── */
 function buildMemberOptions(selectedId) {
@@ -723,12 +698,13 @@ function calcPayout() {
     const payout   = VC_AMOUNT - interest;
     const display  = document.getElementById('payoutDisplay');
     display.value  = payout > 0 ? payout.toFixed(2) : '';
-    
-    // SYNC HIDDEN FIELD IMMEDIATELY
     document.getElementById('interestChargedInput').value = interest.toFixed(2);
-    console.log('calcPayout: interest_charged =', interest.toFixed(2));
 
-    // Sync first winner amount
+    // Contri per slot
+    const contri = TOTAL_SLOTS > 0 ? payout / TOTAL_SLOTS : 0;
+    const contriEl = document.getElementById('contriDisplay');
+    if (contriEl) contriEl.textContent = payout > 0 ? Math.round(contri).toLocaleString('en-IN') : '—';
+
     const firstAmount = document.querySelector('#winnerRows .winner-row:first-child [name="amounts[]"]');
     if (firstAmount && payout > 0) firstAmount.value = payout.toFixed(2);
 }
@@ -738,10 +714,12 @@ function calcEditPayout() {
     const payout   = VC_AMOUNT - interest;
     const display  = document.getElementById('editBidPrice');
     display.value  = payout > 0 ? payout.toFixed(2) : '';
-    
-    // SYNC HIDDEN FIELD IMMEDIATELY
     document.getElementById('editInterestChargedInput').value = interest.toFixed(2);
-    console.log('calcEditPayout: interest_charged =', interest.toFixed(2));
+
+    // Contri per slot
+    const contri = TOTAL_SLOTS > 0 ? payout / TOTAL_SLOTS : 0;
+    const contriEl = document.getElementById('editContriDisplay');
+    if (contriEl) contriEl.textContent = payout > 0 ? Math.round(contri).toLocaleString('en-IN') : '—';
 
     const firstAmount = document.querySelector('#editWinnerRows .winner-row:first-child [name="amounts[]"]');
     if (firstAmount && payout > 0) firstAmount.value = payout.toFixed(2);

@@ -1,29 +1,27 @@
 """
-Drop-in replacement for create_payout and edit_payout in routes/hand.py
+routes/hand.py
 
-CORRECTED BUSINESS LOGIC:
+BUSINESS LOGIC:
 ─────────────────────────────────────────────────────────────────────────────
 Interest Charged is USER-ENTERED, fixed amount.
 
 CONTRIBUTION FORMULA:
   Members contribute = (VC Amount - Interest Charged) / total_slots per slot
-  
+
   Example: VC ₹10,000, Interest ₹1,000
   → Contribution pool = 10,000 - 1,000 = ₹9,000
   → Per slot = ₹9,000 / total_slots
 
 PERSON(S) WIN:
-  • User enters "Interest Charged (₹)" → Fixed amount
-  • Members contribute: (VC Amount - Interest) / total_slots per slot
-  • Each winner receives their payout amount (independent)
-  • Operator gets: Interest_Charged
+  • Winner  → CREDIT payout amount
+  • Operator (HM) → DEBIT same payout amount (pays out)
+  • Operator (HM) → CREDIT interest_charged (earns interest)
 
 OPERATOR KEEPS:
-  • User enters interest charged
   • Members contribute: (VC Amount - Interest) / total_slots
-  • Operator gets: Interest_Charged
+  • Operator (HM) → CREDIT interest_charged
 
-Key: Contribution pool = VC Amount - Interest (what members need to pay back)
+REQUIRES: A Person with short_name='HM' belonging to current_user.
 ─────────────────────────────────────────────────────────────────────────────
 """
 
@@ -39,6 +37,8 @@ from app.models.ledger import LedgerEntry
 hand_bp = Blueprint('hand', __name__)
 
 
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
 def _redirect_hand(hand):
     return redirect(url_for(
         'vc.view_hand_distribution',
@@ -48,39 +48,38 @@ def _redirect_hand(hand):
 
 
 def get_last_balance(person_id):
-    """
-    Get the last balance for a person across all ledger entries.
-    Returns 0 if no entries exist.
-    """
-    last_entry = (
+    last = (
         LedgerEntry.query
         .filter_by(person_id=person_id)
         .order_by(LedgerEntry.id.desc())
         .first()
     )
-    return float(last_entry.balance) if last_entry else 0.0
+    return float(last.balance) if last else 0.0
 
 
-def _add_operator_ledger(hand, net_amount, now, narration=None):
-    """
-    Add a ledger entry for the operator account (person_id=None, vc-level).
-    net_amount > 0 = credit (operator gains), < 0 = debit (operator pays out).
-    """
-    # Get last operator balance for this VC
+def get_last_operator_balance(vc_id):
     last = (
         LedgerEntry.query
-        .filter_by(vc_id=hand.vc_id, person_id=None)
+        .filter_by(vc_id=vc_id, person_id=None)
         .order_by(LedgerEntry.id.desc())
         .first()
     )
-    prev_balance = float(last.balance) if last else 0.0
+    return float(last.balance) if last else 0.0
 
+
+def _get_operator(user_id):
+    return Person.query.filter_by(user_id=user_id, short_name='OPERATOR').first()
+
+
+def _add_operator_ledger(hand, net_amount, now, narration=None):
+    prev_balance = get_last_operator_balance(hand.vc_id)
     credit = net_amount if net_amount >= 0 else 0
     debit  = abs(net_amount) if net_amount < 0 else 0
 
     entry = LedgerEntry(
         person_id=None,
         vc_id=hand.vc_id,
+        hand_id=hand.id,
         date=now,
         narration=narration or f"Hand {hand.hand_number} — operator settlement",
         credit=credit,
@@ -88,26 +87,33 @@ def _add_operator_ledger(hand, net_amount, now, narration=None):
         balance=prev_balance + net_amount
     )
     db.session.add(entry)
+    db.session.flush()
+
+
+def _add_hm_ledger(hand, operator, net_amount, now, narration=None):
+    prev_balance = get_last_balance(operator.id)
+    credit = net_amount if net_amount > 0 else 0
+    debit  = abs(net_amount) if net_amount < 0 else 0
+
+    entry = LedgerEntry(
+        person_id=operator.id,
+        vc_id=hand.vc_id,
+        hand_id=hand.id,
+        date=now,
+        narration=narration or f"Hand {hand.hand_number} — HM settlement",
+        credit=credit,
+        debit=debit,
+        balance=prev_balance + net_amount
+    )
+    db.session.add(entry)
+    db.session.flush()
 
 
 def _build_contributions(hand, vc, interest_charged, now):
-    """
-    Build contribution and ledger entries for all VC members.
-    
-    CORRECTED: Contributions are based on (VC Amount - Interest Charged).
-    Members pay back what they borrowed minus the interest the operator keeps.
-    
-    Each member contributes: (vc.amount - interest_charged) / total_slots per slot
-    
-    Example: VC Amount = ₹10,000, Interest = ₹1,000
-    Contribution pool = 10,000 - 1,000 = ₹9,000
-    Per slot = ₹9,000 / total_slots
-    """
-    total_slots = int(vc.total_slots)
-    vc_amount = float(vc.amount)
-    contribution_pool = vc_amount - interest_charged
-    contrib_per_slot = contribution_pool / total_slots if total_slots > 0 else 0
-    
+    total_slots       = int(vc.total_slots)
+    contribution_pool = float(vc.amount) - interest_charged
+    contrib_per_slot  = contribution_pool / total_slots if total_slots > 0 else 0
+
     for member in vc.members:
         if member is None:
             continue
@@ -121,26 +127,78 @@ def _build_contributions(hand, vc, interest_charged, now):
             person_id=member.id,
             amount=member_contribution,
             date=now,
-            paid=False  # Set to False initially, will be marked paid if they're a winner
+            paid=False
         )
         db.session.add(contribution)
         db.session.flush()
 
-        # Get LAST balance before this transaction
         current_balance = get_last_balance(member.id)
-        
         ledger_entry = LedgerEntry(
             person_id=member.id,
             vc_id=vc.id,
-            date=hand.date,  # Preserve original hand date for ledger consistency
+            hand_id=hand.id,
+            date=hand.date,
             narration=f"{vc.name} Haath {hand.hand_number} mai aapka hissa raha",
             debit=member_contribution,
             credit=0,
-            balance=current_balance - member_contribution  # NEW balance after debit
+            balance=current_balance - member_contribution
         )
         db.session.add(ledger_entry)
         db.session.flush()
 
+
+def _delete_hand_entries(hand):
+    """Delete only ledger/contribution entries for this specific hand."""
+    LedgerEntry.query.filter_by(hand_id=hand.id).delete(synchronize_session=False)
+    HandDistribution.query.filter_by(hand_id=hand.id).delete(synchronize_session=False)
+    Contribution.query.filter_by(hand_id=hand.id).delete(synchronize_session=False)
+    db.session.flush()
+
+
+def _recalculate_balances_for_vc(vc):
+    """
+    After editing any hand, recalculate running balances
+    for every member of this VC and the operator ledger.
+    """
+    member_ids = [m.id for m in vc.members if m is not None]
+
+    operator = _get_operator(vc.user_id)
+    if operator:
+        member_ids.append(operator.id)
+
+    for person_id in set(member_ids):
+        person = Person.query.get(person_id)
+        if not person:
+            continue
+
+        entries = (
+            LedgerEntry.query
+            .filter_by(person_id=person_id)
+            .order_by(LedgerEntry.date.asc(), LedgerEntry.id.asc())
+            .all()
+        )
+
+        running = float(person.opening_balance or 0)
+        for entry in entries:
+            running += float(entry.credit or 0) - float(entry.debit or 0)
+            entry.balance = running
+
+    # Recalculate operator (person_id=None) ledger for this VC
+    op_entries = (
+        LedgerEntry.query
+        .filter_by(person_id=None, vc_id=vc.id)
+        .order_by(LedgerEntry.date.asc(), LedgerEntry.id.asc())
+        .all()
+    )
+    running = 0.0
+    for entry in op_entries:
+        running += float(entry.credit or 0) - float(entry.debit or 0)
+        entry.balance = running
+
+    db.session.flush()
+
+
+# ── Routes ───────────────────────────────────────────────────────────────────
 
 @hand_bp.route('/create/<int:hand_id>', methods=['POST'])
 @login_required
@@ -152,6 +210,15 @@ def create_payout(hand_id):
         flash("Unauthorized access.", "danger")
         return redirect(url_for('dashboard.index'))
 
+    operator = _get_operator(current_user.id)
+    if not operator:
+        flash(
+            "Operator person (short name 'HM') not found. "
+            "Please create it first before distributing a hand.",
+            "danger"
+        )
+        return _redirect_hand(hand)
+
     if hand.hand_distributions:
         flash("This hand has already been distributed.", "warning")
         return _redirect_hand(hand)
@@ -159,8 +226,7 @@ def create_payout(hand_id):
     payout_type = request.form.get('payout_type', 'person')
     narration   = request.form.get('narration', '').strip()
     now         = datetime.utcnow()
-    
-    # Get user-entered interest_charged
+
     try:
         interest_charged = float(request.form.get('interest_charged', 0))
     except (KeyError, ValueError):
@@ -175,8 +241,7 @@ def create_payout(hand_id):
             flash("Invalid bid price.", "danger")
             return _redirect_hand(hand)
 
-        # Distribution record
-        dist = HandDistribution(
+        db.session.add(HandDistribution(
             hand_id=hand.id,
             person_id=None,
             amount=bid_price,
@@ -184,13 +249,10 @@ def create_payout(hand_id):
             payment_date=now,
             is_operator_taken=True,
             is_vc_money_taken=True
-        )
-        db.session.add(dist)
+        ))
 
-        # Build contributions: (VC Amount - Interest) / total_slots
         _build_contributions(hand, vc, interest_charged, now)
 
-        # Operator ledger: credit interest_charged
         _add_operator_ledger(
             hand, interest_charged, now,
             narration=f"Hand {hand.hand_number} — operator kept (interest ₹{interest_charged:,.0f})"
@@ -219,18 +281,17 @@ def create_payout(hand_id):
         return _redirect_hand(hand)
 
     total_bid = sum(parsed_amounts)
-    winner_id_set = {int(pid) for pid in winner_ids}
 
-    # Create HandDistribution rows and winner ledger credits
-    for person_id_str, amount in zip(winner_ids, parsed_amounts):
+    for i, (person_id_str, amount) in enumerate(zip(winner_ids, parsed_amounts)):
         person_id = int(person_id_str)
-        person    = Person.query.filter_by(id=person_id, user_id=current_user.id).first()
+        person = Person.query.filter_by(id=person_id, user_id=current_user.id).first()
+
         if not person:
             flash(f"Person {person_id} not found.", "danger")
             db.session.rollback()
             return _redirect_hand(hand)
 
-        dist = HandDistribution(
+        db.session.add(HandDistribution(
             hand_id=hand.id,
             person_id=person_id,
             amount=amount,
@@ -238,26 +299,36 @@ def create_payout(hand_id):
             payment_date=now,
             is_operator_taken=False,
             is_vc_money_taken=True
-        )
-        db.session.add(dist)
+        ))
 
-        # Get LAST balance before this credit
+        # Credit winner
         prev_balance = get_last_balance(person_id)
-        ledger_entry = LedgerEntry(
+        db.session.add(LedgerEntry(
             person_id=person_id,
             vc_id=hand.vc_id,
-            date=hand.date,  # Use the hand's date (datetime) for ledger consistency
-            narration=f" {vc.name} Haath {hand.hand_number} aapki rahi hai",
+            hand_id=hand.id,
+            date=hand.date,
+            narration=f"{vc.name} Haath {hand.hand_number} aapki rahi hai",
             credit=amount,
             debit=0,
-            balance=prev_balance + amount  # NEW balance after credit
-        )
-        db.session.add(ledger_entry)
+            balance=prev_balance + amount
+        ))
+        db.session.flush()
 
-    # Build contributions: (VC Amount - Interest) / total_slots
+        # HM debit — skip first winner
+        if i > 0:
+            _add_hm_ledger(
+                hand, operator, -amount, now,
+                narration=f"{vc.name} Hand {hand.hand_number} mai {person.name} ko gaye"
+            )
+
+        _add_operator_ledger(
+            hand, -amount, now,
+            narration=f"Hand {hand.hand_number} — paid out to {person.name} ₹{amount:,.0f}"
+        )
+
     _build_contributions(hand, vc, interest_charged, now)
 
-    # Operator ledger: interest_charged
     _add_operator_ledger(
         hand, interest_charged, now,
         narration=f"Hand {hand.hand_number} — interest charged ₹{interest_charged:,.0f}"
@@ -275,21 +346,6 @@ def create_payout(hand_id):
     return _redirect_hand(hand)
 
 
-def _delete_hand_ledger_entries(hand, vc):
-    """
-    Delete ALL ledger entries created by this hand:
-    - Member contribution entries
-    - Winner payout entries
-    - Operator ledger entries
-    """
-    hand_narration_pattern = f"Hand {hand.hand_number}"
-    
-    # Delete all ledger entries that mention this hand
-    LedgerEntry.query.filter(LedgerEntry.vc_id == vc.id).delete(synchronize_session=False)
-    
-    db.session.flush()
-
-
 @hand_bp.route('/<int:vc_id>/hand/<int:hand_id>/edit-payout', methods=['POST'])
 @login_required
 def edit_payout(vc_id, hand_id):
@@ -300,25 +356,27 @@ def edit_payout(vc_id, hand_id):
         flash("Unauthorized access.", "danger")
         return redirect(url_for('dashboard.index'))
 
+    operator = _get_operator(current_user.id)
+    if not operator:
+        flash(
+            "Operator person (short name 'HM') not found. "
+            "Please create it first before editing a payout.",
+            "danger"
+        )
+        return redirect(url_for('vc.view_hand_distribution', vc_id=vc_id, hand_number=hand.hand_number))
+
     payout_type = request.form.get('payout_type', 'person')
     narration   = request.form.get('narration', '').strip()
     now         = datetime.utcnow()
 
-    # Get user-entered interest_charged
     try:
         interest_charged = float(request.form.get('interest_charged', 0))
     except (KeyError, ValueError):
         flash("Invalid interest charged amount.", "danger")
         return redirect(url_for('vc.view_hand_distribution', vc_id=vc_id, hand_number=hand.hand_number))
 
-    # Delete ALL previous ledger entries created by this hand
-    _delete_hand_ledger_entries(hand, vc)
-    
-    # Delete distributions and contributions
-    HandDistribution.query.filter_by(hand_id=hand.id).delete(synchronize_session=False)
-    Contribution.query.filter_by(hand_id=hand.id).delete(synchronize_session=False)
-    
-    db.session.flush()
+    # Delete only this hand's entries — full rebuild
+    _delete_hand_entries(hand)
 
     # ── OPERATOR KEEPS ───────────────────────────────────────────────────────
     if payout_type == 'operator':
@@ -328,7 +386,7 @@ def edit_payout(vc_id, hand_id):
             flash("Invalid bid price.", "danger")
             return redirect(url_for('vc.view_hand_distribution', vc_id=vc_id, hand_number=hand.hand_number))
 
-        dist = HandDistribution(
+        db.session.add(HandDistribution(
             hand_id=hand.id,
             person_id=None,
             amount=bid_price,
@@ -336,10 +394,8 @@ def edit_payout(vc_id, hand_id):
             payment_date=now,
             is_operator_taken=True,
             is_vc_money_taken=True
-        )
-        db.session.add(dist)
+        ))
 
-        # Build contributions: (VC Amount - Interest) / total_slots
         _build_contributions(hand, vc, interest_charged, now)
 
         _add_operator_ledger(
@@ -347,6 +403,7 @@ def edit_payout(vc_id, hand_id):
             narration=f"Hand {hand.hand_number} — operator kept (interest ₹{interest_charged:,.0f})"
         )
 
+        _recalculate_balances_for_vc(vc)
         db.session.commit()
         flash("Payout updated: operator-kept.", "success")
         return redirect(url_for('vc.view_hand_distribution', vc_id=vc_id, hand_number=hand.hand_number))
@@ -366,11 +423,15 @@ def edit_payout(vc_id, hand_id):
         return redirect(url_for('vc.view_hand_distribution', vc_id=vc_id, hand_number=hand.hand_number))
 
     total_bid = sum(parsed_amounts)
-    winner_id_set = {int(pid) for pid in winner_ids}
 
-    # Create new winner payouts with recalculated balances
-    for person_id, amount in zip([int(x) for x in winner_ids], parsed_amounts):
-        dist = HandDistribution(
+    for idx, (person_id, amount) in enumerate(zip([int(x) for x in winner_ids], parsed_amounts)):
+        person = Person.query.filter_by(id=person_id, user_id=current_user.id).first()
+        if not person:
+            flash(f"Person {person_id} not found.", "danger")
+            db.session.rollback()
+            return redirect(url_for('vc.view_hand_distribution', vc_id=vc_id, hand_number=hand.hand_number))
+
+        db.session.add(HandDistribution(
             hand_id=hand.id,
             person_id=person_id,
             amount=amount,
@@ -378,31 +439,42 @@ def edit_payout(vc_id, hand_id):
             payment_date=now,
             is_operator_taken=False,
             is_vc_money_taken=True
-        )
-        db.session.add(dist)
+        ))
 
-        # Get LAST balance before this credit (after old entries deleted)
+        # Credit winner
         prev_balance = get_last_balance(person_id)
-        ledger_entry = LedgerEntry(
+        db.session.add(LedgerEntry(
             person_id=person_id,
             vc_id=hand.vc_id,
-            date=hand.date,  # Preserve original hand date for ledger consistency
-            narration=f" {vc.name} Haath {hand.hand_number} aapki rahi hai",
+            hand_id=hand.id,
+            date=hand.date,
+            narration=f"{vc.name} Haath {hand.hand_number} aapki rahi hai",
             credit=amount,
             debit=0,
             balance=prev_balance + amount
-        )
-        db.session.add(ledger_entry)
+        ))
+        db.session.flush()
 
-    # Build contributions: (VC Amount - Interest) / total_slots
+        # HM debit — skip first winner
+        if idx > 0:
+            _add_hm_ledger(
+                hand, operator, -amount, now,
+                narration=f"{vc.name} Hand {hand.hand_number} mai {person.name} ko gaye"
+            )
+
+        _add_operator_ledger(
+            hand, -amount, now,
+            narration=f"Hand {hand.hand_number} — paid out to {person.name} ₹{amount:,.0f}"
+        )
+
     _build_contributions(hand, vc, interest_charged, now)
 
-    # Rebuild operator ledger
     _add_operator_ledger(
         hand, interest_charged, now,
         narration=f"Hand {hand.hand_number} — interest charged ₹{interest_charged:,.0f}"
     )
 
+    _recalculate_balances_for_vc(vc)
     db.session.commit()
     flash("Payout updated successfully.", "success")
     return redirect(url_for('vc.view_hand_distribution', vc_id=vc_id, hand_number=hand.hand_number))

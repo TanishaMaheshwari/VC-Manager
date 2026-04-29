@@ -83,7 +83,14 @@ def hand_details(hand_id):
     contribution_amount = hand.actual_contribution_per_person  # or compute dynamically
 
     return jsonify({
-        "pending_persons": [{"id": p.id, "name": p.name} for p in pending_persons],
+        "pending_persons": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "slots": hand.vc.get_slots(p.id)  # ✅ ADD THIS LINE
+            }
+            for p in pending_persons
+        ],
         "contribution_amount": contribution_amount
     })
 

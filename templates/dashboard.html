@@ -674,15 +674,32 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     /* ── RECEIVED CASCADES ── */
-    const rPersonSel = makeSelect('r-person-input', 'r-person-drop', 'r-person-val', [], o => showBal(o.id, 'r-bal'));
+        const rPersonSel = makeSelect('r-person-input',
+                                    'r-person-drop',
+                                    'r-person-val',
+                                    [],
+                                    o => {
+                                        showBal(o.id, 'r-bal');
+
+                                        const base = parseFloat(document.getElementById('r-amount').dataset.base || 0);
+                                        const total = base * (o.slots || 1);
+
+                                        document.getElementById('r-amount').value = total || '';
+                                    }
+                                    );
     const rHandSel   = makeSelect('r-hand-input',   'r-hand-drop',   'r-hand-val',   [], async o => {
         rPersonSel.setOpts([]);
         document.getElementById('r-amount').value = '';
         document.getElementById('r-bal').innerHTML = '';
         if (!o.id) return;
         const d = await fetch(`/api/hand/${o.id}/details`).then(r => r.json());
-        rPersonSel.setOpts((d.pending_persons || []).map(p => ({ id: p.id, name: p.name })));
-        document.getElementById('r-amount').value = d.contribution_amount || '';
+        rPersonSel.setOpts((d.pending_persons || []).map(p => ({ 
+                            id: p.id, 
+                            name: `${p.name} (${p.slots} hands)`,  // optional but helpful
+                            slots: p.slots || 1})));
+        const amtInput = document.getElementById('r-amount');
+        amtInput.dataset.base = d.contribution_amount || 0;  // store base
+        amtInput.value = d.contribution_amount || '';
     });
     makeSelect('r-vc-input', 'r-vc-drop', 'r-vc-val', vcOptions, async o => {
         rHandSel.setOpts([]);

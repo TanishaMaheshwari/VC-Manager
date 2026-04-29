@@ -203,16 +203,16 @@
                     <h5><i class="fas fa-timeline"></i>Hands Timeline — {{ vc.name }}</h5>
                 </div>
 
-                <!-- <div class="hand-row header-row">
+                <div class="hand-row header-row">
                     <div style="flex:1">Hand</div>
                     <div style="flex:1.5">Date</div>
-                    <div style="flex:1.5">Min. Interest</div>
-                     <div style="flex:1.5">Earned Interest</div> -->
-                    <!-- <div style="flex:1.5">Win</div>
-                    <div style="flex:1.5">Win Price</div>
-                    <div style="flex:2">Contribution/Person</div>
+                    <div style="flex:1.5">Interest</div>
+                     <!-- <div style="flex:1.5">Earned Interest</div> -->
+                    <div style="flex:1.5">Amount</div>
+                    <!-- <div style="flex:1.5">Win Price</div> -->
+                    <div style="flex:2">Contribution</div>
                     <div style="flex:1">Payout</div>
-                </div> --> 
+                </div> 
 
                 {% for hand in hands %}
                 <div class="hand-row {{ 'active' if hand.hand_number == vc.current_hand else '' }}"
@@ -220,8 +220,12 @@
 
                     <div style="flex:1" data-label="Hand"><strong>{{ hand.hand_number }}</strong></div>
                     <div style="flex:1.5" data-label="Date">{{ hand.date.strftime('%d/%m/%Y') }}</div>
-                    <div style="flex:1.5" data-label="Min. Interest">
-                        ₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }}
+                    <div style="flex:1.5" data-label="Interest">
+                        {% if hand.hand_distributions %}
+                            ₹{{ "%.0f"|format(vc.amount - hand.total_paid)|indian_comma }}
+                        {% else %}
+                            ₹{{ "%.0f"|format(vc.amount - hand.projected_payout)|indian_comma }}
+                        {% endif %}
                     </div>
                     <!-- <div style="flex:1.5" data-label="Earned Interest">
                         {% if hand.hand_distributions %}
@@ -230,14 +234,14 @@
                             <span class="text-muted">-</span>
                         {% endif %}
                     </div> -->
-                    <div style="flex:1.5" data-label="Bid Price">
+                    <div style="flex:1.5" data-label="Amount">
                         {% if hand.hand_distributions %}
                             ₹{{ "%.0f"|format(hand.total_paid)|indian_comma }}
                         {% else %}
                             ₹{{ "%.0f"|format(hand.projected_payout)|indian_comma }}
                         {% endif %}
                     </div>
-                    <div style="flex:2" data-label="Contribution/Person">
+                    <div style="flex:2" data-label="Contribution/Hand">
                         {% if hand.hand_distributions %}
                             ₹{{ "%.0f"|format(hand.total_paid / vc.total_slots if vc.total_slots else 0)|indian_comma }}
                         {% else %}
