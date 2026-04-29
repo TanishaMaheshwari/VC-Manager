@@ -336,6 +336,102 @@
             font-size: 0.8rem;
         }
     }
+.action-cell {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.action-group {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-muted);
+}
+
+.action-icon i {
+    font-size: 0.9rem;
+}
+
+/* Hover effects */
+.action-icon.edit:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+    color: #3b82f6;
+    transform: translateY(-1px);
+}
+
+.action-icon.delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--danger);
+    color: var(--danger);
+    transform: translateY(-1px);
+}
+
+/* Active click feel */
+.action-icon:active {
+    transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+
+    .action-group {
+        flex-direction: column;   /* 🔥 STACK VERTICALLY */
+        gap: 6px;
+    }
+
+    .action-icon {
+        width: 25px;
+        height: 25px;
+        border-radius: 6px;
+    }
+    .action-icon i {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .action-group {
+        flex-direction: column;   /* keep stacked */
+        gap: 5px;
+    }
+
+    .action-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+    }
+
+    .action-icon i {
+        font-size: 0.75rem;
+    }
+    .ledger-table td {
+        padding: 10px 6px;
+    }
+}
+
+.btn-share {
+    background: #25D366;  /* WhatsApp green */
+    color: #fff;
+}
+.btn-share:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35);
+}
 </style>
 
 <div class="container-wrapper">
@@ -356,8 +452,8 @@
         </div>
         <div class="stat-box">
             <div class="stat-label">Balance as of Today</div>
-            <div class="stat-value {{ 'positive' if person.ledger_balance >= 0 else 'negative' }}">
-                ₹{{ "{:,.0f}".format(person.ledger_balance) }} <span style="color: var(--text-muted); font-size: 0.8rem;">{{ 'Cr' if person.ledger_balance >= 0 else 'Dr' }}</span>
+            <div class="stat-value {{ 'positive' if current_balance >= 0 else 'negative' }}">
+                ₹{{ "{:,.0f}".format(current_balance) }} <span style="color: var(--text-muted); font-size: 0.8rem;">{{ 'Cr' if current_balance >= 0 else 'Dr' }}</span>
             </div>
         </div>
     </div>
@@ -373,6 +469,7 @@
                         <th>Debit</th>
                         <th>Credit</th>
                         <th>Balance</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -397,6 +494,28 @@
                         <td class="cell-amount {{ 'amount-credit' if entry.balance >= 0 else 'amount-debit' }}">
                             ₹{{ "{:,.0f}".format(entry.balance) }}
                         </td>
+                        <td class="action-cell">
+                            <div class="action-group">
+
+                                <button class="action-icon edit"
+                                    onclick="event.stopPropagation(); openEditModal(
+                                        {{ entry.id }},
+                                        '{{ entry.narration|escape }}',
+                                        {{ entry.debit or 0 }},
+                                        {{ entry.credit or 0 }}
+                                    )"
+                                    title="Edit Entry">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+
+                                <button class="action-icon delete"
+                                    onclick="event.stopPropagation(); openDeleteModal({{ entry.id }})"
+                                    title="Delete Entry">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -415,11 +534,14 @@
         <button class="action-btn btn-export-pdf" onclick="exportPDF({{ person.id }})">
             <i class="fas fa-file-pdf"></i>Export as PDF
         </button>
-        <button class="action-btn btn-export-image" onclick="exportImage({{ person.id }})">
+        <!-- <button class="action-btn btn-export-image" onclick="exportImage({{ person.id }})">
             <i class="fas fa-image"></i>Export as Image
-        </button>
+        </button> -->
         <button class="action-btn btn-clear" onclick="confirmClearLedger()">
             <i class="fas fa-trash"></i>Clear Ledger
+        </button>
+        <button class="action-btn btn-share" onclick="shareAsImage({{ person.id }}, '{{ person.name }}')">
+            <i class="fas fa-share-alt"></i>Share Ledger
         </button>
     </div>
 </div>
@@ -451,49 +573,261 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="editEntryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
 
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i> Edit Entry
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="editEntryId">
+
+                <div class="mb-3">
+                    <label class="form-label">Narration</label>
+                    <input type="text" id="editNarration" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Debit</label>
+                    <input type="number" id="editDebit" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Credit</label>
+                    <input type="number" id="editCredit" class="form-control">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="deleteEntryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">
+                    <i class="fas fa-trash"></i> Delete Entry
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                Are you sure you want to delete this entry?<br>
+                <strong>This will affect all balances.</strong>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeleteEntry()">Delete</button>
+            </div>
+
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<!-- html2canvas for in-browser image generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-    function exportPDF(personId) {
+
+/* ── Share as image ───────────────────────────────────────────── */
+async function shareAsImage(personId, personName) {
+    const btn = document.querySelector('.btn-share');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+    btn.disabled = true;
+
+    // Build a clean off-screen card to capture
+    const card = buildShareCard();
+    document.body.appendChild(card);
+
+    try {
+        const canvas = await html2canvas(card, {
+            backgroundColor: '#ffffff',
+            scale: 2,          // retina-quality
+            useCORS: true,
+            logging: false
+        });
+
+        document.body.removeChild(card);
+
+        canvas.toBlob(async (blob) => {
+            const file = new File([blob], `${personName}_Ledger.png`, { type: 'image/png' });
+
+            // Web Share API — works on Android Chrome, Safari iOS
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: `${personName} - Ledger`,
+                    text: `Ledger statement for ${personName}`
+                });
+            } else {
+                // Fallback: download the image
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${personName}_Ledger.png`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }, 'image/png');
+
+    } catch (err) {
+        document.body.removeChild(card);
+        console.error(err);
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        if (err.name !== 'AbortError') alert('Could not generate image. Try again.');
+    }
+}
+
+/* ── Build a clean, WhatsApp-friendly share card ─────────────── */
+function buildShareCard() {
+    // Grab entries from the DOM
+    const rows = document.querySelectorAll('.ledger-table tbody tr');
+    const personName = `{{ person.name }}`;
+    const currentBalance = `{{ "{:,.0f}".format(current_balance) }}`;
+    const balanceClass = {{ 'true' if current_balance >= 0 else 'false' }};
+
+    let tableRows = '';
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 5) return;
+        const date = cells[0].innerText.trim();
+        const desc = cells[1].innerText.trim();
+        const debit = cells[2].innerText.trim();
+        const credit = cells[3].innerText.trim();
+        const balance = cells[4].innerText.trim();
+        const balNum = parseFloat(balance.replace(/[₹,]/g, ''));
+
+        tableRows += `
+        <tr>
+            <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#374151;">${date}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#374151;max-width:180px;">${desc}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#dc2626;text-align:right;">${debit}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#16a34a;text-align:right;">${credit}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;font-weight:700;text-align:right;color:${balNum >= 0 ? '#16a34a' : '#dc2626'};">${balance}</td>
+        </tr>`;
+    });
+
+    const card = document.createElement('div');
+    card.style.cssText = `
+        position: fixed; left: -9999px; top: 0;
+        width: 700px; background: #ffffff;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        padding: 0; border-radius: 16px; overflow: hidden;
+    `;
+
+    card.innerHTML = `
+    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%); padding: 14px 20px; display:flex; align-items:center; justify-content:space-between;">
+        <div style="color:#fff; font-size:17px; font-weight:700;">📒 ${personName}</div>
+        <div style="color:#fff; font-size:15px; font-weight:700;">₹${currentBalance} <span style="font-size:12px; opacity:0.75;">${balanceClass ? 'Cr' : 'Dr'}</span></div>
+    </div>
+
+    <div style="padding: 0 24px 24px;">
+        <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+            <thead>
+                <tr style="background:#f8fafc;">
+                    <th style="padding:10px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;text-align:left;border-bottom:2px solid #e5e7eb;">Date</th>
+                    <th style="padding:10px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;text-align:left;border-bottom:2px solid #e5e7eb;">Description</th>
+                    <th style="padding:10px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;text-align:right;border-bottom:2px solid #e5e7eb;">Debit</th>
+                    <th style="padding:10px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;text-align:right;border-bottom:2px solid #e5e7eb;">Credit</th>
+                    <th style="padding:10px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;text-align:right;border-bottom:2px solid #e5e7eb;">Balance</th>
+                </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+        </table>
+
+        <div style="margin-top:20px;text-align:center;color:#9ca3af;font-size:11px;padding-top:16px;border-top:1px solid #f0f0f0;">
+            Generated on ${new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})}
+        </div>
+    </div>`;
+
+    return card;
+}
+
+/* ── Existing functions (unchanged) ──────────────────────────── */
+function confirmClearLedger() {
+    new bootstrap.Modal(document.getElementById('clearLedgerModal')).show();
+}
+
+function clearLedger(personId) {
+    let csrfToken = document.querySelector('input[name="csrf_token"]')?.value
+                 || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    fetch(`/ledger/${personId}/clear`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csrf_token: csrfToken })
+    })
+    .then(response => {
+        if (response.redirected) window.location.href = response.url;
+        else if (response.ok) window.location.reload();
+        else alert('Failed to clear ledger');
+    })
+    .catch(() => alert('An error occurred'));
+}
+
+let activeEntryId = null;
+function openEditModal(id, narration, debit, credit) {
+    activeEntryId = id;
+    document.getElementById("editEntryId").value = id;
+    document.getElementById("editNarration").value = narration;
+    document.getElementById("editDebit").value = debit;
+    document.getElementById("editCredit").value = credit;
+    new bootstrap.Modal(document.getElementById('editEntryModal')).show();
+}
+
+function saveEdit() {
+    const id = document.getElementById("editEntryId").value;
+    fetch(`/ledger/entry/${id}/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            narration: document.getElementById("editNarration").value,
+            debit: document.getElementById("editDebit").value,
+            credit: document.getElementById("editCredit").value
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) location.reload();
+        else alert(data.error || "Update failed");
+    })
+    .catch(() => alert("Error updating entry"));
+}
+
+let deleteEntryId = null;
+function openDeleteModal(id) {
+    deleteEntryId = id;
+    new bootstrap.Modal(document.getElementById('deleteEntryModal')).show();
+}
+
+function confirmDeleteEntry() {
+    fetch(`/ledger/entry/${deleteEntryId}/delete`, { method: "POST" })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) location.reload();
+        else alert(data.error || "Delete failed");
+    })
+    .catch(() => alert("Error deleting entry"));
+}
+function exportPDF(personId) {
         const params = new URLSearchParams(window.location.search);
         window.open(`/ledger/${personId}/pdf?${params.toString()}`, '_blank');
-    }
-
-    function exportImage(personId) {
-        const params = new URLSearchParams(window.location.search);
-        window.open(`/ledger/${personId}/image?${params.toString()}`, '_blank');
-    }
-
-    function confirmClearLedger() {
-        const modal = new bootstrap.Modal(document.getElementById('clearLedgerModal'));
-        modal.show();
-    }
-
-    function clearLedger(personId) {
-        // Get CSRF token from hidden input or meta tag
-        let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        fetch(`/ledger/${personId}/clear`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ csrf_token: csrfToken })
-        })
-        .then(response => {
-            if (response.redirected) {
-                window.location.href = response.url;
-            } else if (response.ok) {
-                window.location.reload();
-            } else {
-                alert('Failed to clear ledger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred');
-        });
     }
 </script>
 {% endblock %}

@@ -383,9 +383,11 @@
         {% if persons %}
             {% for person in persons %}
             <div class="person-item" id="person-{{ person.id }}"
+                onclick="location.href='{{ url_for('ledger.person_ledger', person_id=person.id) }}'"
+                style="cursor:pointer;"
                 data-name="{{ person.name }}"
                 data-phone="{{ (person.phone or '') ~ ' ' ~ (person.phone2 or '') }}"
-                data-balance="{{ person.ledger_balance }}">
+                data-balance="{{person.current_balance }}">
                 
                 <!-- Left Section: Main Info -->
                 <div class="person-item-main">
@@ -419,8 +421,8 @@
                 <!-- Right Section: Actions -->
                 <div class="person-item-actions">
                     <!-- Balance -->
-                    <div class="balance-badge {{ 'positive' if person.ledger_balance >= 0 else 'negative' }}">
-                        ₹{{ "%.0f"|format(person.ledger_balance) }}
+                    <div class="balance-badge {{ 'positive' if person.current_balance >= 0 else 'negative' }}">
+                        ₹{{ "%.0f"|format(person.current_balance) }}
                     </div>
 
                     <!-- Action Buttons -->
@@ -430,6 +432,11 @@
                         </button>
                         <button class="btn" onclick="event.stopPropagation(); location.href='{{ url_for('person.edit_person', id=person.id) }}'" title="Edit">
                             <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn" 
+                            onclick="event.stopPropagation(); confirmDelete({{ person.id }})" 
+                            title="Delete">
+                            <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
@@ -455,7 +462,37 @@
     </div>
     {% endif %}
 </div>
+<div class="modal fade" id="deletePersonModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+            <i class="fas fa-exclamation-triangle text-danger"></i>
+            Delete Person
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
 
+      <div class="modal-body">
+        <p><strong>This will permanently delete:</strong></p>
+        <ul>
+            <li>The person</li>
+            <li>All their ledger entries</li>
+        </ul>
+        <p class="text-danger"><strong>This cannot be undone.</strong></p>
+      </div>
+
+      <div class="modal-footer">
+        <form id="deletePersonForm" method="POST">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger">
+                Delete
+            </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -499,5 +536,12 @@ document.addEventListener('DOMContentLoaded', function () {
     searchInput.addEventListener('input', triggerSearch);
     sortSelect.addEventListener('change', triggerSearch);
 });
+function confirmDelete(personId) {
+    const form = document.getElementById('deletePersonForm');
+    form.action = `/person/${personId}/delete`;
+
+    const modal = new bootstrap.Modal(document.getElementById('deletePersonModal'));
+    modal.show();
+}
 </script>
 {% endblock %}

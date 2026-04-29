@@ -32,6 +32,7 @@ class VC(db.Model):
     created_at   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
                              onupdate=lambda: datetime.now(timezone.utc))
+    is_deleted   = db.Column(db.Boolean, nullable=False, default=False)
 
     hands          = db.relationship('VCHand',      backref='vc', lazy=True, cascade='all, delete-orphan')
     payments       = db.relationship('Payment',     backref='vc', lazy=True, cascade='all, delete-orphan')

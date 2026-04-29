@@ -21,10 +21,12 @@
     .vc-meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 1.5rem;
+        gap: 0.2rem;
         font-size: 0.95rem;
         color: var(--text-muted);
+        flex-direction: row;
     }
+
     .vc-meta span {
         display: flex;
         align-items: center;
@@ -136,7 +138,9 @@
 
     @media (max-width: 768px) {
         .vc-title { font-size: 1.5rem; }
-        .vc-meta { gap: 0.5rem; font-size: 0.85rem; flex-direction: column; }
+        .vc-header { margin-bottom: 2px; }
+        .vc-meta {flex-direction: row; flex-wrap: nowrap; justify-content: space-between; gap: 0.75rem; font-size: 0.85rem;}
+        .vc-meta span {white-space: nowrap;}
         .hand-row { display: block; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; background: var(--surface); }
         .hand-row > div { display: flex; justify-content: space-between; padding: 8px 0; font-size: 0.85rem; }
         .hand-row > div::before { content: attr(data-label); font-weight: 600; color: var(--text-muted); margin-right: 8px; }
@@ -144,6 +148,7 @@
         .hand-row.active { background: var(--accent-glow); border-left: 4px solid var(--accent); border-radius: var(--radius-md); }
         .action-buttons { flex-direction: column; width: 100%; }
         .action-buttons .btn { width: 100%; }
+        .row.mb-4 {margin-bottom: 2px !important;}
     }
 
     .modal-backdrop { background-color: rgba(0,0,0,0.5); }
@@ -162,7 +167,7 @@
 
 <div class="container-fluid">
     <!-- Page Header -->
-    <div class="row mb-4">
+    <div class="row mb-1">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-4">
                 <div class="vc-header">
@@ -234,7 +239,7 @@
                     </div>
                     <div style="flex:2" data-label="Contribution/Person">
                         {% if hand.hand_distributions %}
-                            ₹{{ "%.0f"|format(hand.total_paid / vc.total_slots)|indian_comma }}
+                            ₹{{ "%.0f"|format(hand.total_paid / vc.total_slots if vc.total_slots else 0)|indian_comma }}
                         {% else %}
                             ₹{{ "%.0f"|format(hand.projected_payout / vc.total_slots)|indian_comma }}
                         {% endif %}

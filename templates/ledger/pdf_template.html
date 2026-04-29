@@ -4,132 +4,225 @@
     <meta charset="utf-8">
     <title>{{ person.name }} - Ledger</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', Arial, sans-serif;
             font-size: 12px;
-            color: #333;
-            margin: 20px;
+            color: #1f2937;
+            background: #ffffff;
         }
-        .header h1 {
-            color: #1e293b;
-            font-size: 24px;
-            text-align: center;
-            border-bottom: 2px solid #ddd;
-            padding-bottom: 10px;
-        }
-        .summary-box {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 20px;
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%);
+            padding: 14px 24px;
             display: flex;
-            justify-content: space-around;
+            align-items: center;
+            justify-content: space-between;
         }
+
+        .header-name {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-balance {
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .header-balance span {
+            font-size: 11px;
+            opacity: 0.75;
+            font-weight: 400;
+        }
+
+        /* ── Summary strip ── */
+        .summary-strip {
+            display: flex;
+            border-bottom: 2px solid #e5e7eb;
+            background: #f8fafc;
+        }
+
         .summary-item {
+            flex: 1;
+            padding: 10px 16px;
             text-align: center;
+            border-right: 1px solid #e5e7eb;
         }
-        .summary-number {
-            font-size: 18px;
-            font-weight: bold;
+
+        .summary-item:last-child { border-right: none; }
+
+        .summary-label {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #6b7280;
+            margin-bottom: 3px;
         }
-        .table-container {
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            overflow: hidden;
+
+        .summary-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1f2937;
         }
-        .ledger-table {
+
+        .summary-value.credit { color: #16a34a; }
+        .summary-value.debit  { color: #dc2626; }
+        .summary-value.net-pos { color: #16a34a; }
+        .summary-value.net-neg { color: #dc2626; }
+
+        /* ── Table ── */
+        .table-wrap {
+            padding: 0;
+        }
+
+        table {
             width: 100%;
             border-collapse: collapse;
         }
-        .ledger-table th, .ledger-table td {
-            padding: 8px 12px;
-            border-bottom: 1px solid #eee;
+
+        thead tr {
+            background: #f1f5f9;
+        }
+
+        th {
+            padding: 9px 12px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #6b7280;
+            border-bottom: 2px solid #e5e7eb;
             text-align: left;
         }
-        .ledger-table th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-            text-transform: uppercase;
+
+        th.right { text-align: right; }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 11px;
+            color: #374151;
+            vertical-align: middle;
         }
-        .ledger-table tr:last-child td {
-            border-bottom: none;
+
+        td.right { text-align: right; }
+
+        tbody tr:last-child td { border-bottom: none; }
+
+        tbody tr:nth-child(even) { background: #fafafa; }
+
+        .amount-debit  { color: #dc2626; font-weight: 600; }
+        .amount-credit { color: #16a34a; font-weight: 600; }
+        .amount-muted  { color: #d1d5db; }
+
+        .bal-pos { color: #16a34a; font-weight: 700; }
+        .bal-neg { color: #dc2626; font-weight: 700; }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 12px;
+            font-size: 10px;
+            color: #9ca3af;
+            border-top: 1px solid #f0f0f0;
+            margin-top: 4px;
         }
-        .text-success { color: green; }
-        .text-danger { color: red; }
-        .text-muted { color: #888; }
-        .amount-credit { color: green; }
-        .amount-debit { color: red; }
-        .balance-positive { color: green; }
-        .balance-negative { color: red; }
+
+        /* ── Empty state ── */
+        .empty {
+            text-align: center;
+            padding: 48px;
+            color: #9ca3af;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
-   <div class="header">
-    <h1>
-        Personal Ledger for {{ person.name }}
-        <span class="{{ 'text-success' if person.total_balance >= 0 else 'text-danger' }}" style="font-size: 0.5em;">
-            (₹{{ "%.0f"|format(person.total_balance) }})
-        </span>
-    </h1>
-    <div class="summary-box">
-        <div class="summary-item">
-            <div class="summary-number">{{ entries|length }}</div>
-            <div class="summary-label">Total Entries</div>
+
+    {% set total_credits = entries|sum(attribute='credit') or 0 %}
+    {% set total_debits  = entries|sum(attribute='debit')  or 0 %}
+    {% set net           = total_credits - total_debits %}
+    {% set bal           = person.total_balance %}
+
+    <!-- Header: name + balance in one compact row -->
+    <div class="header">
+        <div class="header-name">
+            Ledger &mdash;  {{ person.name }}
         </div>
-        <div class="summary-item">
-            <div class="summary-number ">₹{{ "%.0f"|format(entries|sum(attribute='credit') or 0) }}</div>
-            <div class="summary-label">Total Credits</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-number ">₹{{ "%.0f"|format(entries|sum(attribute='debit') or 0) }}</div>
-            <div class="summary-label">Total Debits</div>
-        </div>
-        {% set net = (entries|sum(attribute='credit') or 0) - (entries|sum(attribute='debit') or 0) %}
-        <div class="summary-item">
-            <div class="summary-number {{ 'text-success' if net >= 0 else 'text-danger' }}">
-                ₹{{ "%.0f"|format(net) }}
-            </div>
-            <div class="summary-label">Net (Credit - Debit)</div>
+        <div class="header-balance">
+            ₹{{ "%.0f"|format(bal) }}
+            <span>{{ 'Cr' if bal >= 0 else 'Dr' }}</span>
         </div>
     </div>
-</div>
 
-    <div class="table-container">
-        <table class="ledger-table">
+    <!-- Summary strip -->
+    <div class="summary-strip">
+        <div class="summary-item">
+            <div class="summary-label">Entries</div>
+            <div class="summary-value">{{ entries|length }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Total Credit</div>
+            <div class="summary-value credit">₹{{ "%.0f"|format(total_credits) }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Total Debit</div>
+            <div class="summary-value debit">₹{{ "%.0f"|format(total_debits) }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Net</div>
+            <div class="summary-value {{ 'net-pos' if net >= 0 else 'net-neg' }}">
+                ₹{{ "%.0f"|format(net) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    {% if entries %}
+    <div class="table-wrap">
+        <table>
             <thead>
                 <tr>
                     <th>Date</th>
-                    <th>Narration</th>
-                    <th>Dr</th>
-                    <th>Cr</th>
-                    <th>Balance</th>
+                    <th>Description</th>
+                    <th class="right">Debit</th>
+                    <th class="right">Credit</th>
+                    <th class="right">Balance</th>
                 </tr>
             </thead>
             <tbody>
                 {% for entry in entries %}
                 <tr>
-                    <td>{{ entry.date.strftime('%d/%m/%Y %H:%M') }}</td>
-                    <td>
-                        <div>{{ entry.narration }}</div>
-                        <!-- {% if entry.vc %}
-                            <small class="text-muted">VC {{ entry.vc.vc_number }} - {{ entry.vc.name }}</small>
-                        {% endif %} -->
-                    </td>
-                    <td>
+                    <td style="white-space:nowrap;">{{ entry.date.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ entry.narration }}</td>
+                    <td class="right">
                         {% if entry.debit > 0 %}
                             <span class="amount-debit">₹{{ "%.0f"|format(entry.debit) }}</span>
                         {% else %}
-                            -
+                            <span class="amount-muted">—</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td class="right">
                         {% if entry.credit > 0 %}
                             <span class="amount-credit">₹{{ "%.0f"|format(entry.credit) }}</span>
                         {% else %}
-                            -
+                            <span class="amount-muted">—</span>
                         {% endif %}
                     </td>
-                    <td>
-                        <span class="{{ 'balance-positive' if entry.balance >= 0 else 'balance-negative' }}">
+                    <td class="right">
+                        <span class="{{ 'bal-pos' if entry.balance >= 0 else 'bal-neg' }}">
                             ₹{{ "%.0f"|format(entry.balance) }}
                         </span>
                     </td>
@@ -138,10 +231,13 @@
             </tbody>
         </table>
     </div>
-
-    {% if not entries %}
-    <p style="text-align: center; margin-top: 50px; color: #888;">No ledger entries found.</p>
+    {% else %}
+    <div class="empty">No ledger entries found.</div>
     {% endif %}
+
+    <div class="footer">
+        Generated on {{ now.strftime('%d %b %Y') if now else '' }} &nbsp;·&nbsp; {{ person.name }} Ledger
+    </div>
 
 </body>
 </html>

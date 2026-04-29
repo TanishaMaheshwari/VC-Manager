@@ -23,7 +23,7 @@ vc_bp = Blueprint('vc', __name__, url_prefix='/vc')
 @vc_bp.route('/')
 @login_required
 def vcs_list():
-    vcs = VC.query.filter_by(user_id=current_user.id).order_by(VC.vc_number).all()
+    vcs = VC.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(VC.vc_number).all()
     # Total due = sum of all unpaid contributions globally (across all people)
     total_due = sum(c.amount for vc in vcs for hand in vc.hands for c in hand.contributions if not c.paid)
     total_vcs = len(vcs)
@@ -236,20 +236,11 @@ def view_hand_distribution(vc_id, hand_number):
 @vc_bp.route('/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_vc(id):
-    from app.routes.ledger import close_ledger
-    
     vc = VC.query.filter_by(id=id, user_id=current_user.id).first_or_404()
-    vc_number = vc.vc_number
     
-    # Close ledgers for all members of this VC
-    for member in vc.members:
-        if member is None:
-            continue    
-        close_ledger(member.id)
-    
-    # Delete the VC
-    db.session.delete(vc)
+    # Soft delete — just hide it, keep all data intact
+    vc.is_deleted = True
     db.session.commit()
     
-    flash(f'VC {vc_number} and associated ledgers deleted successfully!', 'success')
+    flash(f'VC "{vc.name}" removed from your list.', 'success')
     return redirect(url_for('vc.vcs_list'))

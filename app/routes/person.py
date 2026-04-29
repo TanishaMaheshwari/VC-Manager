@@ -16,21 +16,97 @@ person_bp = Blueprint('person', __name__, url_prefix='/person')
 @person_bp.route('/')
 @login_required
 def persons():
-    persons = Person.query.filter_by(user_id=current_user.id).all()
-    return render_template('person/list.html', persons=persons)
 
+    # ── Subquery: latest ledger id per person ──
+    latest_id_subq = (
+        db.session.query(
+            LedgerEntry.person_id,
+            func.max(LedgerEntry.id).label('max_id')
+        )
+        .group_by(LedgerEntry.person_id)
+        .subquery()
+    )
+
+    # ── Get balance of that latest id ──
+    latest_balance_subq = (
+        db.session.query(
+            LedgerEntry.person_id,
+            LedgerEntry.balance.label('latest_balance')
+        )
+        .join(
+            latest_id_subq,
+            (LedgerEntry.person_id == latest_id_subq.c.person_id) &
+            (LedgerEntry.id == latest_id_subq.c.max_id)
+        )
+        .subquery()
+    )
+
+    # ── Main query ──
+    results = (
+        db.session.query(
+            Person,
+            latest_balance_subq.c.latest_balance
+        )
+        .outerjoin(
+            latest_balance_subq,
+            Person.id == latest_balance_subq.c.person_id
+        )
+        .filter(Person.user_id == current_user.id)
+        .order_by(Person.name.asc())
+        .all()
+    )
+
+    # ── Attach balance ──
+    persons = []
+    for person, balance in results:
+        person.current_balance = float(balance or person.opening_balance or 0.0)
+        persons.append(person)
+
+    return render_template('person/list.html', persons=persons)
 
 @person_bp.route('/search')
 @login_required
 def search_persons():
-    query = request.args.get('q', '')
+    query = request.args.get('q', '').strip()
     sort_order = request.args.get('sort', 'name_asc')
 
-    base_query = db.session.query(Person).filter_by(user_id=current_user.id)
+    # ── Subquery: latest entry by MAX(id) ──
+    latest_id_subq = (
+        db.session.query(
+            LedgerEntry.person_id,
+            func.max(LedgerEntry.id).label('max_id')
+        )
+        .group_by(LedgerEntry.person_id)
+        .subquery()
+    )
 
+    latest_balance_subq = (
+        db.session.query(
+            LedgerEntry.person_id,
+            LedgerEntry.balance.label('latest_balance')
+        )
+        .join(
+            latest_id_subq,
+            (LedgerEntry.person_id == latest_id_subq.c.person_id) &
+            (LedgerEntry.id == latest_id_subq.c.max_id)
+        )
+        .subquery()
+    )
+
+    # ── MAIN QUERY (IMPORTANT: apply user filter here) ──
+    q = db.session.query(
+        Person,
+        latest_balance_subq.c.latest_balance
+    ).outerjoin(
+        latest_balance_subq,
+        Person.id == latest_balance_subq.c.person_id
+    ).filter(
+        Person.user_id == current_user.id   # ✅ THIS WAS MISSING
+    )
+
+    # ── Search filter ──
     if query:
-        # Only include persons if their own fields match, or if they have at least one ledger entry matching
-        ledger_match = db.session.query(LedgerEntry.id).filter(
+        ledger_exists = db.session.query(LedgerEntry.id).filter(
             LedgerEntry.person_id == Person.id,
             or_(
                 LedgerEntry.narration.ilike(f'%{query}%'),
@@ -48,42 +124,33 @@ def search_persons():
             cast(Person.opening_balance, String).ilike(f'%{query}%')
         )
 
-        base_query = base_query.filter(or_(person_match, ledger_match)).distinct()
+        q = q.filter(or_(person_match, ledger_exists))
 
-    # ✅ Latest balance subquery (SAFE version using window function)
-    latest_balance_subq = (
-        db.session.query(
-            LedgerEntry.person_id,
-            LedgerEntry.balance.label('latest_balance'),
-            func.row_number().over(
-                partition_by=LedgerEntry.person_id,
-                order_by=LedgerEntry.date.desc()
-            ).label('rn')
-        ).subquery()
-    )
-
-    latest_balance = db.session.query(latest_balance_subq)\
-        .filter(latest_balance_subq.c.rn == 1)\
-        .subquery()
-
-    # ✅ Sorting
+    # ── Sorting ──
     if sort_order == 'name_asc':
-        base_query = base_query.order_by(Person.name.asc())
+        q = q.order_by(Person.name.asc())
 
     elif sort_order == 'balance_asc':
-        base_query = base_query.outerjoin(
-            latest_balance, Person.id == latest_balance.c.person_id
-        ).order_by(latest_balance.c.latest_balance.asc().nulls_last())
+        q = q.order_by(
+            latest_balance_subq.c.latest_balance.asc().nulls_last(),
+            Person.name.asc()
+        )
 
     elif sort_order == 'balance_desc':
-        base_query = base_query.outerjoin(
-            latest_balance, Person.id == latest_balance.c.person_id
-        ).order_by(latest_balance.c.latest_balance.desc().nulls_last())
+        q = q.order_by(
+            latest_balance_subq.c.latest_balance.desc().nulls_last(),
+            Person.name.asc()
+        )
 
-    persons = base_query.all()
+    # ── Execute ──
+    results = q.all()
+
+    persons = []
+    for person, balance in results:
+        person.current_balance = float(balance or person.opening_balance or 0.0)
+        persons.append(person)
 
     return render_template('person/list_card_partial.html', persons=persons)
-
 
 @person_bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -174,3 +241,19 @@ def edit_person(id):
             return redirect(url_for('person.edit_person', id=id))
 
     return render_template('person/edit.html', form=form, person=person)
+
+@person_bp.route('/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_person(id):
+    person = Person.query.filter_by(id=id, user_id=current_user.id).first_or_404()
+
+    try:
+        db.session.delete(person)
+        db.session.commit()
+        flash('Person deleted successfully!', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting person: {str(e)}', 'danger')
+
+    return redirect(url_for('person.persons'))

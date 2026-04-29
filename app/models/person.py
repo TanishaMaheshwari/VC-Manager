@@ -29,8 +29,22 @@ class Person(db.Model):
         return value
     
     # Relationships
-    payments = db.relationship('Payment', backref='person', lazy=True)
-    ledger_entries = db.relationship('LedgerEntry', backref='ledger_person', lazy=True)
+    payments = db.relationship(
+        'Payment',
+        backref='person',
+        cascade='all, delete-orphan',
+        passive_deletes=True
+    )
+    ledger_entries = db.relationship(
+        'LedgerEntry',
+        back_populates='person',
+        cascade='all, delete-orphan'
+    )
+    transactions = db.relationship(
+        'Transaction',
+        back_populates='person',
+        cascade='all, delete-orphan'
+    )
     
     @property
     def total_balance(self):

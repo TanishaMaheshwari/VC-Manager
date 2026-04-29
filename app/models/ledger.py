@@ -15,3 +15,7 @@ class LedgerEntry(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     vc = db.relationship('VC', foreign_keys=[vc_id], back_populates='ledger_entries', lazy=True)
+    person = db.relationship(
+        'Person',
+        back_populates='ledger_entries'
+    )

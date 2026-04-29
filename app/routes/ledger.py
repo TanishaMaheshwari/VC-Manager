@@ -14,45 +14,85 @@ from app.forms import LedgerEntryForm
 ledger_bp = Blueprint('ledger', __name__, url_prefix='/ledger')
 
 def get_last_balance(person_id):
-    """Get the last balance for a person from their most recent ledger entry"""
+    """Return balance of highest ledger_entries.id for this person"""
+    
     last_entry = (
-        LedgerEntry.query
-        .filter_by(person_id=person_id)
+        db.session.query(LedgerEntry)
+        .filter(LedgerEntry.person_id == person_id)
         .order_by(LedgerEntry.id.desc())
         .first()
     )
+
     if last_entry:
         return float(last_entry.balance)
-    person = Person.query.get(person_id)
-    return float(person.opening_balance or 0.0)
 
+    # fallback
+    opening_balance = (
+        db.session.query(Person.opening_balance)
+        .filter(Person.id == person_id)
+        .scalar()
+    )
+
+    return float(opening_balance or 0.0)
+
+def recalculate_balances(person_id):
+    entries = (
+        LedgerEntry.query
+        .filter_by(person_id=person_id)
+        .order_by(LedgerEntry.date.asc(), LedgerEntry.id.asc())
+        .all()
+    )
+
+    person = Person.query.get(person_id)
+    running = float(person.opening_balance or 0)
+
+    for e in entries:
+        running += float(e.credit or 0) - float(e.debit or 0)
+        e.balance = running
+
+    db.session.commit()
 
 @ledger_bp.route('/<int:person_id>')
 @login_required
 def person_ledger(person_id):
-    person = Person.query.filter_by(id=person_id, user_id=current_user.id).first_or_404()
+    person = (
+        Person.query
+        .filter_by(id=person_id, user_id=current_user.id)
+        .first_or_404()
+    )
 
-    # Filter by VC if specified
     vc_id = request.args.get('vc_id', type=int)
     from_date = request.args.get('from_date')
-    to_date   = request.args.get('to_date')
-    
-    query = LedgerEntry.query.filter_by(person_id=person_id)
+    to_date = request.args.get('to_date')
+
+    query = LedgerEntry.query.filter(LedgerEntry.person_id == person_id)
 
     if vc_id:
         query = query.filter(LedgerEntry.vc_id == vc_id)
+
     if from_date:
-        query = query.filter(LedgerEntry.date >= datetime.strptime(from_date + ' 00:00:00', '%Y-%m-%d %H:%M:%S'))
+        query = query.filter(
+            LedgerEntry.date >= datetime.strptime(from_date + ' 00:00:00', '%Y-%m-%d %H:%M:%S')
+        )
+
     if to_date:
-        query = query.filter(LedgerEntry.date <= datetime.strptime(to_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
+        query = query.filter(
+            LedgerEntry.date <= datetime.strptime(to_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
+        )
 
+    # UI order (latest first)
     entries = query.order_by(LedgerEntry.id.desc()).all()
-    entries = [e for e in entries if e is not None]
 
-    opening_balance = float(person.opening_balance or 0.0)
+    # 🔥 THIS is the only balance you care about
+    current_balance = get_last_balance(person_id)
 
-    return render_template('ledger/person.html', person=person, entries=entries, opening_balance=opening_balance)
-
+    return render_template(
+        'ledger/person.html',
+        person=person,
+        entries=entries,
+        opening_balance=float(person.opening_balance or 0.0),
+        current_balance=current_balance
+    )
 
 @ledger_bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -115,7 +155,8 @@ def export_ledger_pdf(person_id):
     rendered_html = render_template(
         'ledger/pdf_template.html',
         person=person,
-        entries=entries
+        entries=entries,
+        now=datetime.now()
     )
 
     pdf_bytes = HTML(string=rendered_html).write_pdf()
@@ -243,3 +284,56 @@ def operator_ledger():
         total_debits=total_debits,
         net_balance=net_balance,
     )
+
+@ledger_bp.route('/entry/<int:entry_id>/edit', methods=['POST'])
+@login_required
+def edit_entry(entry_id):
+    data = request.get_json()
+
+    entry = LedgerEntry.query.get_or_404(entry_id)
+
+    person = Person.query.filter_by(
+        id=entry.person_id,
+        user_id=current_user.id
+    ).first_or_404()
+
+    try:
+        entry.narration = data.get("narration", entry.narration)
+        entry.debit = float(data.get("debit") or 0)
+        entry.credit = float(data.get("credit") or 0)
+
+        db.session.commit()
+
+        # 🔥 recalc after edit
+        recalculate_balances(entry.person_id)
+
+        return {"success": True}
+
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "error": str(e)}, 400
+
+@ledger_bp.route('/entry/<int:entry_id>/delete', methods=['POST'])
+@login_required
+def delete_entry(entry_id):
+    entry = LedgerEntry.query.get_or_404(entry_id)
+
+    person = Person.query.filter_by(
+        id=entry.person_id,
+        user_id=current_user.id
+    ).first_or_404()
+
+    person_id = entry.person_id
+
+    try:
+        db.session.delete(entry)
+        db.session.commit()
+
+        # 🔥 recalc after delete
+        recalculate_balances(person_id)
+
+        return {"success": True}
+
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "error": str(e)}, 400

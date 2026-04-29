@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -495,8 +495,8 @@
                         <span class="d-none d-sm-inline">{{ current_user.name }}</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{{ url_for('ledger.operator_ledger') }}"><i class="fas fa-building"></i>Operator Account</a></li>
-                        <li><hr class="dropdown-divider"></li>
+                        <!-- <li><a class="dropdown-item" href="{{ url_for('ledger.operator_ledger') }}"><i class="fas fa-building"></i>Operator Account</a></li> -->
+                        <!-- <li><hr class="dropdown-divider"></li> -->
                         <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i>Logout</a></li>
                     </ul>
                 </div>
@@ -570,7 +570,7 @@ const htmlEl      = document.documentElement;
 const toggleInput = document.getElementById('themeToggleInput');
 const toggleIcon  = document.getElementById('toggleIcon');
 const themeLabel  = document.getElementById('themeLabel');
-let isDark = (localStorage.getItem('vcm-theme') || 'dark') === 'dark';
+let isDark = (localStorage.getItem('vcm-theme') || 'light') === 'dark';
 function applyTheme(dark) {
     isDark = dark;
     htmlEl.setAttribute('data-theme', dark ? 'dark' : 'light');

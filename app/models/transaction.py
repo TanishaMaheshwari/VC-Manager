@@ -15,7 +15,7 @@ class Transaction(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = db.relationship('User', backref='transactions')
-    person = db.relationship('Person', backref='custom_transactions')
+    person = db.relationship('Person', back_populates='transactions')
 
     def __repr__(self):
         return f'<Transaction {self.id}: {self.person.name} {self.type} ₹{self.amount}>'
